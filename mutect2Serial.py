@@ -45,11 +45,10 @@ def submitFiles(conf, files, outdir, jar):
 		# Assemble command
 		if jar == False:
 			# Format command for colling gatk from path
-			cmd = "gatk Mutect2 "
+			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
 		else:
 			# Format command for calling gatk jar
-			cmd = ("java -jar {} Mutect2 ").format(conf["gatk"])
-		cmd += ("-R {} ").format(conf["ref"])
+			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
 		#cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
 		# Call for each combination of files
 		samIndex(files[i][0])
@@ -133,7 +132,7 @@ def checkReferences(conf, jar):
 
 def getConf(infile, jar):
 	# Stores runtime options
-	conf = {"cosmic":None, "dbsnp":None, "ref":None, "gatk":None, "picard":None}
+	conf = {"ref":None, "gatk":None, "picard":None}
 	print("\n\tReading config file...")
 	with open(infile, "r") as f:
 		for line in f:
@@ -141,20 +140,13 @@ def getConf(infile, jar):
 			target = s[0].strip()
 			val = s[1].strip()
 			if val:
-				if target == "COSMIC":
-					conf["cosmic"] = val
-				elif target == "dbSNP":
-					conf["dbsnp"] = val
-				elif target == "reference_genome":
+				if target == "reference_genome":
 					conf["ref"] = val
 				elif target == "GATK_jar":
 					conf["gatk"] = val
 				elif target == "Picard_jar":
 					conf["picard"] = val
 		# Check for errors
-		if not conf["cosmic"] or not conf["dbsnp"]:
-			print("\t[Error] Please add paths to COSMIC and dbSNP vcf files to config file. Exiting.\n")
-			quit()
 		if jar == True:
 			if not conf["gatk"]:
 				print("\t[Error] Please include path to GATK jar in config file. Exiting.\n")
