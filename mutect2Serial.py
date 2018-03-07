@@ -57,8 +57,8 @@ def submitFiles(conf, files, outdir, jar):
 			samIndex(j)
 			callMutect(cmd, outdir + i, files[i][0], j)
 		# Record finished samples
-		'''with open(conf["log"], "a") as l:
-			l.write(i + "\n")'''
+		with open(conf["log"], "a") as l:
+			l.write(i + "\n")
 		print(("\tFinished running {}.").format(i))
 
 def getManifest(done, infile):
