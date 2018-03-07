@@ -11,7 +11,9 @@ git clone https://github.com/icwells/mutect2Serial.git
 ### Download dependencies:
 
 GATK: https://software.broadinstitute.org/gatk/download/ 
-Picard: https://github.com/broadinstitute/picard/releases/
+
+Picard: https://github.com/broadinstitute/picard/releases/ 
+
 Samtools: https://sourceforge.net/projects/samtools/ 
 
 pysam: 
