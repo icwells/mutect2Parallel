@@ -25,8 +25,7 @@ def callMutect(cmd, path, n, t):
 	print(("\tComparing {} and {}...").format(nid, tid))
 	with open(os.devnull, "w") as dn:
 		try:
-			#mt = Popen(split(cmd), stdout = dn)	
-			mt = Popen(split(cmd))	
+			mt = Popen(split(cmd), stdout = dn)	
 			mt.communicate()
 			print("\tFinished.")
 		except:
@@ -51,7 +50,8 @@ def submitFiles(conf, files, outdir, jar):
 		else:
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 ").format(conf["gatk"])
-		cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
+		cmd += ("-R {} ").format(conf["ref"])
+		#cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
 		# Call for each combination of files
 		samIndex(files[i][0])
 		for j in files[i][1:]:
