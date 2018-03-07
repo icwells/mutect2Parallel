@@ -35,8 +35,7 @@ def samIndex(bam):
 	# Call samtools to index sam/bam file
 	if not os.path.isfile(bam + ".bai"):
 		print(("\tGenerating sam index for {}...").format(bam))
-		bai = Popen(split(("samtools index {}").format(bam)))
-		bai.communicate()
+		pysam.index(bam)
 
 def submitFiles(conf, files, outdir, jar):
 	# Calls MuTect2 serially over input files
@@ -110,26 +109,27 @@ def checkReferences(conf, jar):
 		fai = Popen(split(("samtools faidx {}").format(ref)))
 		fai.communicate()
 	fdict = ref.replace(".fa", ".dict")
-	if not os.path.isfile(fdict):
-		# Call CreateSequenceDictionary
-		print("\tGenerating fasta dictionary...")
+	with open(os.devnull, "w") as dn:
+		if not os.path.isfile(fdict):
+			# Call CreateSequenceDictionary
+			print("\tGenerating fasta dictionary...\n")
+			if jar == True:
+				cmd = ("java -jar {} ").format(conf["picard"])
+			else:
+				cmd = "picard "
+			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn)
+			fd.communicate()
+		# Check for vcf indexes
 		if jar == True:
-			cmd = ("java -jar {} ").format(conf["picard"])
+			cmd = cmd = ("java -jar {} ").format(conf["gatk"])
 		else:
-			cmd = "picard "
-		fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)))
-		fd.communicate()
-	# Check for vcf indexes
-	if jar == True:
-		cmd = cmd = ("java -jar {} ").format(conf["gatk"])
-	else:
-		cmd = "gatk "
-	cmd += "IndexFeatureFile -F "
-	for i in [conf["cosmic"], conf["dbsnp"]]:
-		if not os.path.isfile(i + ".idx"):
-			print(("\tGenerating vcf index for {}...").format(i))
-			vcfi = Popen(split(("{} {}").format(cmd, i)))
-			vcfi.communicate()
+			cmd = "gatk "
+		cmd += "IndexFeatureFile -F "
+		for i in [conf["cosmic"], conf["dbsnp"]]:
+			if not os.path.isfile(i + ".idx"):
+				print(("\tGenerating vcf index for {}...\n").format(i))
+				vcfi = Popen(split(("{} {}").format(cmd, i)), stdout=dn)
+				vcfi.communicate()
 
 def getConf(infile, jar):
 	# Stores runtime options

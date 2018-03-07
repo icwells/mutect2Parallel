@@ -14,8 +14,6 @@ GATK: https://software.broadinstitute.org/gatk/download/
 
 Picard: https://github.com/broadinstitute/picard/releases/ 
 
-Samtools: https://sourceforge.net/projects/samtools/ 
-
 pysam: 
 
 	conda install pysam 
@@ -40,6 +38,10 @@ The manifest file may be a space, comma, or tab seperated text file with one ent
 Each entry should ahve the following format: 
 
 	SampleID	path_to_normals	path_to_tumor_file1	path_to_tumor_file2 
+
+### Index/Dict Files
+You may include a fasta dict file and fasta and vcf indeces if they are available. 
+If they are not present, the script will generate them for each file. 
 
 ## Example Usage
 
