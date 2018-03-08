@@ -19,13 +19,13 @@ def callMutect(cmd, path, n, t):
 	# Calls Mutect with given root command and files
 	nid = n[n.rfind("/")+1:].replace(".bam", "")
 	tid = t[t.rfind("/")+1:].replace(".bam", "")
-	outfile = ("{}-{}_{}.vcf").format(path, nid, tid)
+	outfile = ("{}-{}.vcf").format(path, tid)
 	tumorname = getTumorSample(t)
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
 	print(("\tComparing {} and {}...").format(nid, tid))
 	with open(os.devnull, "w") as dn:
 		try:
-			mt = Popen(split(cmd), stdout = dn)	
+			mt = Popen(split(cmd), stdout = dn, stderr=dn)	
 			mt.communicate()
 			print("\tFinished.")
 		except:
@@ -49,7 +49,6 @@ def submitFiles(conf, files, outdir, jar):
 		else:
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
-		#cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
 		# Call for each combination of files
 		samIndex(files[i][0])
 		for j in files[i][1:]:
@@ -116,19 +115,8 @@ def checkReferences(conf, jar):
 				cmd = ("java -jar {} ").format(conf["picard"])
 			else:
 				cmd = "picard "
-			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn)
+			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
-		# Check for vcf indexes
-		if jar == True:
-			cmd = cmd = ("java -jar {} ").format(conf["gatk"])
-		else:
-			cmd = "gatk "
-		cmd += "IndexFeatureFile -F "
-		for i in [conf["cosmic"], conf["dbsnp"]]:
-			if not os.path.isfile(i + ".idx"):
-				print(("\tGenerating vcf index for {}...\n").format(i))
-				vcfi = Popen(split(("{} {}").format(cmd, i)), stdout=dn)
-				vcfi.communicate()
 
 def getConf(infile, jar):
 	# Stores runtime options
