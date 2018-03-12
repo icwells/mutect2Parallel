@@ -22,14 +22,18 @@ def callMutect(cmd, path, n, t):
 	outfile = ("{}-{}_{}.vcf").format(path, nid, tid)
 	tumorname = getTumorSample(t)
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
+	print(cmd)
+	quit()
 	print(("\tComparing {} and {}...").format(nid, tid))
 	with open(os.devnull, "w") as dn:
 		try:
-			mt = Popen(split(cmd), stdout = dn)	
+			mt = Popen(split(cmd), stdout=dn, stderr=dn)	
 			mt.communicate()
 			print("\tFinished.")
+			return True
 		except:
 			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
+			return False
 
 def samIndex(bam):
 	# Call samtools to index sam/bam file
@@ -49,17 +53,20 @@ def submitFiles(conf, files, outdir, jar):
 		else:
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 ").format(conf["gatk"])
-		cmd += ("-R {} ").format(conf["ref"])
-		#cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
+		cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
 		# Call for each combination of files
 		samIndex(files[i][0])
 		for j in files[i][1:]:
+			total = 0
 			samIndex(j)
-			callMutect(cmd, outdir + i, files[i][0], j)
-		# Record finished samples
-		with open(conf["log"], "a") as l:
-			l.write(i + "\n")
-		print(("\tFinished running {}.").format(i))
+			done = callMutect(cmd, outdir + i, files[i][0], j)
+			if done == True:
+				total += 1
+		if total == 2:
+			# Record finished samples
+			with open(conf["log"], "a") as l:
+				l.write(i + "\n")
+			print(("\tFinished running {}.").format(i))
 
 def getManifest(done, infile):
 	# Returns dict of input files
@@ -117,7 +124,7 @@ def checkReferences(conf, jar):
 				cmd = ("java -jar {} ").format(conf["picard"])
 			else:
 				cmd = "picard "
-			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn)
+			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
 		# Check for vcf indexes
 		if jar == True:
@@ -128,7 +135,7 @@ def checkReferences(conf, jar):
 		for i in [conf["cosmic"], conf["dbsnp"]]:
 			if not os.path.isfile(i + ".idx"):
 				print(("\tGenerating vcf index for {}...\n").format(i))
-				vcfi = Popen(split(("{} {}").format(cmd, i)), stdout=dn)
+				vcfi = Popen(split(("{} {}").format(cmd, i)), stdout=dn, stderr=dn)
 				vcfi.communicate()
 
 def getConf(infile, jar):
