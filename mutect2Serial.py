@@ -19,21 +19,17 @@ def callMutect(cmd, path, n, t):
 	# Calls Mutect with given root command and files
 	nid = n[n.rfind("/")+1:].replace(".bam", "")
 	tid = t[t.rfind("/")+1:].replace(".bam", "")
-	outfile = ("{}-{}_{}.vcf").format(path, nid, tid)
+	outfile = ("{}-{}.vcf").format(path, tid)
 	tumorname = getTumorSample(t)
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
-	print(cmd)
-	quit()
 	print(("\tComparing {} and {}...").format(nid, tid))
 	with open(os.devnull, "w") as dn:
 		try:
-			mt = Popen(split(cmd), stdout=dn, stderr=dn)	
+			mt = Popen(split(cmd), stdout = dn, stderr=dn)	
 			mt.communicate()
 			print("\tFinished.")
-			return True
 		except:
 			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
-			return False
 
 def samIndex(bam):
 	# Call samtools to index sam/bam file
@@ -49,24 +45,19 @@ def submitFiles(conf, files, outdir, jar):
 		# Assemble command
 		if jar == False:
 			# Format command for colling gatk from path
-			cmd = "gatk Mutect2 "
+			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
 		else:
 			# Format command for calling gatk jar
-			cmd = ("java -jar {} Mutect2 ").format(conf["gatk"])
-		cmd += ("-R {} --germline-resource {} -pon {} ").format(conf["ref"], conf["cosmic"], conf["dbsnp"])
+			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
 		# Call for each combination of files
 		samIndex(files[i][0])
 		for j in files[i][1:]:
-			total = 0
 			samIndex(j)
-			done = callMutect(cmd, outdir + i, files[i][0], j)
-			if done == True:
-				total += 1
-		if total == 2:
-			# Record finished samples
-			with open(conf["log"], "a") as l:
-				l.write(i + "\n")
-			print(("\tFinished running {}.").format(i))
+			callMutect(cmd, outdir + i, files[i][0], j)
+		# Record finished samples
+		with open(conf["log"], "a") as l:
+			l.write(i + "\n")
+		print(("\tFinished running {}.").format(i))
 
 def getManifest(done, infile):
 	# Returns dict of input files
@@ -126,21 +117,10 @@ def checkReferences(conf, jar):
 				cmd = "picard "
 			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
-		# Check for vcf indexes
-		if jar == True:
-			cmd = cmd = ("java -jar {} ").format(conf["gatk"])
-		else:
-			cmd = "gatk "
-		cmd += "IndexFeatureFile -F "
-		for i in [conf["cosmic"], conf["dbsnp"]]:
-			if not os.path.isfile(i + ".idx"):
-				print(("\tGenerating vcf index for {}...\n").format(i))
-				vcfi = Popen(split(("{} {}").format(cmd, i)), stdout=dn, stderr=dn)
-				vcfi.communicate()
 
 def getConf(infile, jar):
 	# Stores runtime options
-	conf = {"cosmic":None, "dbsnp":None, "ref":None, "gatk":None, "picard":None}
+	conf = {"ref":None, "gatk":None, "picard":None}
 	print("\n\tReading config file...")
 	with open(infile, "r") as f:
 		for line in f:
@@ -148,20 +128,13 @@ def getConf(infile, jar):
 			target = s[0].strip()
 			val = s[1].strip()
 			if val:
-				if target == "COSMIC":
-					conf["cosmic"] = val
-				elif target == "dbSNP":
-					conf["dbsnp"] = val
-				elif target == "reference_genome":
+				if target == "reference_genome":
 					conf["ref"] = val
 				elif target == "GATK_jar":
 					conf["gatk"] = val
 				elif target == "Picard_jar":
 					conf["picard"] = val
 		# Check for errors
-		if not conf["cosmic"] or not conf["dbsnp"]:
-			print("\t[Error] Please add paths to COSMIC and dbSNP vcf files to config file. Exiting.\n")
-			quit()
 		if jar == True:
 			if not conf["gatk"]:
 				print("\t[Error] Please include path to GATK jar in config file. Exiting.\n")
