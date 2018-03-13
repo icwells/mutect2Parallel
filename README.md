@@ -1,4 +1,4 @@
-# Call Mutect2 in serial over input files
+# Call Mutect2 in parallel over input files
 ## This script replaces mutect2Serial and can run mutliple instances of mutect at once. 
 ### This script is meant to meet the specific needs of my lab, but is provided in case it proves useful to others.
 
