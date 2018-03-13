@@ -39,3 +39,8 @@ If they are not present, the script will generate them for each file.
 ## Example Usage
 
 	python mutect2Serial.py {--jar} -t <#threads> -i path_to_manifest -c path_to_config_file -o path_to_output_directory
+
+## Output 
+For each batch of input samples, mutect2Parallel will create four output files. For each control-tumor comparison 
+(file 1 vs 2 and 1 vs 3), mutect2 will create an output vcf and the stdout and stderr will be piped to a 
+file with the same name as the vcf, but with a stdout extension. 
