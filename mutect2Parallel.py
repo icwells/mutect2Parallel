@@ -1,0 +1,195 @@
+'''This script will call MuTect2 on a given list of input files'''
+
+import argparse
+import os
+import pysam
+from datetime import datetime
+from functools import partial
+from multiprocessing import Pool, cpu_count
+from subprocess import Popen
+from shlex import split
+
+def getTumorSample(bam):
+	# Extracts tumor sample name from bam file
+	rg = pysam.view("-H", bam)
+	rg = rg[rg.find("@RG"):rg.find("@PG")]
+	name = rg[rg.find("SM:"):]
+	return name[name.find(":")+1:name.find("\t")]
+
+def callMutect(cmd, path, n, t):
+	# Calls Mutect with given root command and files
+	nid = n[n.rfind("/")+1:].replace(".bam", "")
+	tid = t[t.rfind("/")+1:].replace(".bam", "")
+	outfile = ("{}-{}.vcf").format(path, tid)
+	tumorname = getTumorSample(t)
+	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
+	print(("\tComparing {} and {}...").format(nid, tid))
+	with open(outfile.replace("vcf", "stdout"), "w") as dn:
+		try:
+			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
+			mt.communicate()
+			print(("\tFinished comparing {} and {}...").format(nid, tid))
+			return 1
+		except:
+			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
+			return 0
+
+def samIndex(bam):
+	# Call samtools to index sam/bam file
+	if not os.path.isfile(bam + ".bai"):
+		print(("\tGenerating sam index for {}...").format(bam))
+		pysam.index(bam)
+
+def submitFiles(conf, outdir, sample):
+	# Calls MuTect2 serially over input files
+	passes = 0
+	print(("\n\tProcessing {}...").format(sample[0]))
+	# Assemble command
+	if conf["jar"] == False:
+		# Format command for colling gatk from path
+		cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
+	else:
+		# Format command for calling gatk jar
+		cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
+	# Call for each combination of files
+	samIndex(sample[1])
+	for j in sample[2:]:
+		samIndex(j)
+		res = callMutect(cmd, outdir + sample[0], sample[1], j)
+		passes += res
+	if passes > 1:
+		# Record finished samples
+		with open(conf["log"], "a") as l:
+			l.write(i + "\n")
+	return sample[0]
+
+def getManifest(done, infile):
+	# Returns dict of input files
+	files = []
+	first = True
+	print("\tReading input file...")
+	with open(infile, "r") as f:
+		for line in f:
+			if first == True:
+				# Determine delimiter
+				for i in [" ", "\t", ","]:
+					if i in line:
+						delim = i
+						break
+				first = False
+			s = line.strip().split(delim)
+			if s[0] not in done:
+				# {ID: [Normal, A, B]}
+				files.append(s)
+	print(("\tFound entries for {} new samples.").format(len(files)))
+	return files
+
+def checkOutput(outdir):
+	# Checks for output log file and reads if present
+	done = []
+	log = outdir + "mutectLog.txt"
+	print("\tChecking for previous output...")
+	if not os.path.isdir(outdir):
+		os.mkdir(outdir)
+	if os.path.isfile(log):
+		with open(log, "r") as f:
+			for line in f:
+				done.append(line.strip())
+		print(("\tFound {} completed samples.").format(len(done)))
+	else:
+		with open(log, "w") as f:
+			# Initialize log file
+			pass
+	return log, done
+
+def checkReferences(conf):
+	# Ensures fasta and vcf index and dict files are present
+	ref = conf["ref"]
+	if not os.path.isfile(ref + ".fai"):
+		# Call samtools to make index file
+		print("\tGenerating fasta index...")
+		fai = Popen(split(("samtools faidx {}").format(ref)))
+		fai.communicate()
+	fdict = ref.replace(".fa", ".dict")
+	with open(os.devnull, "w") as dn:
+		if not os.path.isfile(fdict):
+			# Call CreateSequenceDictionary
+			print("\tGenerating fasta dictionary...\n")
+			if conf["jar"] == True:
+				cmd = ("java -jar {} ").format(conf["picard"])
+			else:
+				cmd = "picard "
+			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
+			fd.communicate()
+
+def getConf(cpu, ref, infile, jar):
+	# Stores runtime options
+	conf = {"ref":ref, "gatk":None, "picard":None}
+	if cpu > cpu_count():
+		cpu = cpu_count()
+	conf["cpu"] = cpu
+	conf["jar"] = jar
+	if jar == True:
+		print("\n\tReading config file...")
+		with open(infile, "r") as f:
+			for line in f:
+				s = line.split("=")
+				target = s[0].strip()
+				val = s[1].strip()
+				if val:
+					if target == "GATK_jar":
+						conf["gatk"] = val
+					elif target == "Picard_jar":
+						conf["picard"] = val
+			# Check for errors
+			if not conf["gatk"]:
+				print("\t[Error] Please include path to GATK jar in config file. Exiting.\n")
+				quit()
+			if not conf["picard"]:
+				print("\t[Warning] Path to Picard.jar not found. Picard is required to create a new fasta dict.")
+				proceed = input("\tProceed? (Enter 'y' for yes or any other key for no): ")
+				if proceed.lower() != "y":
+					print("\tExiting.\n")
+					quit()
+	return conf
+
+def main():
+	starttime = datetime.now()
+	jar = False
+	parser = argparse.ArgumentParser(description = "This script will call MuTect2 on a given \
+list of input files. Be sure that pysam is installed and that Samtools is in your PATH.")
+	parser.add_argument("-t", type = int, default = 1,
+help = "The number of threads to use (i.e. number of parallel mutect instances).")
+	parser.add_argument("-i", 
+help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
+	parser.add_argument("-r", help = "Path to reference genome.")
+	parser.add_argument("-o", help = "Path to output directory.")
+	parser.add_argument("-j", help = "Path to config file. Will use the jar files indicated \
+(calls binaries in environment by default).")
+	args = parser.parse_args()
+	if not args.i or not args.o or not args.r:
+		print("\n\t[Error] Please specify input file, reference genome, and output directory. Exiting.\n")
+		quit()
+	if args.o[-1] != "/":
+		args.o += "/"
+	if args.j:
+		jar = True
+	conf = getConf(args.t, args.r, args.j, jar)
+	checkReferences(conf)
+	log, done = checkOutput(args.o)
+	conf["log"] = log
+	files = getManifest(done, args.i)
+	pool = Pool(processes = args.t)
+	func = partial(submitFiles, conf, args.o)
+	l = len(files)
+	# Call mutect
+	print(("\n\tCalling mutect2 with {} threads....").format(args.t))
+	for x in pool.imap_unordered(func, files):
+		l -= 1
+		print(("\n\t{} has finished. {} samples remaining").format(x, l))
+	pool.close()
+	pool.join()
+	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
+
+if __name__ == "__main__":
+	main()
