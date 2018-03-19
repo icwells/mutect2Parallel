@@ -14,7 +14,7 @@ def callMutect(cmd, path, n, t):
 	nid = n[n.rfind("/")+1:].replace(".bam", "")
 	tid = t[t.rfind("/")+1:].replace(".bam", "")
 	outfile = ("{}-{}.vcf").format(path, tid)
-	tumorname = getTumorSample(t)
+	tumorname = checkRG(t)
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
 	print(("\tComparing {} and {}...").format(nid, tid))
 	with open(outfile.replace("vcf", "stdout"), "w") as dn:
@@ -40,7 +40,7 @@ def submitFiles(conf, outdir, sample):
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
 		# Call for each combination of files
-		samIndex(sample[1])
+		checkRG(sample[1])
 		if sample[4] == 1:
 			s = [sample[3]]
 		elif sample[4] == 2:
@@ -48,7 +48,6 @@ def submitFiles(conf, outdir, sample):
 		else:
 			s = [sample[2], sample[3]]
 		for j in sample[2:4]:
-			samIndex(j)
 			res = callMutect(cmd, outdir + sample[0], sample[1], j)
 			if res:
 				# Record finished samples
