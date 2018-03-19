@@ -2,19 +2,12 @@
 
 import argparse
 import os
-import pysam
 from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from subprocess import Popen
 from shlex import split
-
-def getTumorSample(bam):
-	# Extracts tumor sample name from bam file
-	rg = pysam.view("-H", bam)
-	rg = rg[rg.find("@RG"):rg.find("@PG")]
-	name = rg[rg.find("SM:"):]
-	return name[name.find(":")+1:name.find("\t")]
+from checkBAM import *
 
 def callMutect(cmd, path, n, t):
 	# Calls Mutect with given root command and files
@@ -29,38 +22,44 @@ def callMutect(cmd, path, n, t):
 			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
 			mt.communicate()
 			print(("\tFinished comparing {} and {}...").format(nid, tid))
-			return 1
+			return outfile[outfile.rfind("/")+1:outfile.rfind(".")]
 		except:
 			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
-			return 0
-
-def samIndex(bam):
-	# Call samtools to index sam/bam file
-	if not os.path.isfile(bam + ".bai"):
-		print(("\tGenerating sam index for {}...").format(bam))
-		pysam.index(bam)
+			return ""
 
 def submitFiles(conf, outdir, sample):
 	# Calls MuTect2 serially over input files
-	passes = 0
-	print(("\n\tProcessing {}...").format(sample[0]))
-	# Assemble command
-	if conf["jar"] == False:
-		# Format command for colling gatk from path
-		cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
-	else:
-		# Format command for calling gatk jar
-		cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
-	# Call for each combination of files
-	samIndex(sample[1])
-	for j in sample[2:]:
-		samIndex(j)
-		res = callMutect(cmd, outdir + sample[0], sample[1], j)
-		passes += res
-	if passes > 1:
-		# Record finished samples
-		with open(conf["log"], "a") as l:
-			l.write(i + "\n")
+	if sample[4] < 3:
+		# Proceed if at least one combination has not been run
+		print(("\n\tProcessing {}...").format(sample[0]))
+		# Assemble command
+		if conf["jar"] == False:
+			# Format command for colling gatk from path
+			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
+		else:
+			# Format command for calling gatk jar
+			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
+		# Call for each combination of files
+		samIndex(sample[1])
+		if sample[4] == 1:
+			s = [sample[3]]
+		elif sample[4] == 2:
+			s = [sample[2]]
+		else:
+			s = [sample[2], sample[3]]
+		for j in sample[2:4]:
+			samIndex(j)
+			res = callMutect(cmd, outdir + sample[0], sample[1], j)
+			if res:
+				# Record finished samples
+				with open(conf["log"], "a") as l:
+					l.write(("{}\tMutect\n").format(res))
+	'''elif sample[4] == 3:
+		# Compare output
+		if status = True:
+			# Record finished samples
+			with open(conf["log"], "a") as l:
+				l.write(("{}\tcomparison\n").format(sample[0]))'''
 	return sample[0]
 
 def getManifest(done, infile):
@@ -70,6 +69,8 @@ def getManifest(done, infile):
 	print("\tReading input file...")
 	with open(infile, "r") as f:
 		for line in f:
+			a = 0
+			b = 0
 			if first == True:
 				# Determine delimiter
 				for i in [" ", "\t", ","]:
@@ -78,15 +79,25 @@ def getManifest(done, infile):
 						break
 				first = False
 			s = line.strip().split(delim)
-			if s[0] not in done:
-				# {ID: [Normal, A, B]}
-				files.append(s)
-	print(("\tFound entries for {} new samples.").format(len(files)))
+			if s[0] in done:
+				if done[s[0]][-1] == "comparison":
+					# Skip completed files
+					pass
+				else:
+					# [ID, Normal, A, B, status]
+					if s[2] in done[s[0]]:
+						a = 1
+					if s[3] in done[s[0]]:
+						b = 2
+			# Statuses: 0=none, 1=a_done, 2=b_done, 3=both
+			s.append(a+b)
+			files.append(s)
+	print(("\tFound entries for {} samples.").format(len(files)))
 	return files
 
 def checkOutput(outdir):
 	# Checks for output log file and reads if present
-	done = []
+	done = {}
 	log = outdir + "mutectLog.txt"
 	print("\tChecking for previous output...")
 	if not os.path.isdir(outdir):
@@ -94,7 +105,17 @@ def checkOutput(outdir):
 	if os.path.isfile(log):
 		with open(log, "r") as f:
 			for line in f:
-				done.append(line.strip())
+				line = line.strip().split("\t")
+				splt = line[0].split("-")
+				if splt[0] in done.keys():
+					if line[1] == "comparison":
+						# Record last stage completed (comparison/mutect)
+						done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
+					else:
+						done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
+				else:
+					# {sample#: [filename1, filename1, mostRecent]}
+					done[splt[0]] = [splt[1], line[1]]
 		print(("\tFound {} completed samples.").format(len(done)))
 	else:
 		with open(log, "w") as f:
@@ -106,10 +127,7 @@ def checkReferences(conf):
 	# Ensures fasta and vcf index and dict files are present
 	ref = conf["ref"]
 	if not os.path.isfile(ref + ".fai"):
-		# Call samtools to make index file
-		print("\tGenerating fasta index...")
-		fai = Popen(split(("samtools faidx {}").format(ref)))
-		fai.communicate()
+		getFastaIndex(ref)
 	fdict = ref.replace(".fa", ".dict")
 	with open(os.devnull, "w") as dn:
 		if not os.path.isfile(fdict):
