@@ -7,14 +7,14 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 from subprocess import Popen
 from shlex import split
-from checkBAM import *
+from bamUtil import *
 
 def callMutect(cmd, path, n, t):
 	# Calls Mutect with given root command and files
 	nid = n[n.rfind("/")+1:].replace(".bam", "")
 	tid = t[t.rfind("/")+1:].replace(".bam", "")
 	outfile = ("{}-{}.vcf").format(path, tid)
-	tumorname = checkRG(t)
+	tumorname, t = checkRG(t, tid)
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
 	print(("\tComparing {} and {}...").format(nid, tid))
 	with open(outfile.replace("vcf", "stdout"), "w") as dn:
@@ -22,39 +22,46 @@ def callMutect(cmd, path, n, t):
 			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
 			mt.communicate()
 			print(("\tFinished comparing {} and {}...").format(nid, tid))
-			return outfile[outfile.rfind("/")+1:outfile.rfind(".")]
+			return outfile
 		except:
 			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
 			return ""
 
-def submitFiles(conf, outdir, sample):
+def submitFiles(conf, outfiles, outdir, sample):
 	# Calls MuTect2 serially over input files
 	if sample[4] < 3:
 		# Proceed if at least one combination has not been run
+		if sample[0] in outfiles.keys():
+			vcfs = outfiles[sample[0]]
+		else:
+			vcfs = []
 		print(("\n\tProcessing {}...").format(sample[0]))
 		# Assemble command
 		if conf["jar"] == False:
 			# Format command for colling gatk from path
 			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
+			_, control = checkRG(sample[1], sample[0])
 		else:
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
-		# Call for each combination of files
-		checkRG(sample[1])
+			_, control = checkRG(sample[1], sample[0], conf["picard"])
 		if sample[4] == 1:
 			s = [sample[3]]
 		elif sample[4] == 2:
 			s = [sample[2]]
 		else:
 			s = [sample[2], sample[3]]
-		for j in sample[2:4]:
-			res = callMutect(cmd, outdir + sample[0], sample[1], j)
+		# Call for each remaining combination of control-tumor
+		for j in s:
+			res = callMutect(cmd, outdir + sample[0], control, j)
 			if res:
 				# Record finished samples
+				vcfs.append(res)
 				with open(conf["log"], "a") as l:
-					l.write(("{}\tMutect\n").format(res))
+					l.write(("{}\tMutect\n").format(res[res.rfind("/")+1:res.rfind(".")]))
 	'''elif sample[4] == 3:
 		# Compare output
+		status = compareVCFs(vcfs)
 		if status = True:
 			# Record finished samples
 			with open(conf["log"], "a") as l:
@@ -78,7 +85,7 @@ def getManifest(done, infile):
 						break
 				first = False
 			s = line.strip().split(delim)
-			if s[0] in done:
+			if s[0] in done.keys():
 				if done[s[0]][-1] == "comparison":
 					# Skip completed files
 					pass
@@ -91,12 +98,19 @@ def getManifest(done, infile):
 			# Statuses: 0=none, 1=a_done, 2=b_done, 3=both
 			s.append(a+b)
 			files.append(s)
+	for i in files:
+		for j in i[1:4]:
+			if not os.path.isfile(j):
+				print(("\n\t[Error] Input file {} not found. Exiting.\n").format(j))
+				quit()
 	print(("\tFound entries for {} samples.").format(len(files)))
 	return files
 
 def checkOutput(outdir):
 	# Checks for output log file and reads if present
+	first = True
 	done = {}
+	outfiles = {}
 	log = outdir + "mutectLog.txt"
 	print("\tChecking for previous output...")
 	if not os.path.isdir(outdir):
@@ -104,23 +118,31 @@ def checkOutput(outdir):
 	if os.path.isfile(log):
 		with open(log, "r") as f:
 			for line in f:
-				line = line.strip().split("\t")
-				splt = line[0].split("-")
-				if splt[0] in done.keys():
-					if line[1] == "comparison":
-						# Record last stage completed (comparison/mutect)
-						done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
+				if first == False:
+					line = line.strip().split("\t")
+					splt = line[0].split("-")
+					if splt[0] in done.keys():
+						# Record vcf location
+						outfiles[splt[0]].append(splt[2])
+						if line[1] == "comparison":
+							# Record last stage completed (comparison/mutect)
+							done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
+						else:
+							done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
 					else:
-						done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
+						# {sample#: [filename1, filename1, mostRecent]}
+						done[splt[0]] = [splt[1], line[1]]
+						# {sample#: [vcf1, vcf2]}
+						outfiles[splt[0]] = [splt[2]]
 				else:
-					# {sample#: [filename1, filename1, mostRecent]}
-					done[splt[0]] = [splt[1], line[1]]
+					# Skip header
+					first = False
 		print(("\tFound {} completed samples.").format(len(done)))
 	else:
 		with open(log, "w") as f:
 			# Initialize log file
-			pass
-	return log, done
+			f.write("Sample\tStatus\tOutput\n")
+	return log, done, outfiles
 
 def checkReferences(conf):
 	# Ensures fasta and vcf index and dict files are present
@@ -146,6 +168,9 @@ def getConf(cpu, ref, infile, jar):
 		cpu = cpu_count()
 	conf["cpu"] = cpu
 	conf["jar"] = jar
+	if not os.path.isfile(conf["ref"]):
+		print("\n\t[Error] Genome fasta not found. Exiting.\n")
+		quit()
 	if jar == True:
 		print("\n\tReading config file...")
 		with open(infile, "r") as f:
@@ -159,11 +184,11 @@ def getConf(cpu, ref, infile, jar):
 					elif target == "Picard_jar":
 						conf["picard"] = val
 			# Check for errors
-			if not conf["gatk"]:
-				print("\t[Error] Please include path to GATK jar in config file. Exiting.\n")
+			if not conf["gatk"] or not os.path.isfile(conf["gatk"]):
+				print("\n\t[Error] Please include path to GATK jar in config file. Exiting.\n")
 				quit()
-			if not conf["picard"]:
-				print("\t[Warning] Path to Picard.jar not found. Picard is required to create a new fasta dict.")
+			if not conf["picard"] or not os.path.isfile(conf["picard"]):
+				print("\n\t[Warning] Path to Picard.jar not found. Picard is required to create a new fasta dict.")
 				proceed = input("\tProceed? (Enter 'y' for yes or any other key for no): ")
 				if proceed.lower() != "y":
 					print("\tExiting.\n")
@@ -193,11 +218,11 @@ help = "Path to space/tab/comma seperated text file of input files (format: ID N
 		jar = True
 	conf = getConf(args.t, args.r, args.j, jar)
 	checkReferences(conf)
-	log, done = checkOutput(args.o)
+	log, done, outfiles = checkOutput(args.o)
 	conf["log"] = log
 	files = getManifest(done, args.i)
 	pool = Pool(processes = args.t)
-	func = partial(submitFiles, conf, args.o)
+	func = partial(submitFiles, conf, outfiles, args.o)
 	l = len(files)
 	# Call mutect
 	print(("\n\tCalling mutect2 with {} threads....").format(args.t))
