@@ -199,26 +199,25 @@ def getConf(cpu, ref, infile, jar):
 
 def main():
 	starttime = datetime.now()
-	jar = False
 	parser = argparse.ArgumentParser(description = "This script will call MuTect2 on a given \
 list of input files. Be sure that pysam is installed and that Samtools is in your PATH.")
+	parser.add_argument("--jar", action = "store_true", default = False,
+help = "Calls java jars indicated in the config file (Calls binaries in the environment by default).")
 	parser.add_argument("-t", type = int, default = 1,
 help = "The number of threads to use (i.e. number of parallel mutect instances).")
 	parser.add_argument("-i", 
 help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
 	parser.add_argument("-r", help = "Path to reference genome.")
 	parser.add_argument("-o", help = "Path to output directory.")
-	parser.add_argument("-j", help = "Path to config file. Will use the jar files indicated \
-(calls binaries in environment by default).")
+	parser.add_argument("-c", 
+help = "Path to config file containing reference genome, java jars (if using), and mutect options).")
 	args = parser.parse_args()
 	if not args.i or not args.o:
 		print("\n\t[Error] Please specify input file and output directory. Exiting.\n")
 		quit()
 	if args.o[-1] != "/":
 		args.o += "/"
-	if args.j:
-		jar = True
-	conf = getConf(args.t, args.r, args.j, jar)
+	conf = getConf(args.t, args.r, args.c, args.jar)
 	checkReferences(conf)
 	log, done, outfiles = checkOutput(args.o)
 	conf["log"] = log

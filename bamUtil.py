@@ -30,7 +30,8 @@ def addRG(bam, sid, picard):
 		cmd = ("java -jar {} AddOrReplaceReadGroups I={} O={} ").format(picard, bam, outfile)
 	else:
 		cmd = ("picard AddOrReplaceReadGroups I={} O={}").format(bam, outfile)
-	cmd += ("RGLB=lib1 RGPL=illumina RGPU={}").format(sid)
+	cmd += (" RGLB=lib1 RGPL=illumina RGPU={}").format(sid)
+	print(cmd)
 	try:
 		print(("\tAdding read groups to {}").format(bam))
 		with open(os.devnull, "w") as dn:
