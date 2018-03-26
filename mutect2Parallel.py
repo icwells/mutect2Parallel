@@ -58,7 +58,7 @@ def submitFiles(conf, outfiles, outdir, sample):
 				# Record finished samples
 				vcfs.append(res)
 				with open(conf["log"], "a") as l:
-					l.write(("{}\tMutect\n").format(res[res.rfind("/")+1:res.rfind(".")]))
+					l.write(("{}\tMutect\t{}\n").format(res[res.rfind("/")+1:res.rfind(".")], res))
 	'''elif sample[4] == 3:
 		# Compare output
 		status = compareVCFs(vcfs)
@@ -91,9 +91,9 @@ def getManifest(done, infile):
 					pass
 				else:
 					# [ID, Normal, A, B, status]
-					if s[2] in done[s[0]]:
+					if s[2][s[2].rfind("/")+1:].replace(".bam", "") in done[s[0]]:
 						a = 1
-					if s[3] in done[s[0]]:
+					if s[3][s[3].rfind("/")+1:].replace(".bam", "") in done[s[0]]:
 						b = 2
 			# Statuses: 0=none, 1=a_done, 2=b_done, 3=both
 			s.append(a+b)
@@ -123,17 +123,17 @@ def checkOutput(outdir):
 					splt = line[0].split("-")
 					if splt[0] in done.keys():
 						# Record vcf location
-						outfiles[splt[0]].append(splt[2])
+						outfiles[splt[0]].append(line[2])
 						if line[1] == "comparison":
 							# Record last stage completed (comparison/mutect)
 							done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
 						else:
 							done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
 					else:
-						# {sample#: [filename1, filename1, mostRecent]}
+						# {sample#: [filename1, filename2, mostRecent]}
 						done[splt[0]] = [splt[1], line[1]]
 						# {sample#: [vcf1, vcf2]}
-						outfiles[splt[0]] = [splt[2]]
+						outfiles[splt[0]] = [line[2]]
 				else:
 					# Skip header
 					first = False
