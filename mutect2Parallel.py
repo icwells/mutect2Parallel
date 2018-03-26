@@ -163,15 +163,14 @@ def checkReferences(conf):
 
 def getConf(cpu, ref, infile, jar):
 	# Stores runtime options
-	conf = {"ref":ref, "gatk":None, "picard":None}
+	conf = {"ref":None, "gatk":None, "picard":None}
 	if cpu > cpu_count():
 		cpu = cpu_count()
 	conf["cpu"] = cpu
 	conf["jar"] = jar
-	if not os.path.isfile(conf["ref"]):
-		print("\n\t[Error] Genome fasta not found. Exiting.\n")
-		quit()
-	if jar == True:
+	if ref:
+		conf["ref"] = ref
+	if not ref or jar == True:
 		print("\n\tReading config file...")
 		with open(infile, "r") as f:
 			for line in f:
@@ -179,20 +178,23 @@ def getConf(cpu, ref, infile, jar):
 				target = s[0].strip()
 				val = s[1].strip()
 				if val:
-					if target == "GATK_jar":
+					if target == "reference_genome":
+						conf["ref"] = val
+					elif target == "GATK_jar":
 						conf["gatk"] = val
 					elif target == "Picard_jar":
 						conf["picard"] = val
 			# Check for errors
-			if not conf["gatk"] or not os.path.isfile(conf["gatk"]):
-				print("\n\t[Error] Please include path to GATK jar in config file. Exiting.\n")
-				quit()
-			if not conf["picard"] or not os.path.isfile(conf["picard"]):
-				print("\n\t[Warning] Path to Picard.jar not found. Picard is required to create a new fasta dict.")
-				proceed = input("\tProceed? (Enter 'y' for yes or any other key for no): ")
-				if proceed.lower() != "y":
-					print("\tExiting.\n")
+			if jar == True:
+				if not conf["gatk"] or not os.path.isfile(conf["gatk"]):
+					print("\n\t[Error] Please include path to GATK jar in config file. Exiting.\n")
 					quit()
+				if not conf["picard"] or not os.path.isfile(conf["picard"]):
+					print("\n\t[Error] Path to Picard.jar not found. Exiting.\n")
+					quit()
+	if not os.path.isfile(conf["ref"]):
+		print("\n\t[Error] Genome fasta not found. Exiting.\n")
+		quit()
 	return conf
 
 def main():
@@ -209,8 +211,8 @@ help = "Path to space/tab/comma seperated text file of input files (format: ID N
 	parser.add_argument("-j", help = "Path to config file. Will use the jar files indicated \
 (calls binaries in environment by default).")
 	args = parser.parse_args()
-	if not args.i or not args.o or not args.r:
-		print("\n\t[Error] Please specify input file, reference genome, and output directory. Exiting.\n")
+	if not args.i or not args.o:
+		print("\n\t[Error] Please specify input file and output directory. Exiting.\n")
 		quit()
 	if args.o[-1] != "/":
 		args.o += "/"
