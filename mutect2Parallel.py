@@ -9,23 +9,33 @@ from subprocess import Popen
 from shlex import split
 from bamUtil import *
 
-def callMutect(cmd, path, n, t):
+def callMutect(cmd, picard, path, n, t):
 	# Calls Mutect with given root command and files
-	nid = n[n.rfind("/")+1:].replace(".bam", "")
-	tid = t[t.rfind("/")+1:].replace(".bam", "")
+	nid = n[n.rfind("/")+1:n.find(".")]
+	tid = t[t.rfind("/")+1:t.find(".")]
 	outfile = ("{}-{}.vcf").format(path, tid)
-	tumorname, t = checkRG(t, tid)
+	tumorname, t = checkRG(t, tid, picard)
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
 	print(("\tComparing {} and {}...").format(nid, tid))
-	with open(outfile.replace("vcf", "stdout"), "w") as dn:
+	log = outfile.replace("vcf", "stdout")
+	with open(log, "w") as dn:
 		try:
 			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
 			mt.communicate()
-			print(("\tFinished comparing {} and {}...").format(nid, tid))
-			return outfile
 		except:
 			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
-			return ""
+	with open(log, "r") as dn:
+		status = False
+		# Make sure mutect completed successfully
+		for line in dn:
+			if "Tool returned:" in line:
+				status = True
+			elif status == True:
+				if "SUCCESS" in line:
+					print(("\tFinished comparing {} and {}...").format(nid, tid))
+					return outfile
+				else:
+					return ""
 
 def submitFiles(conf, outfiles, outdir, sample):
 	# Calls MuTect2 serially over input files
@@ -53,7 +63,7 @@ def submitFiles(conf, outfiles, outdir, sample):
 			s = [sample[2], sample[3]]
 		# Call for each remaining combination of control-tumor
 		for j in s:
-			res = callMutect(cmd, outdir + sample[0], control, j)
+			res = callMutect(cmd, conf["picard"], outdir + sample[0], control, j)
 			if res:
 				# Record finished samples
 				vcfs.append(res)

@@ -31,21 +31,24 @@ def addRG(bam, sid, picard):
 	else:
 		cmd = ("picard AddOrReplaceReadGroups I={} O={}").format(bam, outfile)
 	cmd += (" RGLB=lib1 RGPL=illumina RGPU={}").format(sid)
-	print(cmd)
 	try:
 		print(("\tAdding read groups to {}").format(bam))
 		with open(os.devnull, "w") as dn:
 			arg = Popen(split(cmd), stdout = dn, stderr = dn)
 			arg.communicate()
-		return outfile
 	except:
 		print(("\t[Error] Could not add read groups to {}\n").format(bam))
 		quit()
+	return outfile, getTumorName(outfile)
 
 def checkRG(bam, sid, picard=""):
 	# Adds read groups, creates bam index, and returns read group name
+	idx = True
 	name = getTumorName(bam)
 	if not name or len(name) < 5:
-		bam = addRG(bam, sid, picard)
-	samIndex(bam)
+		idx = False
+		bam, name = addRG(bam, sid, picard)
+		name = getTumorName(bam)
+	if idx == True:
+		samIndex(bam)
 	return name, bam
