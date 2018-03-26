@@ -128,22 +128,23 @@ def checkOutput(outdir):
 	if os.path.isfile(log):
 		with open(log, "r") as f:
 			for line in f:
-				if first == False:
+				if first == False and line.strip():
 					line = line.strip().split("\t")
 					splt = line[0].split("-")
-					if splt[0] in done.keys():
-						# Record vcf location
-						outfiles[splt[0]].append(line[2])
-						if line[1] == "comparison":
-							# Record last stage completed (comparison/mutect)
-							done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
+					if len(line) == 3 and len(splt) == 2:
+						if splt[0] in done.keys():
+							# Record vcf location
+							outfiles[splt[0]].append(line[2])
+							if line[1] == "comparison":
+								# Record last stage completed (comparison/mutect)
+								done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
+							else:
+								done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
 						else:
-							done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
-					else:
-						# {sample#: [filename1, filename2, mostRecent]}
-						done[splt[0]] = [splt[1], line[1]]
-						# {sample#: [vcf1, vcf2]}
-						outfiles[splt[0]] = [line[2]]
+							# {sample#: [filename1, filename2, mostRecent]}
+							done[splt[0]] = [splt[1], line[1]]
+							# {sample#: [vcf1, vcf2]}
+							outfiles[splt[0]] = [line[2]]
 				else:
 					# Skip header
 					first = False
