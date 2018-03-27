@@ -11,12 +11,16 @@ from bamUtil import *
 
 def callMutect(cmd, picard, path, n, t):
 	# Calls Mutect with given root command and files
-	nid = n[n.rfind("/")+1:n.find(".")]
-	tid = t[t.rfind("/")+1:t.find(".")]
+	nid = n[n.rfind("/")+1:].replace(".sorted", "").replace(".bam", "")
+	tid = t[t.rfind("/")+1:].replace(".sorted", "").replace(".bam", "")
 	outfile = ("{}-{}.vcf").format(path, tid)
 	tumorname, t = checkRG(t, tid, picard)
+	if not tumorname:
+		return ""
+	# Build command and call mutect
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
 	print(("\tComparing {} and {}...").format(nid, tid))
+	# Make log file
 	log = outfile.replace("vcf", "stdout")
 	with open(log, "w") as dn:
 		try:
@@ -24,6 +28,7 @@ def callMutect(cmd, picard, path, n, t):
 			mt.communicate()
 		except:
 			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
+			return ""
 	with open(log, "r") as dn:
 		status = False
 		# Make sure mutect completed successfully
@@ -31,6 +36,7 @@ def callMutect(cmd, picard, path, n, t):
 			if "Tool returned:" in line:
 				status = True
 			elif status == True:
+				# Get exit status
 				if "SUCCESS" in line:
 					print(("\tFinished comparing {} and {}...").format(nid, tid))
 					return outfile
@@ -55,6 +61,7 @@ def submitFiles(conf, outfiles, outdir, sample):
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
 			_, control = checkRG(sample[1], sample[0], conf["picard"])
+		# Get list of bam files that need to be run
 		if sample[4] == 1:
 			s = [sample[3]]
 		elif sample[4] == 2:
@@ -69,14 +76,17 @@ def submitFiles(conf, outfiles, outdir, sample):
 				vcfs.append(res)
 				with open(conf["log"], "a") as l:
 					l.write(("{}\tMutect\t{}\n").format(res[res.rfind("/")+1:res.rfind(".")], res))
-	'''elif sample[4] == 3:
+	'''if sample[4] == 3 or len(vcfs) == 2:
 		# Compare output
 		status = compareVCFs(vcfs)
 		if status = True:
 			# Record finished samples
 			with open(conf["log"], "a") as l:
 				l.write(("{}\tcomparison\n").format(sample[0]))'''
-	return sample[0]
+	if len(vcfs) < 2:
+		return ("Could not complete {}").format(sample[0])
+	else:
+		return ("{}  has finished").format(sample[0])
 
 def getManifest(done, infile):
 	# Returns dict of input files
@@ -240,7 +250,7 @@ help = "Path to config file containing reference genome, java jars (if using), a
 	print(("\n\tCalling mutect2 with {} threads....").format(args.t))
 	for x in pool.imap_unordered(func, files):
 		l -= 1
-		print(("\n\t{} has finished. {} samples remaining").format(x, l))
+		print(("\n\t{}. {} samples remaining").format(x, l))
 	pool.close()
 	pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))

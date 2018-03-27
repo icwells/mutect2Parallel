@@ -36,10 +36,10 @@ def addRG(bam, sid, picard):
 		with open(os.devnull, "w") as dn:
 			arg = Popen(split(cmd), stdout = dn, stderr = dn)
 			arg.communicate()
+		return outfile, getTumorName(outfile)
 	except:
 		print(("\t[Error] Could not add read groups to {}\n").format(bam))
-		quit()
-	return outfile, getTumorName(outfile)
+		return "", ""
 
 def checkRG(bam, sid, picard=""):
 	# Adds read groups, creates bam index, and returns read group name
