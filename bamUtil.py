@@ -18,10 +18,13 @@ def samIndex(bam):
 
 def getTumorName(bam):
 	# Gets relevent header data and extract tumor sample name from bam file
-	header = pysam.view("-H", bam)
-	rg = header[header.find("@RG"):header.find("@PG")]
-	name = rg[rg.find("SM:"):]
-	return name[name.find(":")+1:name.find("\t")]
+	try:
+		header = pysam.view("-H", bam)
+		rg = header[header.find("@RG"):header.find("@PG")]
+		name = rg[rg.find("SM:"):]
+		return name[name.find(":")+1:name.find("\t")]
+	except pysam.utils.SamtoolsError::
+		return ""
 
 def addRG(bam, sid, picard):
 	# Adds readgroups to bam files
@@ -36,10 +39,12 @@ def addRG(bam, sid, picard):
 		with open(os.devnull, "w") as dn:
 			arg = Popen(split(cmd), stdout = dn, stderr = dn)
 			arg.communicate()
-		return outfile, getTumorName(outfile)
 	except:
 		print(("\t[Error] Could not add read groups to {}\n").format(bam))
-		return "", ""
+		outfile = ""
+	if outfile:
+		name = getTumorName(outfile)
+	return outfile, name
 
 def checkRG(bam, sid, picard=""):
 	# Adds read groups, creates bam index, and returns read group name
