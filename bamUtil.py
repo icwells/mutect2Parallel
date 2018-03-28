@@ -23,7 +23,7 @@ def getTumorName(bam):
 		rg = header[header.find("@RG"):header.find("@PG")]
 		name = rg[rg.find("SM:"):]
 		return name[name.find(":")+1:name.find("\t")]
-	except pysam.utils.SamtoolsError::
+	except pysam.utils.SamtoolsError:
 		return ""
 
 def addRG(bam, sid, picard):
