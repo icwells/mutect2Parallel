@@ -9,6 +9,53 @@ from subprocess import Popen
 from shlex import split
 from bamUtil import *
 
+def intersect(outfile, filtered):
+	# Calls bcftools to get intersecting rows and summarizes output
+	
+	# Initialize output csv
+	with open(outfile, "w") as output:
+		output.write("SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
+
+def filterCalls(cmd, vcf):
+	# Calls gatk to filter mutect calls
+	outfile = vcf[:vcf.find(".")] + ".filtered.vcf"
+	outfile = outfile.replace("Mutect/", "Filtered/")
+	log = outfile.replace("vcf", "stdout")
+	cmd += ("-V {} -O {}").format(vcf, outfile)
+	with open(log, "w") as l:
+		try:
+			fmc = Popen(split(cmd), stdout = l, stderr = l)
+			fmc.communicate()
+		except:
+			print(("\t[Error] Could not call FilterMutectCalls on {}.").format(vcf))
+			return ""
+	# bgzip and index output
+	idxfile = tabixIndex(vcf)
+	return idxfile
+
+def compareVCFs(conf, outfile, vcfs):
+	# Calls gatk and pyvcf to filter and compare mutect output
+	ret = False
+	filtered = []
+	if conf["jar"] == False:
+		# Format command for colling gatk from path
+		cmd = "gatk FilterMutectCalls "
+	else:
+		# Format command for calling gatk jar
+		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
+	for i in vcfs:
+		# Filter each vcf
+		x = filterCalls(cmd, i)
+		if x:
+			filtered.append(x)
+	if len(filtered) == 2:
+		# Call bftools on passes and all results
+		done = 0
+		done += intersect(outfile, filtered)
+		if done == 2:
+			ret = True
+	return ret
+
 def callMutect(cmd, picard, path, n, t):
 	# Calls Mutect with given root command and files
 	nid = n[n.rfind("/")+1:].replace(".sorted", "").replace(".bam", "")
@@ -70,7 +117,7 @@ def submitFiles(conf, outfiles, outdir, sample):
 			s = [sample[2], sample[3]]
 		# Call for each remaining combination of control-tumor
 		for j in s:
-			res = callMutect(cmd, conf["picard"], outdir + sample[0], control, j)
+			res = callMutect(cmd, conf["picard"], outdir + "Mutect/" + sample[0], control, j)
 			if res:
 				# Record finished samples
 				vcfs.append(res)
@@ -78,7 +125,8 @@ def submitFiles(conf, outfiles, outdir, sample):
 					l.write(("{}\tMutect\t{}\n").format(res[res.rfind("/")+1:res.rfind(".")], res))
 	'''if sample[4] == 3 or len(vcfs) == 2:
 		# Compare output
-		status = compareVCFs(vcfs)
+		print(("\n\tComparing VCFs from {}...").format(sample[0]))
+		status = compareVCFs(conf, outdir + sample[0] + ".csv" vcfs)
 		if status = True:
 			# Record finished samples
 			with open(conf["log"], "a") as l:
@@ -87,6 +135,8 @@ def submitFiles(conf, outfiles, outdir, sample):
 		return ("Could not complete {}").format(sample[0])
 	else:
 		return ("{}  has finished").format(sample[0])
+
+#-------------------------------------------Inputs----------------------------
 
 def getManifest(done, infile):
 	# Returns dict of input files
@@ -135,6 +185,10 @@ def checkOutput(outdir):
 	print("\tChecking for previous output...")
 	if not os.path.isdir(outdir):
 		os.mkdir(outdir)
+	if not os.path.isdir(outdir + "Mutect/"):
+		os.mkdir(outdir + "Mutect/")
+	if not os.path.isdir(outdir + "Filtered/"):
+		os.mkdir(outdir + "Filtered/")
 	if os.path.isfile(log):
 		with open(log, "r") as f:
 			for line in f:
@@ -217,6 +271,8 @@ def getConf(cpu, ref, infile, jar):
 		print("\n\t[Error] Genome fasta not found. Exiting.\n")
 		quit()
 	return conf
+
+#-----------------------------------------------------------------------------
 
 def main():
 	starttime = datetime.now()
