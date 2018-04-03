@@ -101,8 +101,6 @@ def callMutect(cmd, picard, path, n, t):
 
 def submitFiles(conf, outfiles, outdir, sample):
 	# Calls MuTect2 serially over input files
-	print(sample[4])
-	quit()
 	if sample[4] < 3:
 		# Proceed if at least one combination has not been run
 		if sample[0] in outfiles.keys():
@@ -177,7 +175,6 @@ def getManifest(done, infile):
 					if s[3][s[3].rfind("/")+1:s[3].find(".")] in done[s[0]]:
 						b = 2
 			# Statuses: 0=none, 1=a_done, 2=b_done, 3=both
-			print(a, b)
 			s.append(a+b)
 			files.append(s)
 	for i in files:
