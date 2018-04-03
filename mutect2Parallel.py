@@ -9,17 +9,39 @@ from subprocess import Popen
 from shlex import split
 from bamUtil import *
 
-def intersect(outfile, cmd):
+def getTotal(vcf):
+	# Returns total number of content lines from vcf
+	count = 0
+	if os.path.isfile(vcf):
+		with open(vcf, "r") as f:
+			for line in f:
+				if line[0] != "#":
+					count += 1
+	return count
+
+def intersect(outpath, cmd, filtered):
 	# Calls bcftools to get intersecting rows and summarizes output
+	cmd = cmd.format(outpath)
 	try:
 		bcf = Popen(split(cmd))
 		bcf.communicate()
 	except:
-		print(("\t[Error] Could not call bcftools with {}.").format(cmd))
+		print(("\t[Error] Could not call bcftools with {}").format(cmd))
 		return 0
-	# Initialize output csv
-	#with open(outfile, "w") as output:
-	#	output.write("SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
+	# Number of unique variants to each sample and number of shared
+	a = getTotal(outpath + "/0000.vcf")
+	b = getTotal(outpath + "/0001.vcf")
+	c = getTotal(outpath + "/0002.vcf")
+	# Get percentage of similarity
+	try:
+		sim = c/(a+b+c)
+	except ZeroDivisionError:
+		sim = 0.0
+	sa = filtered[0][filtered[0].rfind("/")+1:filtered[0].find(".")]
+	sb = filtered[1][filtered[1].rfind("/")+1:filtered[1].find(".")]
+	with open(outpath + ".csv", "w") as output:
+		output.write("SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
+		output.write(("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim))
 	return 1
 
 def filterCalls(cmd, vcf):
@@ -33,13 +55,11 @@ def filterCalls(cmd, vcf):
 			fmc = Popen(split(cmd), stdout = l, stderr = l)
 			fmc.communicate()
 		except:
-			print(("\t[Error] Could not call FilterMutectCalls on {}.").format(vcf))
+			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 			return ""
-	# bgzip and index output
-	idxfile = tabixIndex(vcf)
-	return idxfile
+	return bgzip(outfile)
 
-def compareVCFs(conf, outfile, vcfs):
+def compareVCFs(conf, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare mutect output
 	ret = False
 	filtered = []
@@ -57,10 +77,12 @@ def compareVCFs(conf, outfile, vcfs):
 	if len(filtered) == 2:
 		done = 0
 		# Call bftools on all results
-		cmd = ("bcftools isec {} {} -p {}").format(filtered[0], filtered[1])
-		done += intersect(outfile, cmd)
+		cmd = ("bcftools isec {} {}").format(filtered[0], filtered[1])
+		cmd += " -p {}"
+		done += intersect(outpath, cmd, filtered)
 		# Call bftools on passes
-		done += intersect(outfile.replace(".csv", "_PASS.csv"), cmd + " -f .,PASS")
+		outpath += "_PASS"
+		done += intersect(outpath, cmd + " -f .,PASS", filtered)
 		if done == 2:
 			ret = True
 	return ret
@@ -83,7 +105,7 @@ def callMutect(cmd, picard, path, n, t):
 			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
 			mt.communicate()
 		except:
-			print(("\t[Error] Could not call MuTect on {} and {}.").format(nid, tid))
+			print(("\t[Error] Could not call MuTect on {} and {}").format(nid, tid))
 			return ""
 	with open(log, "r") as dn:
 		status = False
@@ -101,12 +123,12 @@ def callMutect(cmd, picard, path, n, t):
 
 def submitFiles(conf, outfiles, outdir, sample):
 	# Calls MuTect2 serially over input files
+	if sample[0] in outfiles.keys():
+		vcfs = outfiles[sample[0]]
+	else:
+		vcfs = []
 	if sample[4] < 3:
 		# Proceed if at least one combination has not been run
-		if sample[0] in outfiles.keys():
-			vcfs = outfiles[sample[0]]
-		else:
-			vcfs = []
 		print(("\n\tProcessing {}...").format(sample[0]))
 		# Assemble command
 		if conf["jar"] == False:
@@ -135,7 +157,7 @@ def submitFiles(conf, outfiles, outdir, sample):
 	if sample[4] == 3 or len(vcfs) == 2:
 		# Compare output
 		print(("\n\tComparing VCFs from {}...").format(sample[0]))
-		status = compareVCFs(conf, outdir + sample[0] + ".csv", vcfs)
+		status = compareVCFs(conf, outdir + "Intersections/" + sample[0], vcfs)
 		if status == True:
 			# Record finished samples
 			with open(conf["log"], "a") as l:
@@ -167,7 +189,7 @@ def getManifest(done, infile):
 			if s[0] in done.keys():
 				if done[s[0]][-1] == "comparison":
 					# Skip completed files
-					pass
+					a = 4
 				else:
 					# [ID, Normal, A, B, status]
 					if s[2][s[2].rfind("/")+1:s[2].find(".")] in done[s[0]]:
@@ -175,8 +197,9 @@ def getManifest(done, infile):
 					if s[3][s[3].rfind("/")+1:s[3].find(".")] in done[s[0]]:
 						b = 2
 			# Statuses: 0=none, 1=a_done, 2=b_done, 3=both
-			s.append(a+b)
-			files.append(s)
+			if a+b < 4:
+				s.append(a+b)
+				files.append(s)
 	for i in files:
 		for j in i[1:4]:
 			if not os.path.isfile(j):
@@ -198,6 +221,8 @@ def checkOutput(outdir):
 		os.mkdir(outdir + "Mutect/")
 	if not os.path.isdir(outdir + "Filtered/"):
 		os.mkdir(outdir + "Filtered/")
+	if not os.path.isdir(outdir + "Intersections/"):
+		os.mkdir(outdir + "Intersections/")
 	if os.path.isfile(log):
 		with open(log, "r") as f:
 			for line in f:
@@ -245,13 +270,15 @@ def checkReferences(conf):
 			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
 
-def getConf(cpu, ref, infile, jar):
+def getConf(cpu, outdir, ref, infile, jar):
 	# Stores runtime options
 	conf = {"ref":None, "gatk":None, "picard":None}
 	if cpu > cpu_count():
 		cpu = cpu_count()
 	conf["cpu"] = cpu
 	conf["jar"] = jar
+	outfile = outdir + "IntersectionsSummary.csv"
+	if not os.path.isfile(outdir
 	if ref:
 		conf["ref"] = ref
 	if not ref or jar == True:
@@ -303,7 +330,7 @@ help = "Path to config file containing reference genome, java jars (if using), a
 		quit()
 	if args.o[-1] != "/":
 		args.o += "/"
-	conf = getConf(args.t, args.r, args.c, args.jar)
+	conf = getConf(args.t, args.o, args.r, args.c, args.jar)
 	checkReferences(conf)
 	log, done, outfiles = checkOutput(args.o)
 	conf["log"] = log
@@ -311,16 +338,17 @@ help = "Path to config file containing reference genome, java jars (if using), a
 	pool = Pool(processes = args.t)
 	func = partial(submitFiles, conf, outfiles, args.o)
 	l = len(files)
-	t = "threads"
-	if args.t > 1:
-		t += "s"
-	# Call mutect+
-	print(("\n\tCalling mutect2 with {} {}....").format(args.t, t))
-	for x in pool.imap_unordered(func, files):
-		l -= 1
-		print(("\n\t{}. {} samples remaining").format(x, l))
-	pool.close()
-	pool.join()
+	if l > 0:
+		t = "thread"
+		if args.t > 1:
+			t += "s"
+		# Call mutect+
+		print(("\n\tCalling mutect2 with {} {}....").format(args.t, t))
+		for x in pool.imap_unordered(func, files):
+			l -= 1
+			print(("\n\t{}. {} samples remaining").format(x, l))
+		pool.close()
+		pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":

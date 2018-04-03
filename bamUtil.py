@@ -5,9 +5,14 @@ import pysam
 from subprocess import Popen
 from shlex import split
 
-def tabixIndex(vcf):
-	# bgzip compresses and tabix indexes filtered vcf files
-	return pysam.tabix_index(vcf)
+def bgzip(vcf):
+	# bgzip compresses filtered vcf files
+	#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	H_SL-20-LK38-020-node-A1	H_SL-20-LK40-020-B3
+	if os.path.isfile(vcf + ".gz"):
+		gz = vcf + ".gz"
+	else:	
+		gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1)
+	return gz
 
 def getFastaIndex(ref):
 	# Creates fasta index for reference genome

@@ -1,3 +1,7 @@
 reference_genome = 
+
 GATK_jar = 
 Picard_jar = 
+
+normal_panel = 
+
