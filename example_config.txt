@@ -1,4 +1,8 @@
+e-mail = 
+job_name = 
+
 reference_genome = 
+bed_annotation = 
 
 GATK_jar = 
 Picard_jar = 
