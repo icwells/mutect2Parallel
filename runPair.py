@@ -10,6 +10,30 @@ from subprocess import Popen
 from shlex import split
 from bamUtil import *
 
+class Sample():
+	# Stores data for managing sample progress
+	def __init__(name, mostRecent, outfile):
+		self.ID = name
+		#self.Regions = []
+		self.Status = mostRecent
+		self.Output = outfile	
+
+	def __update__(self, name, region, mostRecent, outfile):
+		# Sorts and updates entry with additional status update
+		if self.Status == "completed":
+			pass
+		elif mostRecent == "completed":
+			self.Status = mostRecent
+			self.Output = outfile
+		elif mostRecent == "filtered" and self.Status == "mutect":
+			self.Status = mostRecent
+			self.Output = outfile
+		elif mostRecent == "mutect" and self.Status == "starting":
+			self.Status = mostRecent
+			self.Output = outfile
+
+#-----------------------------------------------------------------------------
+
 def getTotal(vcf):
 	# Returns total number of content lines from vcf
 	count = 0
@@ -45,31 +69,10 @@ def intersect(outpath, cmd, filtered):
 		output.write(("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim))
 	return 1
 
-def filterCalls(cmd, vcf):
-	# Calls gatk to filter mutect calls
-	outfile = vcf[:vcf.find(".")] + ".filtered.vcf"
-	outfile = outfile.replace("Mutect/", "Filtered/")
-	log = outfile.replace("vcf", "stdout")
-	cmd += ("-V {} -O {}").format(vcf, outfile)
-	with open(log, "w") as l:
-		try:
-			fmc = Popen(split(cmd), stdout = l, stderr = l)
-			fmc.communicate()
-		except:
-			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
-			return ""
-	return bgzip(outfile)
-
 def compareVCFs(conf, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare mutect output
 	ret = False
 	filtered = []
-	if conf["jar"] == False:
-		# Format command for colling gatk from path
-		cmd = "gatk FilterMutectCalls "
-	else:
-		# Format command for calling gatk jar
-		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
 	for i in vcfs:
 		# Filter each vcf
 		x = filterCalls(cmd, i)
@@ -90,17 +93,23 @@ def compareVCFs(conf, outpath, vcfs):
 
 #-------------------------------Mutect----------------------------------------
 
-def callMutect(cmd, picard, path, n, t):
-	# Calls Mutect with given root command and files
-	nid = n[n.rfind("/")+1:].replace(".sorted", "").replace(".bam", "")
-	tid = t[t.rfind("/")+1:].replace(".sorted", "").replace(".bam", "")
-	outfile = ("{}-{}.vcf").format(path, tid)
-	tumorname, t = checkRG(t, tid, picard)
-	if not tumorname:
-		return ""
-	# Build command and call mutect
-	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, t, n, outfile)
-	print(("\tComparing {} and {}...").format(nid, tid))
+def filterCalls(cmd, vcf):
+	# Calls gatk to filter mutect calls
+	outfile = vcf[:vcf.find(".")] + ".filtered.vcf"
+	log = outfile.replace("vcf", "stdout")
+	cmd += ("-V {} -O {}").format(vcf, outfile)
+	with open(log, "w") as l:
+		try:
+			fmc = Popen(split(cmd), stdout = l, stderr = l)
+			fmc.communicate()
+		except:
+			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
+			return ""
+	return bgzip(outfile)
+
+def callMutect(cmd, name):
+	# Calls Mutect with given command
+	print(("\tCalling mutect on {}...").format(name))
 	# Make log file
 	log = outfile.replace("vcf", "stdout")
 	with open(log, "w") as dn:
@@ -108,7 +117,7 @@ def callMutect(cmd, picard, path, n, t):
 			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
 			mt.communicate()
 		except:
-			print(("\t[Error] Could not call MuTect on {} and {}").format(nid, tid))
+			print(("\t[Error] Could not call MuTect on {}").format(name))
 			return ""
 	with open(log, "r") as dn:
 		status = False
@@ -119,125 +128,149 @@ def callMutect(cmd, picard, path, n, t):
 			elif status == True:
 				# Get exit status
 				if "SUCCESS" in line:
-					print(("\tFinished comparing {} and {}...").format(nid, tid))
+					print(("\t{} has completed mutect analysis.").format(name))
 					return outfile
 				else:
 					return ""
 
-def submitFiles(conf, outfiles, outdir, sample):
+def submitFiles(conf, samples, infile):
 	# Calls MuTect2 serially over input files
-	if sample[0] in outfiles.keys():
-		vcfs = outfiles[sample[0]]
+	name = infile[infile.rfind("/")+1:infile.find(".")]
+	if name in samples.keys():
+		s = sample[name]
 	else:
-		vcfs = []
-	if sample[4] < 3:
-		# Proceed if at least one combination has not been run
-		print(("\n\tProcessing {}...").format(sample[0]))
-		# Assemble command
-		if conf["jar"] == False:
-			# Format command for colling gatk from path
-			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
-			_, control = checkRG(sample[1], sample[0])
+		s = Sample(name, "starting", conf["outpath"] + name + ".vcf")
+	if s.Status == "starting":
+		if "picard" in conf.keys():
+			_, control = checkRG(conf["normal"], s.ID, conf["picard"])
+			tumorname, bam = checkRG(infile, name, conf["picard"])
 		else:
+			_, control = checkRG(conf["normal"], s.ID)
+			tumorname, bam = checkRG(infile, name)
+		# Assemble command
+		if "gatk" in conf.keys():
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
-			_, control = checkRG(sample[1], sample[0], conf["picard"])
-		# Get list of bam files that need to be run
-		if sample[4] == 1:
-			s = [sample[3]]
-		elif sample[4] == 2:
-			s = [sample[2]]
+			filt = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
 		else:
-			s = [sample[2], sample[3]]
-		# Call for each remaining combination of control-tumor
-		for j in s:
-			res = callMutect(cmd, conf["picard"], outdir + "Mutect/" + sample[0], control, j)
-			if res:
-				# Record finished samples
-				vcfs.append(res)
-				with open(conf["log"], "a") as l:
-					l.write(("{}\tMutect\t{}\n").format(res[res.rfind("/")+1:res.rfind(".")], res))
-	if sample[4] == 3 or len(vcfs) == 2:
-		# Compare output
-		print(("\n\tComparing VCFs from {}...").format(sample[0]))
-		status = compareVCFs(conf, outdir + sample[0], vcfs)
-		if status == True:
-			# Record finished samples
+			# Format command for colling gatk from path
+			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
+			filt = "gatk FilterMutectCalls "
+		cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, bam, conf["normal"], s.Output)
+		# Call for control and tumor
+		res = callMutect(cmd, name)
+		if res:
+			# Record finished sample
+			s.Output = res
+			s.Status = "mutect"
 			with open(conf["log"], "a") as l:
-				l.write(("{}\tcomparison\n").format(sample[0]))
-	if len(vcfs) < 2:
-		return ("Could not complete {}").format(sample[0])
-	else:
-		return ("{}  has finished").format(sample[0])
+				l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
+			filtered = filterCalls(filt, s.Output)
+			if filtered:
+				# Record filtered reads
+				s.Output = filtered
+				s.Status = "filtered"
+				with open(conf["log"], "a") as l:
+					l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
+		else:
+			s.Status = "failed"
+	return s
+
+#-----------------------------------------------------------------------------
 
 def checkOutput(outdir):
 	# Checks for output log file and reads if present
 	first = True
 	done = {}
-	outfiles = {}
 	log = outdir + "mutectLog.txt"
 	print("\tChecking for previous output...")
 	if not os.path.isdir(outdir):
 		os.mkdir(outdir)
-	if not os.path.isdir(outdir + "Mutect/"):
-		os.mkdir(outdir + "Mutect/")
-	if not os.path.isdir(outdir + "Filtered/"):
-		os.mkdir(outdir + "Filtered/")
 	if os.path.isfile(log):
 		with open(log, "r") as f:
 			for line in f:
 				if first == False and line.strip():
 					line = line.strip().split("\t")
-					splt = line[0].split("-")
-					if len(line) == 3 and len(splt) == 2:
-						if splt[0] in done.keys():
-							# Record vcf location
-							outfiles[splt[0]].append(line[2])
-							if line[1] == "comparison":
-								# Record last stage completed (comparison/mutect)
-								done[splt[0]] = [done[splt[0]][0], splt[1], line[1]]
-							else:
-								done[splt[0]] = [done[splt[0]][0], splt[1], done[splt[0]][1]]
+					if len(line) == 3:
+						if line[0] in done.keys():
+							done[line[0]].__udpate__(line)
 						else:
-							# {sample#: [filename1, filename2, mostRecent]}
-							done[splt[0]] = [splt[1], line[1]]
-							# {sample#: [vcf1, vcf2]}
-							outfiles[splt[0]] = [line[2]]
+							done[line[0]] = Sample(line)
 				else:
 					# Skip header
 					first = False
-		print(("\tFound {} completed samples.").format(len(done)))
 	else:
 		with open(log, "w") as f:
 			# Initialize log file
-			f.write("Sample\tStatus\tOutput\n")
-	return log, done, outfiles
+			f.write("Filename\tStatus\tOutput\n")
+	
+	return log, done
+
+def configEntry(conf, arg, key):
+	# Returns dict with updated arg entry
+	if not arg:
+		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg))
+		quit()
+	else:
+		conf[key] = args
+	return conf	
+
+def getConfig(args):
+	# Returns arguments as dict
+	conf = {}
+	conf = configEntry(conf, args.s, "sample")
+	conf = configEntry(conf, args.x, "tumor1")
+	conf = configEntry(conf, args.y, "tumor2")
+	conf = configEntry(conf, args.c, "normal")
+	conf = configEntry(conf, args.r, "reference")
+	conf = configEntry(conf, args.o, "outpath")
+	if args.bed:
+		conf["bed"] = args.bed
+	if args.gatk:
+		conf["gatk"] = args.gatk
+	if args.picard:
+		conf["picard"] = args.picard
+	return picard
 
 def main():
 	starttime = datetime.now()
 	parser = argparse.ArgumentParser(description = "This script will call MuTect2 on a given \
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
-	parser.add_argument("-t", type = int, default = 2,
-help = "The number of threads to use (default = 2: runs each member of a sample pair at once).")
-
-
-	log, done, outfiles = checkOutput(args.o)
+	parser.add_argument("-s", help = "Sample name (required).")
+	parser.add_argument("-x", help = "Path to first tumor bam (required).")
+	parser.add_argument("-y", help = "Path to second tumor bam (required).")
+	parser.add_argument("-c", help = "Path to normal/control bam (required).")
+	parser.add_argument("-r", help = "Path to reference genome (required).")
+	parser.add_argument("-o", help = "Path to output directory (required).")
+	parser.add_argument("-bed", help = "Path to bed annotation.")
+	parser.add_argument("-gatk", help = "Path to gatk jar (if using).")
+	parser.add_argument("-picard", help = "Path to picard jar (if using).")
+	args = parser.parse_args()
+	conf = getConfig(args)
+	log, samples = checkOutput(conf["outpath"])
 	conf["log"] = log
-	pool = Pool(processes = args.t)
-	func = partial(submitFiles, conf, outfiles, args.o)
+	pool = Pool(processes = 2)
+	func = partial(submitFiles, conf, samples)
+	filtered = []
+	# Call mutect
+	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
+	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]])):
+		if x.Status == "failed":
+			print(("\n\tFailed to run {}.").format(x.ID))
+		else:		
+			print(("\n\t{} has completed.").format(x.ID))
+			filtered.append(x.Output)
+	pool.close()
+	pool.join()
+	if len(filtered) == 2:
+		# Compare output
+		print(("\n\tComparing filterd VCFs from {}...").format(conf["sample"]))
 
-	l = len(files)
-	if l > 0:
-		t = "thread"
-		if args.t > 1:
-			t += "s"
-		# Call mutect+
-		print(("\n\tCalling mutect2 with {} {}....").format(args.t, t))
-		for x in pool.imap_unordered(func, files):
-			l -= 1
-			print(("\n\t{} has completed.").format(x))
-		pool.close()
-		pool.join()
+		status = compareVCFs(conf, outdir + sample[0], vcfs)
+		if status == True:
+			# Record finished samples
+			with open(conf["log"], "a") as l:
+				l.write(("{}\tcomparison\n").format(sample[0]))
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":

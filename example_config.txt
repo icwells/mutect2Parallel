@@ -9,3 +9,35 @@ Picard_jar =
 
 normal_panel = 
 
+==============================================================================
+#	Sample Batch Script (grid commands and module load commands
+==============================================================================
+
+#!/bin/bash
+ 
+#SBATCH -n 8
+#SBATCH -N 1
+#SBATCH -t 3-0:0
+#SBATCH --job-name=mutect
+#SBATCH -o slurm.%j.out
+#SBATCH -e slurm.%j.err  
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=
+
+#############################################################################
+# This script will call mutect2 on a set of bam files
+#
+# Required:	gatk 4.0.1.2
+#			picard 2.9.2
+#			python 3
+#			pysam
+#			bcftools
+##############################################################################
+
+# Load modules
+
+module load gatk/4.0.1.2
+module load picard/2.9.2
+
+# Call script
+
