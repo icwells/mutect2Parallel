@@ -7,6 +7,32 @@ from subprocess import Popen
 from shlex import split
 from bamUtil import getFastaIndex
 
+def submitJobs(scripts, batch):
+	# Determines grid type and submits jobs
+	slurm = False
+	torque = False
+	for line in batch:
+		if "#SBATCH" in line:
+			slurm = True
+			break
+		elif "#PBS" in line:
+			torque = True
+			break
+	if not slurm and not torque:
+		print("\t[Error] Cannot determine grid type. Exiting.\n")
+		quit()
+	if slurm:
+		cmd = "sbatch "
+	elif torque:
+		cmd = "qsub "
+	for i in scripts:
+		try:
+			# Submit each batch script
+			print(("\tSubmitting {}").format(i))
+			Popen(split(cmd + i))
+		except:
+			print(("\t[Error] Could not submit {}").format(i))
+
 def getCommand(conf):
 	# Returns base python call for all files
 	cmd = ("python runPair.py -r {} ").format(conf["ref"])
@@ -15,23 +41,27 @@ def getCommand(conf):
 			cmd += ("-{} {} ").format(i, conf[i])
 	return cmd
 
-def getBatchScripts(outdir, path, conf, batch, files):
+def getBatchScripts(outdir, conf, batch, files):
 	# Generates new batch script for each set of samples
 	count = 1
 	cmd = getCommand(conf)
+	scripts = []
 	for i in files.keys():
 		print(("\tWriting batch script for {}...").format(i))
-		with open(outdir + i + ".sh", "w") as output:
+		outfile = outdir + i + ".sh"
+		with open(outfile, "w") as output:
 			for line in batch:
 				if "--job-name=" in line:
 					output.write(("{}_{}\n").format(line.strip(), count))
 				else:
 					output.write(line)
-			outpath = path + i + "/"
+			outpath = conf["outpath"] + i + "/"
 			c = cmd + ("-s {} -c {} -x {} -y {} -o {}").format(i, 
 					files[i][0], files[i][1], files[i][2], outpath)
 			output.write(c + "\n")
+		scripts.append(outfile)
 		count += 1
+	return scripts
 
 def getManifest(infile):
 	# Returns dict of input files
@@ -85,10 +115,33 @@ def getOptions(conf, line):
 			conf["ref"] = val
 		elif target == "bed_annotation":
 			conf["bed"] = val
+			if not os.path.isfile(conf["bed"]):
+				print("\n\t[Error] Bed file not found. Exiting.\n")
+				quit()	
+		elif target == "output_directory":
+			if val[-1] != "/":
+				val += "/"
+			conf["outpath"] = val
 		elif target == "GATK_jar":
 			conf["gatk"] = val
+			if not os.path.isfile(conf["gatk"]):
+				print("\n\t[Error] Picard jar not found. Exiting.\n")
+				quit()
 		elif target == "Picard_jar":
 			conf["picard"] = val
+			if not os.path.isfile(conf["picard"]):
+				print("\n\t[Error] Picard jar not found. Exiting.\n")
+				quit()
+		elif target = "active_Regions":
+			conf["regions"] = val
+			if not os.path.isfile(conf["regions"]):
+				print("\n\t[Error] Active Regions file not found. Exiting.\n")
+				quit()			
+		elif target = "normal_panel":
+			conf["pon"] = val
+			if not os.path.isfile(conf["pon"]):
+				print("\n\t[Error] Panel of Normals file not found. Exiting.\n")
+				quit()				
 	return conf
 
 def getConf(infile):
@@ -112,18 +165,13 @@ def getConf(infile):
 				if store == True:
 					# Store batch script
 					batch.append(line)
-	# Check for errors
+	# Check for critical errors
 	if not os.path.isfile(conf["ref"]):
 		print("\n\t[Error] Genome fasta not found. Exiting.\n")
 		quit()
-	for i in ["gatk", "picard", "bed"]:
-		if i in conf.keys():
-			if not os.path.isfile(conf[i]):
-				if i == "bed":
-					print("\n\t[Error] Bed annotation file not found. Exiting.\n")
-				else:
-					print(("\n\t[Error] {} jar not found. Exiting.\n").format(i.upper))
-				quit()
+	if not os.path.isfile(conf["outpath"]):
+		print("\n\t[Error] Output directory not specified. Exiting.\n")
+		quit()
 	return conf, batch
 
 #-----------------------------------------------------------------------------
@@ -132,25 +180,26 @@ def main():
 	starttime = datetime.now()
 	parser = ArgumentParser(description = "This script will call MuTect2 on a given \
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
+	parser.add_argument("--submit", action = "store_true", default = False,
+help = "Submit batch files to SLURM/Torque grid for execution.")
 	parser.add_argument("-i", 
 help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
 	parser.add_argument("-c", 
-help = "Path to config file containing reference genome, java jars (if using), and mutect options).")
-	parser.add_argument("-p", help = "Path to mutect output directory.")
+help = "Path to config file containing reference genome, java jars (if using), and mutect options.")
 	parser.add_argument("-o", default = "",
 help = "Path to batch script output directory (leave blank for current directory).")
 	args = parser.parse_args()
-	if not args.i or not args.p:
-		print("\n\t[Error] Please specify input file and output directory. Exiting.\n")
+	if not args.i and args.c:
+		print("\n\t[Error] Please specify input file and config file. Exiting.\n")
 		quit()
 	if args.o and args.o[-1] != "/":
 		args.o += "/"
-	if args.p[-1] != "/":
-		args.p += "/"
 	conf, batch = getConf(args.c)
 	checkReferences(conf)
 	files = getManifest(args.i)
-	getBatchScripts(args.o, args.p, conf, batch, files)
+	scripts = getBatchScripts(args.o, conf, batch, files)
+	if args.submit == True:
+		submitJobs(scripts, batch)
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":

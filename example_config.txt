@@ -1,12 +1,12 @@
-e-mail = 
-job_name = 
-
 reference_genome = 
 bed_annotation = 
+output_directory = 
 
 GATK_jar = 
 Picard_jar = 
 
+# Mutect2 Options
+active_regions = 
 normal_panel = 
 
 ==============================================================================

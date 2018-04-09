@@ -14,11 +14,10 @@ class Sample():
 	# Stores data for managing sample progress
 	def __init__(name, mostRecent, outfile):
 		self.ID = name
-		#self.Regions = []
 		self.Status = mostRecent
 		self.Output = outfile	
 
-	def __update__(self, name, region, mostRecent, outfile):
+	def __update__(self, name, mostRecent, outfile):
 		# Sorts and updates entry with additional status update
 		if self.Status == "completed":
 			pass
@@ -44,7 +43,7 @@ def getTotal(vcf):
 					count += 1
 	return count
 
-def intersect(outpath, cmd, filtered):
+def intersect(outpath, cmd, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
 	cmd = cmd.format(outpath)
 	try:
@@ -62,33 +61,27 @@ def intersect(outpath, cmd, filtered):
 		sim = c/(a+b+c)
 	except ZeroDivisionError:
 		sim = 0.0
-	sa = filtered[0][filtered[0].rfind("/")+1:filtered[0].find(".")]
-	sb = filtered[1][filtered[1].rfind("/")+1:filtered[1].find(".")]
+	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].find(".")]
+	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].find(".")]
 	with open(outpath + ".csv", "w") as output:
 		output.write("SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 		output.write(("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim))
 	return 1
 
-def compareVCFs(conf, outpath, vcfs):
+def compareVCFs(conf, vcfs):
 	# Calls gatk and pyvcf to filter and compare mutect output
 	ret = False
-	filtered = []
-	for i in vcfs:
-		# Filter each vcf
-		x = filterCalls(cmd, i)
-		if x:
-			filtered.append(x)
-	if len(filtered) == 2:
-		done = 0
-		# Call bftools on all results
-		cmd = ("bcftools isec {} {}").format(filtered[0], filtered[1])
-		cmd += " -p {}"
-		done += intersect(outpath, cmd, filtered)
-		# Call bftools on passes
-		outpath += "_PASS"
-		done += intersect(outpath, cmd + " -f .,PASS", filtered)
-		if done == 2:
-			ret = True
+	done = 0
+	outpath = conf["outpath"] + conf["sample"]
+	# Call bftools on all results
+	cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
+	cmd += " -p {}"
+	done += intersect(outpath, cmd, vcfs)
+	# Call bftools on passes
+	outpath += "_PASS"
+	done += intersect(outpath, cmd + " -f .,PASS", filtered)
+	if done == 2:
+		ret = True
 	return ret
 
 #-------------------------------Mutect----------------------------------------
@@ -157,7 +150,10 @@ def submitFiles(conf, samples, infile):
 			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
 			filt = "gatk FilterMutectCalls "
 		cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, bam, conf["normal"], s.Output)
-		# Call for control and tumor
+
+		############## Add bed file ################################
+
+		# Call mutect for control and tumor
 		res = callMutect(cmd, name)
 		if res:
 			# Record finished sample
@@ -165,15 +161,16 @@ def submitFiles(conf, samples, infile):
 			s.Status = "mutect"
 			with open(conf["log"], "a") as l:
 				l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
-			filtered = filterCalls(filt, s.Output)
-			if filtered:
-				# Record filtered reads
-				s.Output = filtered
-				s.Status = "filtered"
-				with open(conf["log"], "a") as l:
-					l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 		else:
-			s.Status = "failed"
+			s.Status = "failed-mutect"
+	if s.Status == "mutect":
+		filtered = filterCalls(filt, s.Output)
+		if filtered:
+			# Record filtered reads
+			s.Output = filtered
+			s.Status = "filtered"
+			with open(conf["log"], "a") as l:
+				l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 	return s
 
 #-----------------------------------------------------------------------------
@@ -212,12 +209,14 @@ def configEntry(conf, arg, key):
 		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg))
 		quit()
 	else:
-		conf[key] = args
+		conf[key] = arg
 	return conf	
 
 def getConfig(args):
 	# Returns arguments as dict
 	conf = {}
+	if args.o[-1] != "/":
+		args.o += "/"
 	conf = configEntry(conf, args.s, "sample")
 	conf = configEntry(conf, args.x, "tumor1")
 	conf = configEntry(conf, args.y, "tumor2")
@@ -230,11 +229,13 @@ def getConfig(args):
 		conf["gatk"] = args.gatk
 	if args.picard:
 		conf["picard"] = args.picard
+	if args.regions:
+		conf["regions"] = args.regions
 	return picard
 
 def main():
 	starttime = datetime.now()
-	parser = argparse.ArgumentParser(description = "This script will call MuTect2 on a given \
+	parser = ArgumentParser(description = "This script will call MuTect2 on a given \
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
 	parser.add_argument("-s", help = "Sample name (required).")
 	parser.add_argument("-x", help = "Path to first tumor bam (required).")
@@ -245,6 +246,7 @@ list of input files. Be sure that pysam is installed and that bcftools is in you
 	parser.add_argument("-bed", help = "Path to bed annotation.")
 	parser.add_argument("-gatk", help = "Path to gatk jar (if using).")
 	parser.add_argument("-picard", help = "Path to picard jar (if using).")
+	parser.add_argument("-a", help = "Path to active regions file.")
 	args = parser.parse_args()
 	conf = getConfig(args)
 	log, samples = checkOutput(conf["outpath"])
@@ -254,7 +256,7 @@ list of input files. Be sure that pysam is installed and that bcftools is in you
 	filtered = []
 	# Call mutect
 	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
-	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]])):
+	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
 		if x.Status == "failed":
 			print(("\n\tFailed to run {}.").format(x.ID))
 		else:		
@@ -265,12 +267,11 @@ list of input files. Be sure that pysam is installed and that bcftools is in you
 	if len(filtered) == 2:
 		# Compare output
 		print(("\n\tComparing filterd VCFs from {}...").format(conf["sample"]))
-
-		status = compareVCFs(conf, outdir + sample[0], vcfs)
+		status = compareVCFs(conf, filtered)
 		if status == True:
 			# Record finished samples
 			with open(conf["log"], "a") as l:
-				l.write(("{}\tcomparison\n").format(sample[0]))
+				l.write(("{}\tcompleted\n").format(conf["sample"]))
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
