@@ -12,7 +12,7 @@ from bamUtil import *
 
 class Sample():
 	# Stores data for managing sample progress
-	def __init__(name, mostRecent, outfile):
+	def __init__(self, name, mostRecent, outfile):
 		self.ID = name
 		self.Status = mostRecent
 		self.Output = outfile	
@@ -79,7 +79,7 @@ def compareVCFs(conf, vcfs):
 	done += intersect(outpath, cmd, vcfs)
 	# Call bftools on passes
 	outpath += "_PASS"
-	done += intersect(outpath, cmd + " -f .,PASS", filtered)
+	done += intersect(outpath, cmd + " -f .,PASS", vcfs)
 	if done == 2:
 		ret = True
 	return ret
@@ -100,7 +100,7 @@ def filterCalls(cmd, vcf):
 			return ""
 	return bgzip(outfile)
 
-def callMutect(cmd, name):
+def callMutect(cmd, name, outfile):
 	# Calls Mutect with given command
 	print(("\tCalling mutect on {}...").format(name))
 	# Make log file
@@ -143,18 +143,16 @@ def submitFiles(conf, samples, infile):
 		# Assemble command
 		if "gatk" in conf.keys():
 			# Format command for calling gatk jar
-			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["ref"])
+			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["reference"])
 			filt = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
 		else:
 			# Format command for colling gatk from path
-			cmd = ("gatk Mutect2 -R {} ").format(conf["ref"])
+			cmd = ("gatk Mutect2 -R {} ").format(conf["reference"])
 			filt = "gatk FilterMutectCalls "
-		cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, bam, conf["normal"], s.Output)
-
-		############## Add bed file ################################
-
+		cmd += ("--tumor-sample {} -I {} -I {} -L {} --output {}").format(tumorname, 
+											bam, conf["normal"], conf["bed"], s.Output)
 		# Call mutect for control and tumor
-		res = callMutect(cmd, name)
+		res = callMutect(cmd, name, s.Output)
 		if res:
 			# Record finished sample
 			s.Output = res
@@ -200,7 +198,6 @@ def checkOutput(outdir):
 		with open(log, "w") as f:
 			# Initialize log file
 			f.write("Filename\tStatus\tOutput\n")
-	
 	return log, done
 
 def configEntry(conf, arg, key):
@@ -229,9 +226,9 @@ def getConfig(args):
 		conf["gatk"] = args.gatk
 	if args.picard:
 		conf["picard"] = args.picard
-	if args.regions:
-		conf["regions"] = args.regions
-	return picard
+	if args.a:
+		conf["regions"] = args.a
+	return conf
 
 def main():
 	starttime = datetime.now()

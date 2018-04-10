@@ -43,7 +43,6 @@ def getCommand(conf):
 
 def getBatchScripts(outdir, conf, batch, files):
 	# Generates new batch script for each set of samples
-	count = 1
 	cmd = getCommand(conf)
 	scripts = []
 	for i in files.keys():
@@ -52,7 +51,7 @@ def getBatchScripts(outdir, conf, batch, files):
 		with open(outfile, "w") as output:
 			for line in batch:
 				if "--job-name=" in line:
-					output.write(("{}_{}\n").format(line.strip(), count))
+					output.write(("{}_{}\n").format(line.strip(), i))
 				else:
 					output.write(line)
 			outpath = conf["outpath"] + i + "/"
@@ -60,7 +59,6 @@ def getBatchScripts(outdir, conf, batch, files):
 					files[i][0], files[i][1], files[i][2], outpath)
 			output.write(c + "\n")
 		scripts.append(outfile)
-		count += 1
 	return scripts
 
 def getManifest(infile):
@@ -107,9 +105,11 @@ def checkReferences(conf):
 
 def getOptions(conf, line):
 	# Returns config dict with updated options
+	val = None
 	s = line.split("=")
-	target = s[0].strip()
-	val = s[1].strip()
+	if len(s) == 2:
+		target = s[0].strip()
+		val = s[1].strip()
 	if val:
 		if target == "reference_genome":
 			conf["ref"] = val
@@ -132,12 +132,12 @@ def getOptions(conf, line):
 			if not os.path.isfile(conf["picard"]):
 				print("\n\t[Error] Picard jar not found. Exiting.\n")
 				quit()
-		elif target = "active_Regions":
+		elif target == "active_Regions":
 			conf["regions"] = val
 			if not os.path.isfile(conf["regions"]):
 				print("\n\t[Error] Active Regions file not found. Exiting.\n")
 				quit()			
-		elif target = "normal_panel":
+		elif target == "normal_panel":
 			conf["pon"] = val
 			if not os.path.isfile(conf["pon"]):
 				print("\n\t[Error] Panel of Normals file not found. Exiting.\n")
@@ -169,9 +169,8 @@ def getConf(infile):
 	if not os.path.isfile(conf["ref"]):
 		print("\n\t[Error] Genome fasta not found. Exiting.\n")
 		quit()
-	if not os.path.isfile(conf["outpath"]):
-		print("\n\t[Error] Output directory not specified. Exiting.\n")
-		quit()
+	if not os.path.isdir(conf["outpath"]):
+		os.mkdir(conf["outpath"])
 	return conf, batch
 
 #-----------------------------------------------------------------------------
