@@ -97,7 +97,7 @@ def filterCalls(cmd, vcf):
 			fmc.communicate()
 		except:
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
-			return ""
+			return None
 	return bgzip(outfile)
 
 def callMutect(cmd, name, outfile):
@@ -111,7 +111,7 @@ def callMutect(cmd, name, outfile):
 			mt.communicate()
 		except:
 			print(("\t[Error] Could not call MuTect on {}").format(name))
-			return ""
+			return None
 	with open(log, "r") as dn:
 		status = False
 		# Make sure mutect completed successfully
@@ -124,22 +124,38 @@ def callMutect(cmd, name, outfile):
 					print(("\t{} has completed mutect analysis.").format(name))
 					return outfile
 				else:
-					return ""
+					return None
+
+def getSample(fname):
+	# Returns sample name (ie raw filename)
+	s = os.path.split(fname)
+	if "-" in s:
+		# Remove group ID
+		return s[s.find("-")+1:s.find(".")]
+	else:
+		return s[:s.find(".")]
 
 def submitFiles(conf, samples, infile):
 	# Calls MuTect2 serially over input files
-	name = infile[infile.rfind("/")+1:infile.find(".")]
+	name = getSample(infile)
+	# Get sample info
 	if name in samples.keys():
 		s = sample[name]
 	else:
 		s = Sample(name, "starting", conf["outpath"] + name + ".vcf")
 	if s.Status == "starting":
+		# Mutect pipeline
 		if "picard" in conf.keys():
 			_, control = checkRG(conf["normal"], s.ID, conf["picard"])
 			tumorname, bam = checkRG(infile, name, conf["picard"])
 		else:
 			_, control = checkRG(conf["normal"], s.ID)
 			tumorname, bam = checkRG(infile, name)
+		if not control or not tumorname or not bam:
+			s.Status = "failed-addingReadGroups"
+			with open(conf["log"], "a") as l:
+				l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
+			return s
 		# Assemble command
 		if "gatk" in conf.keys():
 			# Format command for calling gatk jar
@@ -157,18 +173,21 @@ def submitFiles(conf, samples, infile):
 			# Record finished sample
 			s.Output = res
 			s.Status = "mutect"
-			with open(conf["log"], "a") as l:
-				l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 		else:
 			s.Status = "failed-mutect"
+		with open(conf["log"], "a") as l:
+			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 	if s.Status == "mutect":
+		# Filter vcf
 		filtered = filterCalls(filt, s.Output)
 		if filtered:
 			# Record filtered reads
 			s.Output = filtered
 			s.Status = "filtered"
-			with open(conf["log"], "a") as l:
-				l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
+		else:
+			s.Status - "failed-filtering"
+		with open(conf["log"], "a") as l:
+			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 	return s
 
 #-----------------------------------------------------------------------------
@@ -254,10 +273,10 @@ list of input files. Be sure that pysam is installed and that bcftools is in you
 	# Call mutect
 	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
 	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
-		if x.Status == "failed":
+		if "failed" in x.Status:
 			print(("\n\tFailed to run {}.").format(x.ID))
 		else:		
-			print(("\n\t{} has completed.").format(x.ID))
+			print(("\n\t{} has finished filtering.").format(x.ID))
 			filtered.append(x.Output)
 	pool.close()
 	pool.join()
