@@ -128,7 +128,7 @@ def callMutect(cmd, name, outfile):
 
 def getSample(fname):
 	# Returns sample name (ie raw filename)
-	s = os.path.split(fname)
+	s = os.path.split(fname)[1]
 	if "-" in s:
 		# Remove group ID
 		return s[s.find("-")+1:s.find(".")]

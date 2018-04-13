@@ -29,7 +29,7 @@ def submitJobs(scripts, batch):
 		try:
 			# Submit each batch script
 			print(("\tSubmitting {}").format(i))
-			Popen(split(cmd + i))
+			Popen(split(cmd + i + " \n"))
 		except:
 			print(("\t[Error] Could not submit {}").format(i))
 
