@@ -168,8 +168,10 @@ def submitFiles(conf, samples, infile):
 		else:
 			# Format command for colling gatk from path
 			cmd = ("gatk Mutect2 -R {} ").format(conf["reference"])
-		cmd += ("--tumor-sample {} -I {} -I {} -L {} --output {}").format(tumorname, 
-											bam, conf["normal"], conf["bed"], s.Output)
+		cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, 
+											bam, conf["normal"], s.Output)
+		if "bed" in conf.keys():
+			cmd += (" -L {}").format(conf["bed"])
 		# Call mutect for control and tumor
 		res = callMutect(cmd, name, s.Output)
 		if res:
@@ -255,8 +257,6 @@ def getConfig(args):
 		conf["gatk"] = args.gatk
 	if args.picard:
 		conf["picard"] = args.picard
-	if args.a:
-		conf["regions"] = args.a
 	return conf
 
 def main():
@@ -272,7 +272,6 @@ list of input files. Be sure that pysam is installed and that bcftools is in you
 	parser.add_argument("-bed", help = "Path to bed annotation.")
 	parser.add_argument("-gatk", help = "Path to gatk jar (if using).")
 	parser.add_argument("-picard", help = "Path to picard jar (if using).")
-	parser.add_argument("-a", help = "Path to active regions file.")
 	args = parser.parse_args()
 	conf = getConfig(args)
 	log, samples = checkOutput(conf["outpath"])

@@ -131,12 +131,7 @@ def getOptions(conf, line):
 			conf["picard"] = val
 			if not os.path.isfile(conf["picard"]):
 				print("\n\t[Error] Picard jar not found. Exiting.\n")
-				quit()
-		elif target == "active_Regions":
-			conf["regions"] = val
-			if not os.path.isfile(conf["regions"]):
-				print("\n\t[Error] Active Regions file not found. Exiting.\n")
-				quit()			
+				quit()	
 		elif target == "normal_panel":
 			conf["pon"] = val
 			if not os.path.isfile(conf["pon"]):
