@@ -145,7 +145,7 @@ def submitFiles(conf, samples, infile):
 	name = getSample(infile)
 	# Get sample info
 	if name in samples.keys():
-		s = sample[name]
+		s = samples[name]
 	else:
 		s = Sample(name, "starting", conf["outpath"] + name + ".vcf")
 	if s.Status == "starting":
@@ -210,11 +210,13 @@ def checkOutput(outdir):
 			for line in f:
 				if first == False and line.strip():
 					line = line.strip().split("\t")
-					if len(line) == 3 or splt[1] == "completed":
+					if line[1] == "completed":
+						done[line[0]] = Sample(line[0], line[1])
+					if len(line) == 3:
 						if line[0] in done.keys():
-							done[line[0]].__udpate__(line)
+							done[line[0]].__update__(line[0], line[1], line[2])
 						else:
-							done[line[0]] = Sample(line)
+							done[line[0]] = Sample(line[0], line[1], line[2])
 				else:
 					# Skip header
 					first = False
