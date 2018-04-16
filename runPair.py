@@ -14,7 +14,7 @@ class Sample():
 	# Stores data for managing sample progress
 	def __init__(self, name, mostRecent, outfile=None):
 		self.ID = name
-		self.Status = ""
+		self.Status = "starting"
 		if "failed" not in mostRecent:
 			self.Status = mostRecent
 		self.Output = outfile	
@@ -165,11 +165,9 @@ def submitFiles(conf, samples, infile):
 		if "gatk" in conf.keys():
 			# Format command for calling gatk jar
 			cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["reference"])
-			filt = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
 		else:
 			# Format command for colling gatk from path
 			cmd = ("gatk Mutect2 -R {} ").format(conf["reference"])
-			filt = "gatk FilterMutectCalls "
 		cmd += ("--tumor-sample {} -I {} -I {} -L {} --output {}").format(tumorname, 
 											bam, conf["normal"], conf["bed"], s.Output)
 		# Call mutect for control and tumor
@@ -183,6 +181,11 @@ def submitFiles(conf, samples, infile):
 		with open(conf["log"], "a") as l:
 			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 	if s.Status == "mutect":
+		# Assemble command
+		if "gatk" in conf.keys():
+			filt = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
+		else:
+			filt = "gatk FilterMutectCalls "
 		# Filter vcf
 		filtered = filterCalls(filt, s.Output)
 		if filtered:
@@ -190,7 +193,7 @@ def submitFiles(conf, samples, infile):
 			s.Output = filtered
 			s.Status = "filtered"
 		else:
-			s.Status - "failed-filtering"
+			s.Status = "failed-filtering"
 		with open(conf["log"], "a") as l:
 			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
 	return s

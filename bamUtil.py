@@ -59,7 +59,7 @@ def checkRG(bam, sid, picard=None):
 	# Adds read groups, creates bam index, and returns read group name
 	idx = True
 	name = getTumorName(bam)
-	if not name:
+	if type(name) != str:
 		idx = False
 		bam, name = addRG(bam, sid, picard)
 		if not bam or not name:
