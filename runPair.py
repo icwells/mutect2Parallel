@@ -12,15 +12,20 @@ from bamUtil import *
 
 class Sample():
 	# Stores data for managing sample progress
-	def __init__(self, name, mostRecent, outfile):
+	def __init__(self, name, mostRecent, outfile=None):
 		self.ID = name
-		self.Status = mostRecent
+		self.Status = ""
+		if "failed" not in mostRecent:
+			self.Status = mostRecent
 		self.Output = outfile	
 
 	def __update__(self, name, mostRecent, outfile):
 		# Sorts and updates entry with additional status update
 		if self.Status == "completed":
 			pass
+		elif self.Status == "":
+			if "failed" not in mostRecent:
+				self.Status = mostRecent
 		elif mostRecent == "completed":
 			self.Status = mostRecent
 			self.Output = outfile
@@ -110,7 +115,7 @@ def callMutect(cmd, name, outfile):
 			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
 			mt.communicate()
 		except:
-			print(("\t[Error] Could not call MuTect on {}").format(name))
+			print(("\t[Error] Could not call MuTect2 on {}").format(name))
 			return None
 	with open(log, "r") as dn:
 		status = False
@@ -205,7 +210,7 @@ def checkOutput(outdir):
 			for line in f:
 				if first == False and line.strip():
 					line = line.strip().split("\t")
-					if len(line) == 3:
+					if len(line) == 3 or splt[1] == "completed":
 						if line[0] in done.keys():
 							done[line[0]].__udpate__(line)
 						else:
