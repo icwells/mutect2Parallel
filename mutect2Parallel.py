@@ -35,10 +35,25 @@ def submitJobs(scripts, batch):
 
 def getCommand(conf):
 	# Returns base python call for all files
-	cmd = ("python runPair.py -r {} ").format(conf["ref"])
-	for i in ["bed", "gatk", "picard"]:
+	if conf["newpon"] == False:
+		cmd = ("python runPair.py -r {} ").format(conf["ref"])
+	else:
+		cmd = ("python getPON.py -l {} -r {}").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
+		if not os.path.isfile(conf["outpath"] + "normalsLog.txt"):
+			with open(conf["outpath"] + "normalsLog.txt", "w") as f:
+				# initilize lof file
+				f.write("Sample\tVCF\n")
+	if conf["bamout"] == True:
+		cmd += "--bamout "
+	for i in ["bed", "gatk", "picard", "af"]:
 		if i in conf.keys() and conf[i] != None:
-			cmd += ("-{} {} ").format(i, conf[i])
+			cmd += ("--{} {} ").format(i, conf[i])
+	if "pon" in conf.keys():
+		cmd += ("-p {} ").format(conf["pon"])
+	if "germline" in conf.keys():
+		cmd += ("-g {} ").format(conf["germline"])
+	if "contaminant" in conf.keys():
+		cmd += ("-e {} ").format(conf["contaminant"])
 	return cmd
 
 def getBatchScripts(outdir, conf, batch, files):
@@ -54,14 +69,17 @@ def getBatchScripts(outdir, conf, batch, files):
 					output.write(("{}_{}\n").format(line.strip(), i))
 				else:
 					output.write(line)
-			outpath = conf["outpath"] + i + "/"
-			c = cmd + ("-s {} -c {} -x {} -y {} -o {}").format(i, 
+			if conf["newpon"] == False:
+				outpath = conf["outpath"] + i + "/"
+				c = cmd + ("-s {} -c {} -x {} -y {} -o {}").format(i, 
 					files[i][0], files[i][1], files[i][2], outpath)
+			else:
+				c = cmd + ("-s {} -c {} -o {}").format(i, files[i], conf["outpath"])
 			output.write(c + "\n")
 		scripts.append(outfile)
 	return scripts
 
-def getManifest(infile):
+def getManifest(infile, pon):
 	# Returns dict of input files
 	files = {}
 	first = True
@@ -77,14 +95,25 @@ def getManifest(infile):
 							break
 					first = False
 				s = line.strip().split(delim)
-				files[s[0]] = s[1:]
+				if pon == False:
+					files[s[0]] = s[1:]
+				else:
+					# Only save normal file path
+					files[s[0]] = s[1]
 	for i in files.keys():
-		for j in files[i]:
-			if not os.path.isfile(j):
-				print(("\n\t[Error] Input file {} not found. Exiting.\n").format(j))
+		if pon == False:
+			for j in files[i]:
+				if not os.path.isfile(j):
+					print(("\n\t[Error] Input file {} not found. Exiting.\n").format(j))
+					quit()
+		else:
+			if not os.path.isfile(files[i]):
+				print(("\n\t[Error] Input file {} not found. Exiting.\n").format(files[i]))
 				quit()
 	print(("\tFound entries for {} samples.\n").format(len(files)))
 	return files
+
+#-----------------------------------------------------------------------------
 
 def checkReferences(conf):
 	# Ensures fasta and vcf index and dict files are present
@@ -103,6 +132,12 @@ def checkReferences(conf):
 			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
 
+def checkFile(infile, err):
+	# Exits if infile is not found
+	if not os.path.isfile(infile):
+		print(("\n\t[Error] {} not found. Exiting.\n").format(err))
+		quit()	
+
 def getOptions(conf, line):
 	# Returns config dict with updated options
 	val = None
@@ -115,28 +150,28 @@ def getOptions(conf, line):
 			conf["ref"] = val
 		elif target == "bed_annotation":
 			conf["bed"] = val
-			if not os.path.isfile(conf["bed"]):
-				print("\n\t[Error] Bed file not found. Exiting.\n")
-				quit()	
+			checkFile(conf["bed"], "Bed file")
 		elif target == "output_directory":
 			if val[-1] != "/":
 				val += "/"
 			conf["outpath"] = val
 		elif target == "GATK_jar":
 			conf["gatk"] = val
-			if not os.path.isfile(conf["gatk"]):
-				print("\n\t[Error] Picard jar not found. Exiting.\n")
-				quit()
+			checkFile(conf["gatk"], "GATK jar")
 		elif target == "Picard_jar":
 			conf["picard"] = val
-			if not os.path.isfile(conf["picard"]):
-				print("\n\t[Error] Picard jar not found. Exiting.\n")
-				quit()	
+			checkFile(conf["picard"], "Picard jar")	
 		elif target == "normal_panel":
 			conf["pon"] = val
-			if not os.path.isfile(conf["pon"]):
-				print("\n\t[Error] Panel of Normals file not found. Exiting.\n")
-				quit()				
+			checkFile(conf["pon"], "Panel of normals file")
+		elif target == "germline_resource":
+			conf["germline"] = val
+			checkFile(conf["germline"], "Germline resource file")
+		elif target == "allele_frequency":
+			conf["af"] = val
+		elif target == "contaminant_estimate":
+			conf["contaminant"] = val
+			checkFile(conf["contaminant"], "Contaminant estimate vcf")
 	return conf
 
 def getConf(infile):
@@ -166,9 +201,10 @@ def getConf(infile):
 		quit()
 	if not os.path.isdir(conf["outpath"]):
 		os.mkdir(conf["outpath"])
+	if "germline" in conf.keys() and "af" not in conf.keys():
+		print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n")
+		quit()	
 	return conf, batch
-
-#-----------------------------------------------------------------------------
 
 def main():
 	starttime = datetime.now()
@@ -176,6 +212,10 @@ def main():
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
 	parser.add_argument("--submit", action = "store_true", default = False,
 help = "Submit batch files to SLURM/Torque grid for execution.")
+	parser.add_argument("--bamout", action = "store_true", default = False,
+help = "Indicates that mutect should also generate bam output files.")
+	parser.add_argument("--newPON", action = "store_true", default = False,
+help = "Creates batch scripts for running mutect on normals and creating a panel of normals.")
 	parser.add_argument("-i", 
 help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
 	parser.add_argument("-c", 
@@ -189,8 +229,10 @@ help = "Path to batch script output directory (leave blank for current directory
 	if args.o and args.o[-1] != "/":
 		args.o += "/"
 	conf, batch = getConf(args.c)
+	conf["bamout"] = args.bamout
+	conf["newpon"] = args.newPON
 	checkReferences(conf)
-	files = getManifest(args.i)
+	files = getManifest(args.i, conf["newpon"])
 	scripts = getBatchScripts(args.o, conf, batch, files)
 	if args.submit == True:
 		submitJobs(scripts, batch)

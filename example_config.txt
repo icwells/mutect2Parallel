@@ -7,9 +7,12 @@ Picard_jar =
 
 # Mutect2 Options
 normal_panel = 
+germline_resource = 
+allele_frequency = 
+contaminant_estimate = 
 
 ==============================================================================
-#	Sample Batch Script (grid commands and module load commands
+#	Sample Batch Script (grid commands and module load commands)
 ==============================================================================
 
 #!/bin/bash
