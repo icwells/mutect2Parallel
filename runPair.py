@@ -147,9 +147,9 @@ help = "Indicates that mutect should also generate bam output files.")
 		status = compareVCFs(conf, filtered)
 		if status == True:
 			# Record finished samples
+			outfile = conf["outpath"] + conf["sample"] + ".csv"
 			with open(conf["log"], "a") as l:
-				l.write(("{}\tcompleted\t{}\n").format(conf["sample"]), 
-								conf["outpath"] + conf["sample"] + ".csv")
+				l.write(("{}\tcompleted\t{}\n").format(conf["sample"], outfile))
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":

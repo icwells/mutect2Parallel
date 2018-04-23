@@ -59,7 +59,7 @@ MateOnSameContigOrNoMappedMateReadFilter -R {} ").format(conf["reference"])
 	if "germline" in conf.keys():
 		cmd += (" --germline-resource {} --af-of-alleles-not-in-resource {}").format(conf["germline"], conf["af"])
 	# Call mutect for control and tumor
-	res = callMutect(cmd, name, s.Output)
+	res = callMutect(cmd, conf["sample"], outfile)
 	if res:
 		print("\tFinished running Mutect2.")
 		with open(conf["log"], "a") as log:
@@ -82,7 +82,6 @@ def getConfig(args):
 	# Returns arguments as dict
 	conf = {}
 	conf["log"] = args.l
-	conf["bamout"] = args.bamout
 	if args.o[-1] != "/":
 		args.o += "/"
 	conf = configEntry(conf, args.s, "sample")
@@ -130,7 +129,7 @@ panel of normals from log file (requires -l (output from tumor only mode) and -o
 	else:
 		conf = getConfig(args)
 		# Call mutect
-		print(("\n\tCalling Mutect2 on {}....").format(conf["sample"]))
+		print(("\n\tCalling Mutect2 in tumor-only mode on {}....").format(conf["sample"]))
 		status = submitNormal(conf)
 	if status == True:
 		print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))

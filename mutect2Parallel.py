@@ -38,7 +38,7 @@ def getCommand(conf):
 	if conf["newpon"] == False:
 		cmd = ("python runPair.py -r {} ").format(conf["ref"])
 	else:
-		cmd = ("python getPON.py -l {} -r {}").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
+		cmd = ("python getPON.py -l {} -r {} ").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
 		if not os.path.isfile(conf["outpath"] + "normalsLog.txt"):
 			with open(conf["outpath"] + "normalsLog.txt", "w") as f:
 				# initilize lof file
@@ -125,12 +125,20 @@ def checkReferences(conf):
 		if not os.path.isfile(fdict):
 			# Call CreateSequenceDictionary
 			print("\tGenerating fasta dictionary...\n")
-			if conf["jar"] == True:
+			if "picard" in conf.keys():
 				cmd = ("java -jar {} ").format(conf["picard"])
 			else:
 				cmd = "picard "
 			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
+		if "contaminant" in conf.keys():
+			if not os.path.isfile(conf["contaminant"] + ".tbi"):
+				if "gatk" in conf.keys():
+					cmd = ("java -jar {} IndexFeatureFile -F {}").format(conf["gatk"], conf["contaminant"])
+				else:
+					cmd = ("gatk IndexFeatureFile -F {}").format(conf["contaminant"])
+				fd = Popen(split((cmd), stdout=dn, stderr=dn)
+				fd.communicate()
 
 def checkFile(infile, err):
 	# Exits if infile is not found

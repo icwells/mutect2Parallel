@@ -4,7 +4,7 @@ import os
 from subprocess import Popen
 from shlex import split
 from bamUtil import *
-#from runPair import Sample
+from runPair import Sample
 
 #-------------------------------Filtering-------------------------------------
 
@@ -148,11 +148,11 @@ def getOpt(conf, cmd):
 													conf["germline"], conf["af"])
 	return cmd
 
-def submitSample(infile, conf, s):
+def submitSample(infile, conf, s, name):
 	# Builds mutect command
 	if "picard" in conf.keys():
 		_, control = checkRG(conf["normal"], s.ID, conf["picard"])
-		tumorname, bam = checkRG(infile, name, conf["picard"])
+		tumorname, bam = checkRG(infile, s.ID, conf["picard"])
 	else:
 		_, control = checkRG(conf["normal"], s.ID)
 		tumorname, bam = checkRG(infile, name)
@@ -211,7 +211,7 @@ def submitFiles(conf, samples, infile):
 	else:
 		s = Sample(name, "starting", conf["outpath"] + name + ".vcf")
 	if s.Status == "starting":
-		s = submitSample(infile, conf, s)
+		s = submitSample(infile, conf, s, name)
 	if s.Status == "mutect":
 		if "contaminant" in conf.keys():
 			status = estContamination(conf, s)
