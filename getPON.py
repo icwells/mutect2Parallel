@@ -8,7 +8,7 @@ from shlex import split
 from runPair import callMutect
 from bamUtil import checkRG
 
-def makePON(infiles, outfile, gatk)
+def makePON(infiles, outfile, gatk):
 	# Calls mutect to create a new panel of normals
 	first = True
 	if gatk:
@@ -18,9 +18,9 @@ def makePON(infiles, outfile, gatk)
 		cmd = ("gatk CreateSomaticPanelOfNormals -O {}").format(outfile)
 	with open(infiles, "r") as f:
 		for line in f:
-			if first == False
+			if first == False:
 				splt = line.split("\t")
-				if len splt >= 2:
+				if len(splt) >= 2:
 					cmd += (" -vcfs {}").format(splt[1].strip())
 			else:
 				first = False
@@ -28,6 +28,8 @@ def makePON(infiles, outfile, gatk)
 	with open(log, "w") as l:
 		try:
 			mp = Popen(split(cmd), stdout = l, stderr = l)
+			mp.communicate()
+			return True
 		except:
 			print("\t[Error] Could not generate panel of normals. Exiting.")
 			quit()
@@ -62,6 +64,7 @@ MateOnSameContigOrNoMappedMateReadFilter -R {} ").format(conf["reference"])
 		print("\tFinished running Mutect2.")
 		with open(conf["log"], "a") as log:
 			log.write(("{}\t{}\n").format(conf["sample"], outfile))
+		return True
 	else:
 		print("\t[Error] Failed running Mutect2. Exiting")
 		quit()
@@ -123,13 +126,14 @@ panel of normals from log file (requires -l (output from tumor only mode) and -o
 	args = parser.parse_args()
 	if args.pon == True:
 		print("\n\tGenerating panel of normals...")
-		makePON(args.l, args.o, args.gatk)
+		status = makePON(args.l, args.o, args.gatk)
 	else:
 		conf = getConfig(args)
 		# Call mutect
 		print(("\n\tCalling Mutect2 on {}....").format(conf["sample"]))
-		submitNormal(conf)
-	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
+		status = submitNormal(conf)
+	if status == True:
+		print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
 	main()

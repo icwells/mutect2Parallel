@@ -4,7 +4,7 @@ import os
 from subprocess import Popen
 from shlex import split
 from bamUtil import *
-from runPair import Sample
+#from runPair import Sample
 
 #-------------------------------Filtering-------------------------------------
 
@@ -59,8 +59,6 @@ def compareVCFs(conf, vcfs):
 		ret = True
 	return ret
 
-#-------------------------------Mutect----------------------------------------
-
 def filterCalls(cmd, vcf):
 	# Calls gatk to filter mutect calls
 	outfile = vcf[:vcf.find(".")] + ".filtered.vcf"
@@ -74,6 +72,46 @@ def filterCalls(cmd, vcf):
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 			return None
 	return bgzip(outfile)
+
+#-------------------------------Contamination---------------------------------
+
+def estContamination(conf, s):
+	# Calls gatk to get pileup summary and estimate contamination
+	print(("\tEstimating contamination in {}...").format(s.ID))
+	if "gatk" in conf.keys():
+		# Format command for calling gatk jar
+		pu = ("java -jar {} GetPileupSummaries -R {} ").format(conf["gatk"], conf["reference"])
+		cc = ("java -jar {} CalculateContamination ").format(conf["gatk"])
+	else:
+		# Format command for colling gatk from path
+		pu = ("gatk GetPileupSummaries -R {} ").format(conf["reference"])
+		cc = "gatk CalculateContamination "
+	# Get pileup summary
+	pileup = s.Output.replace(".vcf", "pileup.table")
+	pu += ("-I {} -V {} -O {}").format(s.Output, conf["contaminant"], pileup)
+	pu = getOpt(conf, pu)
+	plog = pileup.replace("table", "stdout")
+	with open(plog, "w") as l:
+		try:
+			spu = Popen(split(pu), stdout = l, stderr = l)
+			spu.communicate()
+		except:
+			print(("\t[Error] Could not call GetPileupSummaries on {}").format(s.Output))
+			return False
+	# Get contamination estimate
+	cest = pileup.replace("pileup", "contamination")
+	clog = cest.replace("table", "stdout")
+	cc += ("-I {} -O {}").format(pileup, cest)
+	with open(clog, "w") as l:
+		try:
+			ccont = Popen(split(cc), stdout = l, stderr = l)
+			ccont.communicate()
+		except:
+			print(("\t[Error] Could not call CalculateContamination on {}").format(s.Output))
+			return False
+	return True
+
+#-------------------------------Mutect----------------------------------------
 
 def callMutect(cmd, name, outfile):
 	# Calls Mutect with given command
@@ -101,6 +139,15 @@ def callMutect(cmd, name, outfile):
 				else:
 					return None
 
+def getOpt(conf, cmd):
+	# Adds common flags to command
+	if "bed" in conf.keys():
+		cmd += (" -L {}").format(conf["bed"])
+	if "germline" in conf.keys():
+		cmd += (" --germline-resource {} --af-of-alleles-not-in-resource {}").format(
+													conf["germline"], conf["af"])
+	return cmd
+
 def submitSample(infile, conf, s):
 	# Builds mutect command
 	if "picard" in conf.keys():
@@ -122,15 +169,12 @@ def submitSample(infile, conf, s):
 		cmd = ("gatk Mutect2 -R {} ").format(conf["reference"])
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, 
 										bam, conf["normal"], s.Output)
-	if "bed" in conf.keys():
-		cmd += (" -L {}").format(conf["bed"])
-	if "germline" in conf.keys():
-		cmd += (" --germline-resource {} --af-of-alleles-not-in-resource {}").format(conf["germline"], conf["af"])
 	if "bamout" in conf.keys():
 		s.Bam = s.Output[:s.Output.find(".")] + ".Mutect2.bam"
 		cmd += (" --bamout {}").format(s.Bam)
 	if "pon" in conf.keys():
 		cmd += (" --normal_panel {}").format(conf["pon"])
+	cmd = getOpt(conf, cmd)
 	# Call mutect for control and tumor
 	res = callMutect(cmd, name, s.Output)
 	if res:
@@ -169,9 +213,16 @@ def submitFiles(conf, samples, infile):
 	if s.Status == "starting":
 		s = submitSample(infile, conf, s)
 	if s.Status == "mutect":
-		
-
-	if s.Status == "contamination-estimate":
+		if "contaminant" in conf.keys():
+			status = estContamination(conf, s)
+			if status == True:
+				s.Status = "contamination-estimate:complete"
+			else:
+				s.Status = "failed:estimating-contamination"
+		else:
+			s.Status = "contamination-estimate:none"
+		appendLog(conf, s)
+	if "contamination-estimate" in s.Status:
 		# Assemble command
 		if "gatk" in conf.keys():
 			cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
