@@ -31,6 +31,8 @@ def submitJobs(scripts, batch):
 			Popen(split(cmd + i + " \n"))
 		except:
 			print(("\t[Error] Could not submit {}").format(i))
+	print()
+	return True
 
 def getCommand(conf):
 	# Returns base python call for all files
@@ -242,8 +244,11 @@ help = "Path to batch script output directory (leave blank for current directory
 	files = getManifest(args.i, conf["newpon"])
 	scripts = getBatchScripts(args.o, conf, batch, files)
 	if args.submit == True:
-		submitJobs(scripts, batch)
-	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
+		done = submitJobs(scripts, batch)
+	else:
+		done = True
+	if done == True:
+		print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
 	main()
