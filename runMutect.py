@@ -87,7 +87,7 @@ def estContamination(conf, s):
 		pu = ("gatk GetPileupSummaries -R {} ").format(conf["reference"])
 		cc = "gatk CalculateContamination "
 	# Get pileup summary
-	pileup = s.Output.replace(".vcf", "pileup.table")
+	pileup = s.Output.replace(".vcf", ".pileup.table")
 	pu += ("-I {} -V {} -O {}").format(s.Output, conf["contaminant"], pileup)
 	pu = getOpt(conf, pu)
 	plog = pileup.replace("table", "stdout")
