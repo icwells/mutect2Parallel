@@ -48,7 +48,7 @@ Each entry should ahve the following format:
 
 	SampleID	path/to/normals	path/to/tumor/file1	path/to/tumor/file2 
 
-The same format can be used to generate new panel of normals, but only the normal file will be used. 
+The same format can be used to generate a new panel of normals, but only the normal file will be used. 
 
 ### Index/Dict Files
 You may include a fasta dict file and fasta, bam, and vcf indeces if they are available. 
@@ -66,8 +66,7 @@ The resulting batch scripts will run each tumor-normal combination in parallel f
 	--bamout		Indicates that mutect should also generate bam output files (extends mutect runtime).
 	--newPON		Creates batch scripts for running mutect in tumor-only mode on normals 
 						and creating a panel of normals (instead of running both tumor-normal comparisons)
-	-i I			Path to space/tab/comma seperated text file of input files
-						(format: ID Normal A B)
+	-i I			Path to space/tab/comma seperated text file of input files (format: ID Normal A B)
 	-c C			Path to config file containing reference genome, java jars (if using), and mutect options.
 	-o O			Path to batch script output directory (leave blank for current directory).
 
