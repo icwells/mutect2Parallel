@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 from subprocess import Popen
 from shlex import split
-from runPair import callMutect
+from runMutect import callMutect
 from bamUtil import checkRG
 
 def makePON(infiles, outfile, gatk):

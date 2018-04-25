@@ -1,6 +1,6 @@
-# Call Mutect2 in parallel over input files
-## This script replaces mutect2Serial and can run mutliple instances of mutect at once. 
-### This script is meant to meet the specific needs of my lab, but is provided in case it proves useful to others.
+# mutect2Parallel v0.1 will create batch scripts to call Mutect2 in parallel over input files
+
+### This script is meant to meet the specific needs of the Maley lab, but is provided in case it proves useful to others.
 
 Copyright 2018 by Shawn Rupp
 
@@ -15,6 +15,8 @@ GATK: https://software.broadinstitute.org/gatk/download/
 
 Picard: https://github.com/broadinstitute/picard/releases/ 
 
+bcftools: http://www.htslib.org/download/ 
+
 pysam: 
 
 	conda install pysam 
@@ -25,22 +27,101 @@ pysam:
 Change the name of example_config.txt (so it won't be replaced if there is another pull). 
 Simply add the paths to the required files after the equals sign. 
 The GATK and Picard jars can be omitted if you are loading modules on a grid system. 
+Be sure to include an template batch file after the variable definitions. The appropriate command 
+will be added to the temple and the job name will have the respective sample ID appended to it. It is
+recommended that mutect2 has at least 16Gb of RAM available. Since each batch script will call two parallel 
+instances, it is best to specify 32Gb of RAM for each script. 
+
+	reference_genome		Path to reference genome (required). 
+	bed_annotation			Path to BED annotation (greatly speeds up runtime) 
+	output_directory		Path to parent output directory (each sample will have it's own folder) 
+	GATK_jar	 			Path to GATK jar (omit if using a module). 
+	Picard_jar	 			Path to Picard jar (omit if using a module). 
+	normal_panel	 		Path to panel of normals VCF (Can use mutect2Parallel/getPON to generate)
+	germline_resource		Path to germline recource file. 
+	allele_frequency		Decimal frequency of alleles in germline recource (i.e. 1/# of individuals; required if using germline resource). 
+	contaminant_estimate	Path to VCF used to estimate contmaination in samples. 
 
 ### Manifest file 
 The manifest file may be a space, comma, or tab seperated text file with one entry per line. 
 Each entry should ahve the following format: 
 
-	SampleID	path_to_normals	path_to_tumor_file1	path_to_tumor_file2 
+	SampleID	path/to/normals	path/to/tumor/file1	path/to/tumor/file2 
+
+The same format can be used to generate new panel of normals, but only the normal file will be used. 
 
 ### Index/Dict Files
-You may include a fasta dict file and fasta and vcf indeces if they are available. 
+You may include a fasta dict file and fasta, bam, and vcf indeces if they are available. 
 If they are not present, the script will generate them for each file. 
 
 ## Example Usage
+mutect2Parallel will create one batch script per sample in the manifest file using the template provided in the config file. 
+It will also check for indexes for any reference files (i.e. a reference fasta index) and generate them if necessary. 
+The resulting batch scripts will run each tumor-normal combination in parallel for each sample. 
 
-	python mutect2Serial.py {--jar} -t <#threads> -i path_to_manifest -c path_to_config_file -o path_to_output_directory
+	python mutect2Parallel.py {--submit/bamout/newPON} -i path/to/manifest -c path/to/config/file -o path/to/output/directory
 
-## Output 
-For each batch of input samples, mutect2Parallel will create four output files. For each control-tumor comparison 
-(file 1 vs 2 and 1 vs 3), mutect2 will create an output vcf and the stdout and stderr will be piped to a 
-file with the same name as the vcf, but with a stdout extension. 
+	-h, --help	show this help message and exit
+	--submit		Submit batch files to SLURM/Torque grid for execution.
+	--bamout		Indicates that mutect should also generate bam output files (extends mutect runtime).
+	--newPON		Creates batch scripts for running mutect in tumor-only mode on normals 
+						and creating a panel of normals (instead of running both tumor-normal comparisons)
+	-i I			Path to space/tab/comma seperated text file of input files
+						(format: ID Normal A B)
+	-c C			Path to config file containing reference genome, java jars (if using), and mutect options.
+	-o O			Path to batch script output directory (leave blank for current directory).
+
+### Output 
+For each batch of input samples, mutect2Parallel will create one batch script for each sample. By default, each script will call runPair.py 
+which will call an instance of mutect for each combination of inputs. This script will call mutect2, optionally estimate the 
+comtamination of the samples, and filter the resulting vcf files. It will also store the stdout and sdterr from each program it calls. 
+
+## Other Scripts
+runPair and getPON commands are formatted in batch scripts by mutect2Parallel, so it may not be necessary to directly call either. 
+
+### runPair.py
+Used to call mutect2 in parallel for each each tumor-normal comparison for one sample. This script is called by mutect2Parallel.py by default. 
+
+	-h, --help			show this help message and exit
+	--bamout			Indicates that mutect should also generate bam output files.
+	-s S				Sample name (required).
+	-x X				Path to first tumor bam (required).
+	-y Y				Path to second tumor bam (required).
+	-c C				Path to normal/control bam (required).
+	-r R				Path to reference genome (required).
+	-o O				Path to output directory (required).
+	--bed BED			Path to bed annotation.
+	--gatk GATK			Path to gatk jar (if using).
+	--picard PICARD		Path to picard jar (if using).
+	-p P				Path to panel of normals.
+	-g G				Path to germline resource.
+	--af AF				Estimated allele frequency (required if using a germline resource).
+	-e E				Path to contmination estimate vcf.
+
+### getPON.py
+Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
+
+	-h, --help			show this help message and exit
+	--pon				Generate new panel of normals from log file (requires -l
+							(output from tumor only mode) and -o (output PON file) flags only).
+	-s S				Sample name (required).
+	-l L				Path to log file (required; output files are recorded here).
+	-c C				Path to normal/control bam (required).
+	-r R				Path to reference genome (required).
+	-o O				Path to output directory (required).
+	--bed BED			Path to bed annotation.
+	--gatk GATK			Path to gatk jar (if using).
+	--picard PICARD		Path to picard jar (if using).
+	-g G				Path to germline resource.
+	--af AF				Estimated allele frequency (required if using a germline resource).
+	-e E				Path to contmination estimate vcf.
+
+
+### getActiveRegion.py 
+Can be used to subset a bed annotation to examine specific regions. 
+
+	-h, --help		show this help message and exit
+	-c C			Chromosome(s) to subset (seperate with commas if there is more than one).
+	-i I			Path to input file.
+	-o O			Path to output file.
+

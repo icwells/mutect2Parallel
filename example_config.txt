@@ -41,5 +41,7 @@ contaminant_estimate =
 module load gatk/4.0.1.2
 module load picard/2.9.2
 
+export PATH=$PATH:/path/to/bcftools/bin
+
 # Call script
 

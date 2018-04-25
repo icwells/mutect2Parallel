@@ -138,7 +138,7 @@ def checkReferences(conf):
 					cmd = ("java -jar {} IndexFeatureFile -F {}").format(conf["gatk"], conf["contaminant"])
 				else:
 					cmd = ("gatk IndexFeatureFile -F {}").format(conf["contaminant"])
-				fd = Popen(split((cmd), stdout=dn, stderr=dn)
+				fd = Popen(split(cmd), stdout=dn, stderr=dn)
 				fd.communicate()
 
 def checkFile(infile, err):
