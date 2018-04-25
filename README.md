@@ -81,39 +81,39 @@ runPair and getPON commands are formatted in batch scripts by mutect2Parallel, s
 ### runPair.py
 Used to call mutect2 in parallel for each each tumor-normal comparison for one sample. This script is called by mutect2Parallel.py by default. 
 
-	-h, --help			show this help message and exit
-	--bamout			Indicates that mutect should also generate bam output files.
-	-s S				Sample name (required).
-	-x X				Path to first tumor bam (required).
-	-y Y				Path to second tumor bam (required).
-	-c C				Path to normal/control bam (required).
-	-r R				Path to reference genome (required).
-	-o O				Path to output directory (required).
-	--bed BED			Path to bed annotation.
-	--gatk GATK			Path to gatk jar (if using).
+	-h, --help		show this help message and exit
+	--bamout		Indicates that mutect should also generate bam output files.
+	-s S			Sample name (required).
+	-x X			Path to first tumor bam (required).
+	-y Y			Path to second tumor bam (required).
+	-c C			Path to normal/control bam (required).
+	-r R			Path to reference genome (required).
+	-o O			Path to output directory (required).
+	--bed BED		Path to bed annotation.
+	--gatk GATK		Path to gatk jar (if using).
 	--picard PICARD		Path to picard jar (if using).
-	-p P				Path to panel of normals.
-	-g G				Path to germline resource.
-	--af AF				Estimated allele frequency (required if using a germline resource).
-	-e E				Path to contmination estimate vcf.
+	-p P			Path to panel of normals.
+	-g G			Path to germline resource.
+	--af AF			Estimated allele frequency (required if using a germline resource).
+	-e E			Path to contmination estimate vcf.
 
 ### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
 
-	-h, --help			show this help message and exit
-	--pon				Generate new panel of normals from log file (requires -l
-							(output from tumor only mode) and -o (output PON file) flags only).
-	-s S				Sample name (required).
-	-l L				Path to log file (required; output files are recorded here).
-	-c C				Path to normal/control bam (required).
-	-r R				Path to reference genome (required).
-	-o O				Path to output directory (required).
-	--bed BED			Path to bed annotation.
-	--gatk GATK			Path to gatk jar (if using).
+	-h, --help		show this help message and exit
+	--pon			Generate new panel of normals from log file (requires -l
+						(output from tumor only mode) and -o (output PON file) flags only).
+	-s S			Sample name (required).
+	-l L			Path to log file (required; output files are recorded here).
+	-c C			Path to normal/control bam (required).
+	-r R			Path to reference genome (required).
+	-o O			Path to output directory (required).
+	--bed BED		Path to bed annotation.
+	--gatk GATK		Path to gatk jar (if using).
 	--picard PICARD		Path to picard jar (if using).
-	-g G				Path to germline resource.
-	--af AF				Estimated allele frequency (required if using a germline resource).
-	-e E				Path to contmination estimate vcf.
+	-g G			Path to germline resource.
+	--af AF			Estimated allele frequency (required if using a germline resource).
+	-e E			Path to contmination estimate vcf.
 
 
 ### getActiveRegion.py 
