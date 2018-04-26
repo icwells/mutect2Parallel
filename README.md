@@ -66,7 +66,7 @@ The resulting batch scripts will run each tumor-normal combination in parallel f
 	--bamout		Indicates that mutect should also generate bam output files (extends mutect runtime).
 	--newPON		Creates batch scripts for running mutect in tumor-only mode on normals 
 						and creating a panel of normals (instead of running both tumor-normal comparisons)
-	--nofilter  	Skips filtering of mutect output. 
+	--nofilter		Skips filtering of mutect output. 
 	-i I			Path to space/tab/comma seperated text file of input files (format: ID Normal A B)
 	-c C			Path to config file containing reference genome, java jars (if using), and mutect options.
 	-o O			Path to batch script output directory (leave blank for current directory).
@@ -84,7 +84,7 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 
 	-h, --help		show this help message and exit
 	--bamout		Indicates that mutect should also generate bam output files.
-	--nofilter  	Skips filtering of mutect output. 
+	--nofilter		Skips filtering of mutect output. 
 	-s S			Sample name (required).
 	-x X			Path to first tumor bam (required).
 	-y Y			Path to second tumor bam (required).
