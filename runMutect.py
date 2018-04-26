@@ -227,7 +227,7 @@ def submitFiles(conf, samples, infile):
 			if status == True:
 				s.Status = "contamination-estimate:complete"
 			else:
-				s.Status = "failed:estimating-contamination"
+				s.Status = "contamination-estimate:failed"
 		else:
 			s.Status = "contamination-estimate:none"
 		appendLog(conf, s)
