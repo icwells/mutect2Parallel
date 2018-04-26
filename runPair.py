@@ -16,6 +16,7 @@ class Sample():
 			self.Status = mostRecent
 		self.Output = outfile
 		self.Bam = None
+		self.Input = None
 
 	def __update__(self, name, mostRecent, outfile):
 		# Sorts and updates entry with additional status update

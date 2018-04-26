@@ -88,7 +88,7 @@ def estContamination(conf, s):
 		cc = "gatk CalculateContamination "
 	# Get pileup summary
 	pileup = s.Output.replace(".vcf", ".pileup.table")
-	pu += ("-I {} -V {} -O {}").format(s.Output, conf["contaminant"], pileup)
+	pu += ("-I {} -V {} -O {}").format(s.Input, conf["contaminant"], pileup)
 	pu = getOpt(conf, pu)
 	plog = pileup.replace("table", "stdout")
 	with open(plog, "w") as l:
@@ -98,6 +98,8 @@ def estContamination(conf, s):
 		except:
 			print(("\t[Error] Could not call GetPileupSummaries on {}").format(s.Output))
 			return False
+	if getStatus(plog) == False:
+		return False
 	# Get contamination estimate
 	cest = pileup.replace("pileup", "contamination")
 	clog = cest.replace("table", "stdout")
@@ -109,9 +111,23 @@ def estContamination(conf, s):
 		except:
 			print(("\t[Error] Could not call CalculateContamination on {}").format(s.Output))
 			return False
-	return True
+	return getStatus(clog)
 
 #-------------------------------Mutect----------------------------------------
+
+def getStatus(log):
+	# Returns true if tool returns success
+	status = False
+	with open(log, "r") as l:
+		for line in l:
+			if "Tool returned:" in line:
+				status = True
+			elif status == True:
+				# Get exit status
+				if "SUCCESS" in line:
+					return True
+				else:
+					return False
 
 def callMutect(cmd, name, outfile):
 	# Calls Mutect with given command
@@ -125,19 +141,11 @@ def callMutect(cmd, name, outfile):
 		except:
 			print(("\t[Error] Could not call MuTect2 on {}").format(name))
 			return None
-	with open(log, "r") as dn:
-		status = False
-		# Make sure mutect completed successfully
-		for line in dn:
-			if "Tool returned:" in line:
-				status = True
-			elif status == True:
-				# Get exit status
-				if "SUCCESS" in line:
-					print(("\t{} has completed mutect analysis.").format(name))
-					return outfile
-				else:
-					return None
+	if getStatus(log) == True:
+		print(("\t{} has completed mutect analysis.").format(name))
+		return outfile
+	else:
+		return None
 
 def getOpt(conf, cmd):
 	# Adds common flags to command
@@ -210,6 +218,7 @@ def submitFiles(conf, samples, infile):
 		s = samples[name]
 	else:
 		s = Sample(name, "starting", conf["outpath"] + name + ".vcf")
+	s.Input = infile
 	if s.Status == "starting":
 		s = submitSample(infile, conf, s, name)
 	if s.Status == "mutect":
