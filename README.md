@@ -1,7 +1,5 @@
 # mutect2Parallel v0.1 will create batch scripts to call Mutect2 in parallel over input files
 
-### This script is meant to meet the specific needs of the Maley lab, but is provided in case it proves useful to others.
-
 Copyright 2018 by Shawn Rupp
 
 ## Installation
