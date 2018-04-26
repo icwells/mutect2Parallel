@@ -231,7 +231,7 @@ def submitFiles(conf, samples, infile):
 		else:
 			s.Status = "contamination-estimate:none"
 		appendLog(conf, s)
-	if "contamination-estimate" in s.Status:
+	if "contamination-estimate" in s.Status and conf["filter"] == True:
 		# Assemble command
 		if "gatk" in conf.keys():
 			cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])

@@ -38,14 +38,16 @@ def getCommand(conf):
 	# Returns base python call for all files
 	if conf["newpon"] == False:
 		cmd = ("python runPair.py -r {} ").format(conf["ref"])
+		if conf["filter"] == False:
+			cmd += "--nofilter "
+		if conf["bamout"] == True:
+			cmd += "--bamout "
 	else:
 		cmd = ("python getPON.py -l {} -r {} ").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
 		if not os.path.isfile(conf["outpath"] + "normalsLog.txt"):
 			with open(conf["outpath"] + "normalsLog.txt", "w") as f:
 				# initilize lof file
 				f.write("Sample\tVCF\n")
-	if conf["bamout"] == True:
-		cmd += "--bamout "
 	for i in ["bed", "gatk", "picard", "af"]:
 		if i in conf.keys() and conf[i] != None:
 			cmd += ("--{} {} ").format(i, conf[i])
@@ -225,6 +227,8 @@ help = "Submit batch files to SLURM/Torque grid for execution.")
 help = "Indicates that mutect should also generate bam output files.")
 	parser.add_argument("--newPON", action = "store_true", default = False,
 help = "Creates batch scripts for running mutect on normals and creating a panel of normals.")
+	parser.add_argument("--nofilter", action = "store_false", default = True,
+help = "Skips filtering of mutect output.")
 	parser.add_argument("-i", 
 help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
 	parser.add_argument("-c", 
@@ -240,6 +244,7 @@ help = "Path to batch script output directory (leave blank for current directory
 	conf, batch = getConf(args.c)
 	conf["bamout"] = args.bamout
 	conf["newpon"] = args.newPON
+	conf["filter"] = args.nofilter
 	checkReferences(conf)
 	files = getManifest(args.i, conf["newpon"])
 	scripts = getBatchScripts(args.o, conf, batch, files)

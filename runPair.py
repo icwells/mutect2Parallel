@@ -79,6 +79,7 @@ def getConfig(args):
 	# Returns arguments as dict
 	conf = {}
 	conf["bamout"] = args.bamout
+	conf["filter"] = args.nofilter
 	if args.o[-1] != "/":
 		args.o += "/"
 	conf = configEntry(conf, args.s, "sample")
@@ -112,6 +113,8 @@ def main():
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
 	parser.add_argument("--bamout", action = "store_true", default = False,
 help = "Indicates that mutect should also generate bam output files.")
+	parser.add_argument("--nofilter", action = "store_false", default = True,
+help = "Skips filtering of mutect output.")
 	parser.add_argument("-s", help = "Sample name (required).")
 	parser.add_argument("-x", help = "Path to first tumor bam (required).")
 	parser.add_argument("-y", help = "Path to second tumor bam (required).")
