@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 from subprocess import Popen
 from shlex import split
-from runMutect import callMutect
+from runMutect import callMutect, getStatus
 from bamUtil import checkRG
 
 def makePON(infiles, outfile, gatk):
@@ -29,10 +29,11 @@ def makePON(infiles, outfile, gatk):
 		try:
 			mp = Popen(split(cmd), stdout = l, stderr = l)
 			mp.communicate()
-			return True
 		except:
-			print("\t[Error] Could not generate panel of normals. Exiting.")
+			print("\n\t[Error] Could not generate panel of normals. Exiting.")
 			quit()
+
+	return getStatus(log)
 
 def submitNormal(conf):
 	# Builds mutect command
@@ -126,6 +127,8 @@ panel of normals from log file (requires -l (output from tumor only mode) and -o
 	if args.pon == True:
 		print("\n\tGenerating panel of normals...")
 		status = makePON(args.l, args.o, args.gatk)
+		if status == False:
+			print("\n\t[Error] Could not generate panel of normals. Exiting.")
 	else:
 		conf = getConfig(args)
 		# Call mutect
