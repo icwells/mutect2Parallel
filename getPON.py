@@ -18,7 +18,7 @@ def makePON(infiles, outfile, gatk):
 		cmd = ("gatk CreateSomaticPanelOfNormals -O {}").format(outfile)
 	with open(infiles, "r") as f:
 		for line in f:
-			if first == False:
+			if first == False and line[0] != "#":
 				splt = line.split("\t")
 				if len(splt) >= 2:
 					cmd += (" -vcfs {}").format(splt[1].strip())
