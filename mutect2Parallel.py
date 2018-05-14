@@ -37,26 +37,28 @@ def submitJobs(scripts, batch):
 def getCommand(conf):
 	# Returns base python call for all files
 	if conf["newpon"] == False:
+		# Format tumor-normal run
 		cmd = ("python runPair.py -r {} ").format(conf["ref"])
 		if conf["filter"] == False:
 			cmd += "--nofilter "
 		if conf["bamout"] == True:
 			cmd += "--bamout "
+		if "pon" in conf.keys():
+			cmd += ("-p {} ").format(conf["pon"])
+		if "germline" in conf.keys():
+			cmd += ("-g {} ").format(conf["germline"])
+		if "contaminant" in conf.keys() and "af" in conf.keys():
+			cmd += ("--af {} -e {} ").format(conf["af"], conf["contaminant"])
 	else:
+		# Format for tumor-only mode
 		cmd = ("python getPON.py -l {} -r {} ").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
 		if not os.path.isfile(conf["outpath"] + "normalsLog.txt"):
 			with open(conf["outpath"] + "normalsLog.txt", "w") as f:
 				# initilize lof file
 				f.write("Sample\tVCF\n")
-	for i in ["bed", "gatk", "picard", "af"]:
+	for i in ["bed", "gatk", "picard"]:
 		if i in conf.keys() and conf[i] != None:
 			cmd += ("--{} {} ").format(i, conf[i])
-	if "pon" in conf.keys():
-		cmd += ("-p {} ").format(conf["pon"])
-	if "germline" in conf.keys():
-		cmd += ("-g {} ").format(conf["germline"])
-	if "contaminant" in conf.keys():
-		cmd += ("-e {} ").format(conf["contaminant"])
 	return cmd
 
 def getBatchScripts(outdir, conf, batch, files):
