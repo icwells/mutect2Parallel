@@ -21,6 +21,10 @@ def getTotal(vcf):
 def intersect(outpath, cmd, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
 	cmd = cmd.format(outpath)
+	if "PASS" in outpath:
+		typ = "pass"
+	else:
+		typ = "all"
 	try:
 		bcf = Popen(split(cmd))
 		bcf.communicate()
@@ -38,9 +42,8 @@ def intersect(outpath, cmd, vcfs):
 		sim = 0.0
 	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].find(".")]
 	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].find(".")]
-	with open(outpath + ".csv", "w") as output:
-		output.write("SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
-		output.write(("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim))
+	with open(outpath.replace("_PASS", "") + ".csv", "a") as output:
+		output.write(("{},{},{},{},{},{},{}\n").format(typ,sa, sb, a, b, c, sim))
 	return 1
 
 def compareVCFs(conf, vcfs):
@@ -48,6 +51,9 @@ def compareVCFs(conf, vcfs):
 	ret = False
 	done = 0
 	outpath = conf["outpath"] + conf["sample"]
+	with open(outpath + "csv", "w") as output:
+		# Initialize summary file and write header
+		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 	# Call bftools on all results
 	cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
 	cmd += " -p {}"
