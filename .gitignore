@@ -1,2 +1,5 @@
 config.txt
 manifest.txt
+
+# Any python generated files
+*.pyc
