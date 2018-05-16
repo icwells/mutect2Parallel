@@ -136,14 +136,15 @@ def checkReferences(conf):
 				cmd = "picard "
 			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
-		if "contaminant" in conf.keys():
-			if not os.path.isfile(conf["contaminant"] + ".tbi"):
-				if "gatk" in conf.keys():
-					cmd = ("java -jar {} IndexFeatureFile -F {}").format(conf["gatk"], conf["contaminant"])
-				else:
-					cmd = ("gatk IndexFeatureFile -F {}").format(conf["contaminant"])
-				fd = Popen(split(cmd), stdout=dn, stderr=dn)
-				fd.communicate()
+		for i in ["pon", "contaminant"]:
+			if i in conf.keys():
+				if not os.path.isfile(conf[i] + ".tbi"):
+					if "gatk" in conf.keys():
+						cmd = ("java -jar {} IndexFeatureFile -F {}").format(conf["gatk"], conf[i])
+					else:
+						cmd = ("gatk IndexFeatureFile -F {}").format(conf[i])
+					fd = Popen(split(cmd), stdout=dn, stderr=dn)
+					fd.communicate()
 
 def checkFile(infile, err):
 	# Exits if infile is not found
