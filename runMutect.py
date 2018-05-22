@@ -65,10 +65,17 @@ def compareVCFs(conf, vcfs):
 		ret = True
 	return ret
 
-def filterCalls(cmd, vcf):
+def filterCalls(conf, vcf):
 	# Calls gatk to filter mutect calls
 	outfile = vcf[:vcf.find(".")] + ".filtered.vcf"
 	log = outfile.replace("vcf", "stdout")
+	# Assemble command
+	if "gatk" in conf.keys():
+		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
+	else:
+		cmd = "gatk FilterMutectCalls "
+	if "fmo" in conf.keys():
+		cmd += " " + conf["fmo"]
 	cmd += ("-V {} -O {}").format(vcf, outfile)
 	with open(log, "w") as l:
 		try:
@@ -188,6 +195,8 @@ def submitSample(infile, conf, s, name):
 		cmd += (" --bamout {}").format(s.Bam)
 	if "pon" in conf.keys():
 		cmd += (" --normal_panel {}").format(conf["pon"])
+	if "mo" in conf.keys():
+		cmd += " " + conf["mo"]
 	cmd = getOpt(conf, cmd)
 	# Call mutect for control and tumor
 	res = callMutect(cmd, name, s.Output)
@@ -238,13 +247,8 @@ def submitFiles(conf, samples, infile):
 			s.Status = "contamination-estimate:none"
 		appendLog(conf, s)
 	if "contamination-estimate" in s.Status and conf["filter"] == True:
-		# Assemble command
-		if "gatk" in conf.keys():
-			cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
-		else:
-			cmd = "gatk FilterMutectCalls "
 		# Filter vcf
-		filtered = filterCalls(cmd, s.Output)
+		filtered = filterCalls(conf, s.Output)
 		if filtered:
 			# Record filtered reads
 			s.Output = filtered

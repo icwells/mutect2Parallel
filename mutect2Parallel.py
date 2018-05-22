@@ -49,6 +49,10 @@ def getCommand(conf):
 			cmd += ("-g {} ").format(conf["germline"])
 		if "contaminant" in conf.keys() and "af" in conf.keys():
 			cmd += ("--af {} -e {} ").format(conf["af"], conf["contaminant"])
+		if "mo" in conf.keys():
+			cmd += ('--mo "{} "').format(conf["mo"])
+		if "fmo" in conf.keys():
+			cmd += ('--fmo "{} "').format(conf["fmo"])
 	else:
 		# Format for tumor-only mode
 		cmd = ("python getPON.py -l {} -r {} ").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
@@ -186,6 +190,13 @@ def getOptions(conf, line):
 		elif target == "contaminant_estimate":
 			conf["contaminant"] = val
 			checkFile(conf["contaminant"], "Contaminant estimate vcf")
+		elif target == "mutect_options":
+			# Extract directly from line in case options have an equals sign
+			conf["mo"] = line[line.find("=")+1:]
+			conf["mo"] = conf["mo"].strip()
+		elif target == "filter_mutect_options":
+			conf["fmo"] = line[line.find("=")+1:]
+			conf["fmo"] = conf["mo"].strip()	
 	return conf
 
 def getConf(infile):
@@ -198,7 +209,7 @@ def getConf(infile):
 	print("\n\tReading config file...")
 	with open(infile, "r") as f:
 		for line in f:
-			if line.count("=") >= 10:
+			if "Sample Batch Script" in line:
 				opt = False
 			elif opt == True and line.strip():
 				# Store options

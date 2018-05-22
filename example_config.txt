@@ -11,6 +11,11 @@ germline_resource =
 allele_frequency = 
 contaminant_estimate = 
 
+# The followng are to include any Mutect or FilterMutect options
+# Enter the flag and option as you would for gatk
+mutect_options = 
+filter_mutect_options = 
+
 ==============================================================================
 #	Sample Batch Script (grid commands and module load commands)
 ==============================================================================

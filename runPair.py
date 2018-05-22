@@ -104,7 +104,11 @@ def getConfig(args):
 			conf["germline"] = args.g
 			conf["af"] = args.af
 	if args.e:
-		conf["contaminant"] = args.e	
+		conf["contaminant"] = args.e
+	if args.mo:
+		conf["fmo"] = args.mo
+	if args.mo:
+		conf["fmo"] = args.fmo
 	return conf
 
 def main():
@@ -128,6 +132,8 @@ help = "Skips filtering of mutect output.")
 	parser.add_argument("-g", help = "Path to germline resource.")
 	parser.add_argument("--af", help = "Estimated allele frequency (required if using a germline resource).")
 	parser.add_argument("-e", help = "Path to contmination estimate vcf.")
+	parser.add_argument("--mo", help = "Additional mutect options in quotes")
+	parser.add_argument("--fmo", help = "Additional filter mutect options in quotes")
 	args = parser.parse_args()
 	conf = getConfig(args)
 	log, samples = checkOutput(conf["outpath"])
