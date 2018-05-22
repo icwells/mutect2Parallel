@@ -40,6 +40,13 @@ instances, it is best to specify 32Gb of RAM for each script.
 	allele_frequency		Decimal frequency of alleles in germline recource (i.e. 1/# of individuals; required if using germline resource). 
 	contaminant_estimate	Path to VCF used to estimate contmaination in samples. 
 
+The followng lines are to include any additional Mutect or FilterMutect options. Simply enter the flag and option as you would for 
+gatk (i.e. --enable_clustered_read_position_filter --annotation {annotator}). Be aware that these option will not be checked for errors by 
+the python script, so they may lead to errors when calling gatk if they are not correct. 
+
+	mutect_options			Additional options for mutect2
+	filter_mutect_options	Additional options for FilterMutectCalls
+
 ### Manifest file 
 The manifest file may be a space, comma, or tab seperated text file with one entry per line. 
 Each entry should ahve the following format: 
@@ -96,6 +103,9 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 	-g G			Path to germline resource.
 	--af AF			Estimated allele frequency (required if using a germline resource).
 	-e E			Path to contmination estimate vcf.
+	--mo MO			Additional mutect options in quotes
+	--fmo FMO		Additional filter mutect options in quotes
+
 
 ### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
