@@ -74,6 +74,8 @@ def filterCalls(conf, vcf):
 		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
 	else:
 		cmd = "gatk FilterMutectCalls "
+	if "contaminant" in conf.keys():
+		cmd += ("-contamination-table {} ").format(conf["contaminant"])
 	if "fmo" in conf.keys():
 		cmd += " " + conf["fmo"]
 	cmd += ("-V {} -O {}").format(vcf, outfile)
