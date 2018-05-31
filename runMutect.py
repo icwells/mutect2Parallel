@@ -248,7 +248,7 @@ def submitFiles(conf, samples, infile):
 		else:
 			s.Status = "contamination-estimate:none"
 		appendLog(conf, s)
-	if "contamination-estimate" in s.Status and conf["filter"] == True:
+	if "contamination-estimate" in s.Status and conf["nofilter"] == False:
 		# Filter vcf
 		filtered = filterCalls(conf, s.Output)
 		if filtered:

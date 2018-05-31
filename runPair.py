@@ -78,8 +78,12 @@ def configEntry(conf, arg, key):
 def getConfig(args):
 	# Returns arguments as dict
 	conf = {}
+	if args.nofilter == True and args.filter == True:
+		print("\n\t[Error] Please specify only one of filter/nofilter. Exiting.\n")
+		quit()
 	conf["bamout"] = args.bamout
-	conf["filter"] = args.nofilter
+	conf["filter"] = args.filter
+	conf["nofilter"] = args.nofilter
 	if args.o[-1] != "/":
 		args.o += "/"
 	conf = configEntry(conf, args.s, "sample")
@@ -117,8 +121,10 @@ def main():
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
 	parser.add_argument("--bamout", action = "store_true", default = False,
 help = "Indicates that mutect should also generate bam output files.")
-	parser.add_argument("--nofilter", action = "store_false", default = True,
+	parser.add_argument("--nofilter", action = "store_true", default = False,
 help = "Skips filtering of mutect output.")
+	parser.add_argument("--filter", action = "store_true", default = False,
+help = "Begins pipeline with filtering of previous mutect output")
 	parser.add_argument("-s", help = "Sample name (required).")
 	parser.add_argument("-x", help = "Path to first tumor bam (required).")
 	parser.add_argument("-y", help = "Path to second tumor bam (required).")
@@ -138,19 +144,20 @@ help = "Skips filtering of mutect output.")
 	conf = getConfig(args)
 	log, samples = checkOutput(conf["outpath"])
 	conf["log"] = log
-	pool = Pool(processes = 2)
-	func = partial(submitFiles, conf, samples)
-	filtered = []
-	# Call mutect
-	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
-	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
-		if "failed" in x.Status:
-			print(("\n\tFailed to run {}.").format(x.ID))
-		else:		
-			print(("\n\t{} has finished filtering.").format(x.ID))
-			filtered.append(x.Output)
-	pool.close()
-	pool.join()
+	if conf["filter"] == False:
+		pool = Pool(processes = 2)
+		func = partial(submitFiles, conf, samples)
+		filtered = []
+		# Call mutect
+		print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
+		for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
+			if "failed" in x.Status:
+				print(("\n\tFailed to run {}.").format(x.ID))
+			else:		
+				print(("\n\t{} has finished filtering.").format(x.ID))
+				filtered.append(x.Output)
+		pool.close()
+		pool.join()
 	if len(filtered) == 2:
 		# Compare output
 		print(("\n\tComparing filterd VCFs from {}...").format(conf["sample"]))

@@ -9,22 +9,17 @@ from bamUtil import getFastaIndex
 
 def submitJobs(scripts, batch):
 	# Determines grid type and submits jobs
-	slurm = False
-	torque = False
+	cmd = ""
 	for line in batch:
 		if "#SBATCH" in line:
-			slurm = True
+			cmd = "sbatch "
 			break
 		elif "#PBS" in line:
-			torque = True
+			cmd = "qsub "
 			break
-	if not slurm and not torque:
+	if len(cmd) <= 3:
 		print("\t[Error] Cannot determine grid type. Exiting.\n")
 		quit()
-	if slurm:
-		cmd = "sbatch "
-	elif torque:
-		cmd = "qsub "
 	for i in scripts:
 		try:
 			# Submit each batch script
@@ -39,8 +34,10 @@ def getCommand(conf):
 	if conf["newpon"] == False:
 		# Format tumor-normal run
 		cmd = ("python runPair.py -r {} ").format(conf["ref"])
-		if conf["filter"] == False:
+		if conf["nofilter"] == True:
 			cmd += "--nofilter "
+		elif conf["filter"] == True:
+			cmd += "--filter "
 		if conf["bamout"] == True:
 			cmd += "--bamout "
 		if "pon" in conf.keys():
@@ -205,7 +202,6 @@ def getConf(infile):
 	opt = True
 	store = False
 	conf = {"ref":None}
-	#conf = {"ref":None, "gatk":None, "picard":None, "bed":None}
 	print("\n\tReading config file...")
 	with open(infile, "r") as f:
 		for line in f:
@@ -241,8 +237,10 @@ help = "Submit batch files to SLURM/Torque grid for execution.")
 help = "Indicates that mutect should also generate bam output files.")
 	parser.add_argument("--newPON", action = "store_true", default = False,
 help = "Creates batch scripts for running mutect on normals and creating a panel of normals.")
-	parser.add_argument("--nofilter", action = "store_false", default = True,
+	parser.add_argument("--nofilter", action = "store_true", default = False,
 help = "Skips filtering of mutect output.")
+	parser.add_argument("--filter", action = "store_true", default = False,
+help = "Begins pipeline with filtering of previous mutect output")
 	parser.add_argument("-i", 
 help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
 	parser.add_argument("-c", 
@@ -253,12 +251,16 @@ help = "Path to batch script output directory (leave blank for current directory
 	if not args.i and args.c:
 		print("\n\t[Error] Please specify input file and config file. Exiting.\n")
 		quit()
+	if args.nofilter == True and args.filter == True:
+		print("\n\t[Error] Please specify only one of filter/nofilter. Exiting.\n")
+		quit()
 	if args.o and args.o[-1] != "/":
 		args.o += "/"
 	conf, batch = getConf(args.c)
 	conf["bamout"] = args.bamout
 	conf["newpon"] = args.newPON
-	conf["filter"] = args.nofilter
+	conf["nofilter"] = args.nofilter
+	conf["filter"] = args.filter
 	checkReferences(conf)
 	files = getManifest(args.i, conf["newpon"])
 	scripts = getBatchScripts(args.o, conf, batch, files)
