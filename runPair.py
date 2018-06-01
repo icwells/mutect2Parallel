@@ -111,8 +111,6 @@ def getConfig(args):
 		conf["contaminant"] = args.e
 	if args.mo:
 		conf["fmo"] = args.mo
-	if args.mo:
-		conf["fmo"] = args.fmo
 	return conf
 
 def main():
@@ -121,10 +119,6 @@ def main():
 list of input files. Be sure that pysam is installed and that bcftools is in your PATH.")
 	parser.add_argument("--bamout", action = "store_true", default = False,
 help = "Indicates that mutect should also generate bam output files.")
-	parser.add_argument("--nofilter", action = "store_true", default = False,
-help = "Skips filtering of mutect output.")
-	parser.add_argument("--filter", action = "store_true", default = False,
-help = "Begins pipeline with filtering of previous mutect output")
 	parser.add_argument("-s", help = "Sample name (required).")
 	parser.add_argument("-x", help = "Path to first tumor bam (required).")
 	parser.add_argument("-y", help = "Path to second tumor bam (required).")
@@ -137,9 +131,7 @@ help = "Begins pipeline with filtering of previous mutect output")
 	parser.add_argument("-p", help = "Path to panel of normals.")
 	parser.add_argument("-g", help = "Path to germline resource.")
 	parser.add_argument("--af", help = "Estimated allele frequency (required if using a germline resource).")
-	parser.add_argument("-e", help = "Path to contmination estimate vcf.")
 	parser.add_argument("--mo", help = "Additional mutect options in quotes")
-	parser.add_argument("--fmo", help = "Additional filter mutect options in quotes")
 	args = parser.parse_args()
 	conf = getConfig(args)
 	log, samples = checkOutput(conf["outpath"])
@@ -158,15 +150,6 @@ help = "Begins pipeline with filtering of previous mutect output")
 				filtered.append(x.Output)
 		pool.close()
 		pool.join()
-	if len(filtered) == 2:
-		# Compare output
-		print(("\n\tComparing filterd VCFs from {}...").format(conf["sample"]))
-		status = compareVCFs(conf, filtered)
-		if status == True:
-			# Record finished samples
-			outfile = conf["outpath"] + conf["sample"] + ".csv"
-			with open(conf["log"], "a") as l:
-				l.write(("{}\tcompleted\t{}\n").format(conf["sample"], outfile))
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
