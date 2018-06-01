@@ -196,7 +196,7 @@ def submitSample(infile, conf, s, name):
 		s.Bam = s.Output[:s.Output.find(".")] + ".Mutect2.bam"
 		cmd += (" --bamout {}").format(s.Bam)
 	if "pon" in conf.keys():
-		cmd += (" --normal_panel {}").format(conf["pon"])
+		cmd += (" --panel-of-normals {}").format(conf["pon"])
 	if "mo" in conf.keys():
 		cmd += " " + conf["mo"]
 	cmd = getOpt(conf, cmd)
