@@ -36,20 +36,14 @@ def getCommand(conf):
 		cmd = ("python runPair.py -r {} ").format(conf["ref"])
 		if conf["nofilter"] == True:
 			cmd += "--nofilter "
-		elif conf["filter"] == True:
-			cmd += "--filter "
 		if conf["bamout"] == True:
 			cmd += "--bamout "
 		if "pon" in conf.keys():
 			cmd += ("-p {} ").format(conf["pon"])
 		if "germline" in conf.keys():
 			cmd += ("-g {} ").format(conf["germline"])
-		if "contaminant" in conf.keys() and "af" in conf.keys():
-			cmd += ("--af {} -e {} ").format(conf["af"], conf["contaminant"])
 		if "mo" in conf.keys():
 			cmd += ('--mo "{} "').format(conf["mo"])
-		if "fmo" in conf.keys():
-			cmd += ('--fmo "{} "').format(conf["fmo"])
 	else:
 		# Format for tumor-only mode
 		cmd = ("python getPON.py -l {} -r {} ").format(conf["outpath"] + "normalsLog.txt", conf["ref"])
@@ -137,15 +131,14 @@ def checkReferences(conf):
 				cmd = "picard "
 			fd = Popen(split(("{} CreateSequenceDictionary R= {} O= {}").format(cmd, ref, fdict)), stdout=dn, stderr=dn)
 			fd.communicate()
-		for i in ["pon", "contaminant"]:
-			if i in conf.keys():
-				if not os.path.isfile(conf[i] + ".tbi"):
-					if "gatk" in conf.keys():
-						cmd = ("java -jar {} IndexFeatureFile -F {}").format(conf["gatk"], conf[i])
-					else:
-						cmd = ("gatk IndexFeatureFile -F {}").format(conf[i])
-					fd = Popen(split(cmd), stdout=dn, stderr=dn)
-					fd.communicate()
+		if "pon" in conf.keys():
+			if not os.path.isfile(conf["pon"] + ".tbi"):
+				if "gatk" in conf.keys():
+					cmd = ("java -jar {} IndexFeatureFile -F {}").format(conf["gatk"], conf["pon"])
+				else:
+					cmd = ("gatk IndexFeatureFile -F {}").format(conf["pon"])
+				fd = Popen(split(cmd), stdout=dn, stderr=dn)
+				fd.communicate()
 
 def checkFile(infile, err):
 	# Exits if infile is not found
@@ -184,16 +177,10 @@ def getOptions(conf, line):
 			checkFile(conf["germline"], "Germline resource file")
 		elif target == "allele_frequency":
 			conf["af"] = val
-		elif target == "contaminant_estimate":
-			conf["contaminant"] = val
-			checkFile(conf["contaminant"], "Contaminant estimate vcf")
 		elif target == "mutect_options":
 			# Extract directly from line in case options have an equals sign
 			conf["mo"] = line[line.find("=")+1:]
-			conf["mo"] = conf["mo"].strip()
-		elif target == "filter_mutect_options":
-			conf["fmo"] = line[line.find("=")+1:]
-			conf["fmo"] = conf["mo"].strip()	
+			conf["mo"] = conf["mo"].strip()	
 	return conf
 
 def getConf(infile):
@@ -237,10 +224,6 @@ help = "Submit batch files to SLURM/Torque grid for execution.")
 help = "Indicates that mutect should also generate bam output files.")
 	parser.add_argument("--newPON", action = "store_true", default = False,
 help = "Creates batch scripts for running mutect on normals and creating a panel of normals.")
-	parser.add_argument("--nofilter", action = "store_true", default = False,
-help = "Skips filtering of mutect output.")
-	parser.add_argument("--filter", action = "store_true", default = False,
-help = "Begins pipeline with filtering of previous mutect output")
 	parser.add_argument("-i", 
 help = "Path to space/tab/comma seperated text file of input files (format: ID Normal A B)")
 	parser.add_argument("-c", 
@@ -259,8 +242,6 @@ help = "Path to batch script output directory (leave blank for current directory
 	conf, batch = getConf(args.c)
 	conf["bamout"] = args.bamout
 	conf["newpon"] = args.newPON
-	conf["nofilter"] = args.nofilter
-	conf["filter"] = args.filter
 	checkReferences(conf)
 	files = getManifest(args.i, conf["newpon"])
 	scripts = getBatchScripts(args.o, conf, batch, files)
