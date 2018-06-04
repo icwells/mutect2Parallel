@@ -5,6 +5,52 @@ import pysam
 from subprocess import Popen
 from shlex import split
 
+class Sample():
+	# Stores data for managing sample progress
+	def __init__(self, name, mostRecent, outfile=None):
+		self.ID = name
+		self.Status = "starting"
+		if "failed" not in mostRecent:
+			self.Status = mostRecent
+		self.Output = outfile
+		self.Bam = None
+		self.Input = None
+
+	def __update__(self, name, mostRecent, outfile):
+		# Sorts and updates entry with additional status update
+		if self.Status == "completed":
+			pass
+		elif self.Status == "":
+			if "failed" not in mostRecent:
+				self.Status = mostRecent
+		elif mostRecent == "completed":
+			self.Status = mostRecent
+			self.Output = outfile
+		elif mostRecent == "filtered" and self.Status == "mutect":
+			self.Status = mostRecent
+			self.Output = outfile
+		elif mostRecent == "mutect" and self.Status == "starting":
+			self.Status = mostRecent
+			self.Output = outfile
+
+#-------------------------------commonfunctions----------------------------------------
+
+def getStatus(log):
+	# Returns true if tool returns success
+	status = False
+	with open(log, "r") as l:
+		for line in l:
+			if "Tool returned:" in line:
+				status = True
+			elif status == True:
+				# Get exit status
+				if "SUCCESS" in line:
+					return True
+				else:
+					return False
+
+#-------------------------------bamfuntcions----------------------------------------
+
 def bgzip(vcf):
 	# bgzip compresses filtered vcf files
 	#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	H_SL-20-LK38-020-node-A1	H_SL-20-LK40-020-B3

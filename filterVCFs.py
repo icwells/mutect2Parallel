@@ -2,8 +2,8 @@
 
 import os
 from shlex import split
-from bamUtil import *
-from runPair import Sample, checkOutput
+from commonUtil import *
+from runPair import Sample, checkOutput, configEntry
 from runMutect import appendLog, getSample
 
 #-------------------------------Filtering-------------------------------------
@@ -154,15 +154,6 @@ def filterSamples():
 		appendLog(conf, s)
 
 #-------------------------------IO--------------------------------------------
-
-def configEntry(conf, arg, key):
-	# Returns dict with updated arg entry
-	if not arg:
-		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg))
-		quit()
-	else:
-		conf[key] = arg
-	return conf	
 
 def getConfig(args):
 	# Returns arguments as dict

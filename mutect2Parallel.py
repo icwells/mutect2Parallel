@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 from subprocess import Popen
 from shlex import split
-from bamUtil import getFastaIndex
+from commonUtil import getFastaIndex
 
 def submitJobs(scripts, batch):
 	# Determines grid type and submits jobs
