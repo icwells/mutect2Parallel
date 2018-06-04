@@ -3,8 +3,6 @@
 import os
 from shlex import split
 from commonUtil import *
-from runPair import Sample, checkOutput, configEntry
-from runMutect import appendLog, getSample
 
 #-------------------------------Filtering-------------------------------------
 

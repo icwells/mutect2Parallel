@@ -7,31 +7,33 @@ from shlex import split
 
 class Sample():
 	# Stores data for managing sample progress
-	def __init__(self, name, mostRecent, outfile=None):
+	def __init__(self, name, step, status, outfile):
 		self.ID = name
+		self.Step = step
 		self.Status = "starting"
-		if "failed" not in mostRecent:
-			self.Status = mostRecent
+		if "failed" not in status:
+			self.Status = status
 		self.Output = outfile
 		self.Bam = None
 		self.Input = None
 
-	def __update__(self, name, mostRecent, outfile):
+	def __newStatus__(self, status):
+		# Updates self.Status
+		if "failed" not in status:
+			self.Status = status
+		else:
+			self.Status = "starting"
+
+	def __update__(self, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
-		if self.Status == "completed":
-			pass
-		elif self.Status == "":
-			if "failed" not in mostRecent:
-				self.Status = mostRecent
-		elif mostRecent == "completed":
+		if step == "filtering" and self.Step == "mutect":
+			self.Step = step
+			self.Output = outfile
+			self.__newStatus__(status)
+		elif step == "mutect" and self.Step == "starting":
 			self.Status = mostRecent
 			self.Output = outfile
-		elif mostRecent == "filtered" and self.Status == "mutect":
-			self.Status = mostRecent
-			self.Output = outfile
-		elif mostRecent == "mutect" and self.Status == "starting":
-			self.Status = mostRecent
-			self.Output = outfile
+			self.__newStatus__(status)
 
 #-------------------------------commonfunctions----------------------------------------
 
@@ -49,7 +51,72 @@ def getStatus(log):
 				else:
 					return False
 
-#-------------------------------bamfuntcions----------------------------------------
+def appendLog(conf, s):
+	# Appends checkpoint status to log file
+	with open(conf["log"], "a") as l:
+			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
+
+def getOpt(conf, cmd):
+	# Adds common flags to command
+	if "bed" in conf.keys():
+		cmd += (" -L {}").format(conf["bed"])
+	if "germline" in conf.keys():
+		cmd += (" --germline-resource {} --af-of-alleles-not-in-resource {}").format(
+													conf["germline"], conf["af"])
+	return cmd
+
+def getSample(fname):
+	# Returns sample name (ie raw filename)
+	s = os.path.split(fname)[1]
+	if "-" in s:
+		# Remove group ID
+		return s[s.find("-")+1:s.find(".")]
+	else:
+		return s[:s.find(".")]
+
+def checkOutput(outdir):
+	# Checks for output log file and reads if present
+	first = True
+	done = {}
+	log = outdir + "mutectLog.txt"
+	print("\tChecking for previous output...")
+	if not os.path.isdir(outdir):
+		os.mkdir(outdir)
+	if os.path.isfile(log):
+		with open(log, "r") as f:
+			for line in f:
+				if first == False and line.strip():
+					line = line.strip().split("\t")
+					if len(line) == 4:
+						if line[0] in done.keys():
+							done[line[0]].__update__(line[0], line[1], line[2], line[3])
+						else:
+							done[line[0]] = Sample(line[0], line[1], line[2], line[3])
+				else:
+					# Skip header
+					first = False
+	else:
+		with open(log, "w") as f:
+			# Initialize log file
+			f.write("Filename\tStep\tStatus\tOutput\n")
+	return log, done
+
+def checkFile(infile, err):
+	# Exits if infile is not found
+	if not os.path.isfile(infile):
+		print(("\n\t[Error] {} not found. Exiting.\n").format(err))
+		quit()
+
+def configEntry(conf, arg, key):
+	# Returns dict with updated arg entry
+	if not arg:
+		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg))
+		quit()
+	else:
+		conf[key] = arg
+	return conf
+
+#-------------------------------bamfunctions----------------------------------------
 
 def bgzip(vcf):
 	# bgzip compresses filtered vcf files

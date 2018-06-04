@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 from datetime import datetime
 from subprocess import Popen
 from shlex import split
-from commonUtil import getFastaIndex
+from commonUtil import *
 
 def submitJobs(scripts, batch):
 	# Determines grid type and submits jobs
@@ -139,12 +139,6 @@ def checkReferences(conf):
 					cmd = ("gatk IndexFeatureFile -F {}").format(conf["pon"])
 				fd = Popen(split(cmd), stdout=dn, stderr=dn)
 				fd.communicate()
-
-def checkFile(infile, err):
-	# Exits if infile is not found
-	if not os.path.isfile(infile):
-		print(("\n\t[Error] {} not found. Exiting.\n").format(err))
-		quit()	
 
 def getOptions(conf, line):
 	# Returns config dict with updated options

@@ -7,52 +7,9 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 from subprocess import Popen
 from shlex import split
-from bamUtil import *
-from runMutect import *
-
-class Sample():
-	# Stores data for managing sample progress
-	def __init__(self, name, mostRecent, outfile=None):
-		self.ID = name
-		self.Status = "starting"
-		if "failed" not in mostRecent:
-			self.Status = mostRecent
-		self.Output = outfile
-		self.Bam = None
-		self.Input = None
-
-	def __update__(self, name, mostRecent, outfile):
-		# Sorts and updates entry with additional status update
-		if self.Status == "completed":
-			pass
-		elif self.Status == "":
-			if "failed" not in mostRecent:
-				self.Status = mostRecent
-		elif mostRecent == "completed":
-			self.Status = mostRecent
-			self.Output = outfile
-		elif mostRecent == "filtered" and self.Status == "mutect":
-			self.Status = mostRecent
-			self.Output = outfile
-		elif mostRecent == "mutect" and self.Status == "starting":
-			self.Status = mostRecent
-			self.Output = outfile
+from commonUtil import *
 
 #-------------------------------Mutect----------------------------------------
-
-def getStatus(log):
-	# Returns true if tool returns success
-	status = False
-	with open(log, "r") as l:
-		for line in l:
-			if "Tool returned:" in line:
-				status = True
-			elif status == True:
-				# Get exit status
-				if "SUCCESS" in line:
-					return True
-				else:
-					return False
 
 def callMutect(cmd, name, outfile):
 	# Calls Mutect with given command
@@ -72,15 +29,6 @@ def callMutect(cmd, name, outfile):
 	else:
 		return None
 
-def getOpt(conf, cmd):
-	# Adds common flags to command
-	if "bed" in conf.keys():
-		cmd += (" -L {}").format(conf["bed"])
-	if "germline" in conf.keys():
-		cmd += (" --germline-resource {} --af-of-alleles-not-in-resource {}").format(
-													conf["germline"], conf["af"])
-	return cmd
-
 def submitSample(infile, conf, s, name):
 	# Builds mutect command
 	if "picard" in conf.keys():
@@ -90,7 +38,8 @@ def submitSample(infile, conf, s, name):
 		_, control = checkRG(conf["normal"], s.ID)
 		tumorname, bam = checkRG(infile, name)
 	if not control or not tumorname or not bam:
-		s.Status = "failed-addingReadGroups"
+		s.Step = "addingReadGroups"
+		s.Status = "failed"
 		appendLog(conf, s)
 		return s
 	# Assemble command
@@ -112,83 +61,30 @@ def submitSample(infile, conf, s, name):
 	cmd = getOpt(conf, cmd)
 	# Call mutect for control and tumor
 	res = callMutect(cmd, name, s.Output)
+	s.Status = "mutect"
 	if res:
 		# Record finished sample
 		s.Output = res
-		s.Status = "mutect"
+		s.Status = "passed"
 	else:
-		s.Status = "failed-mutect"
+		s.Status = "failed"
 	appendLog(conf, s)
 	return s
 
-#-----------------------------------------------------------------------------
-
-def appendLog(conf, s):
-	# Appends checkpoint status to log file
-	with open(conf["log"], "a") as l:
-			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
-
-def getSample(fname):
-	# Returns sample name (ie raw filename)
-	s = os.path.split(fname)[1]
-	if "-" in s:
-		# Remove group ID
-		return s[s.find("-")+1:s.find(".")]
-	else:
-		return s[:s.find(".")]
-
 def submitFiles(conf, samples, infile):
-	# Calls MuTect2 serially over input files
+	# Creates sample entry and calls MuTect2 over input files
 	name = getSample(infile)
 	# Get sample info
 	if name in samples.keys():
 		s = samples[name]
 	else:
-		s = Sample(name, "starting", conf["outpath"] + name + ".vcf")
+		s = Sample(name, "preflight", "starting", conf["outpath"] + name + ".vcf")
 	s.Input = infile
 	if s.Status == "starting":
 		s = submitSample(infile, conf, s, name)
 	return s
 
 #-----------------------------------------------------------------------------
-
-def checkOutput(outdir):
-	# Checks for output log file and reads if present
-	first = True
-	done = {}
-	log = outdir + "mutectLog.txt"
-	print("\tChecking for previous output...")
-	if not os.path.isdir(outdir):
-		os.mkdir(outdir)
-	if os.path.isfile(log):
-		with open(log, "r") as f:
-			for line in f:
-				if first == False and line.strip():
-					line = line.strip().split("\t")
-					if line[1] == "completed":
-						done[line[0]] = Sample(line[0], line[1])
-					if len(line) == 3:
-						if line[0] in done.keys():
-							done[line[0]].__update__(line[0], line[1], line[2])
-						else:
-							done[line[0]] = Sample(line[0], line[1], line[2])
-				else:
-					# Skip header
-					first = False
-	else:
-		with open(log, "w") as f:
-			# Initialize log file
-			f.write("Filename\tStatus\tOutput\n")
-	return log, done
-
-def configEntry(conf, arg, key):
-	# Returns dict with updated arg entry
-	if not arg:
-		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg))
-		quit()
-	else:
-		conf[key] = arg
-	return conf	
 
 def getConfig(args):
 	# Returns arguments as dict
@@ -222,10 +118,8 @@ def getConfig(args):
 		else:
 			conf["germline"] = args.g
 			conf["af"] = args.af
-	if args.e:
-		conf["contaminant"] = args.e
 	if args.mo:
-		conf["fmo"] = args.mo
+		conf["mo"] = args.mo
 	return conf
 
 def main():
@@ -246,25 +140,24 @@ help = "Indicates that mutect should also generate bam output files.")
 	parser.add_argument("-p", help = "Path to panel of normals.")
 	parser.add_argument("-g", help = "Path to germline resource.")
 	parser.add_argument("--af", help = "Estimated allele frequency (required if using a germline resource).")
-	parser.add_argument("--mo", help = "Additional mutect options in quotes")
+	parser.add_argument("--mo", help = "Additional mutect options in quotes (these will not be checked for errors).")
 	args = parser.parse_args()
 	conf = getConfig(args)
 	log, samples = checkOutput(conf["outpath"])
 	conf["log"] = log
-	if conf["filter"] == False:
-		pool = Pool(processes = 2)
-		func = partial(submitFiles, conf, samples)
-		filtered = []
-		# Call mutect
-		print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
-		for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
-			if "failed" in x.Status:
-				print(("\n\tFailed to run {}.").format(x.ID))
-			else:		
-				print(("\n\t{} has finished filtering.").format(x.ID))
-				filtered.append(x.Output)
-		pool.close()
-		pool.join()
+	pool = Pool(processes = 2)
+	func = partial(submitFiles, conf, samples)
+	filtered = []
+	# Call mutect
+	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
+	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
+		if x.Status == "failed":
+			print(("\n\tFailed to run {}.").format(x.ID))
+		else:		
+			print(("\n\t{} has finished mutect.").format(x.ID))
+			filtered.append(x.Output)
+	pool.close()
+	pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
