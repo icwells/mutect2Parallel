@@ -89,12 +89,7 @@ def submitFiles(conf, samples, infile):
 def getConfig(args):
 	# Returns arguments as dict
 	conf = {}
-	if args.nofilter == True and args.filter == True:
-		print("\n\t[Error] Please specify only one of filter/nofilter. Exiting.\n")
-		quit()
 	conf["bamout"] = args.bamout
-	conf["filter"] = args.filter
-	conf["nofilter"] = args.nofilter
 	if args.o[-1] != "/":
 		args.o += "/"
 	conf = configEntry(conf, args.s, "sample")
@@ -147,7 +142,6 @@ help = "Indicates that mutect should also generate bam output files.")
 	conf["log"] = log
 	pool = Pool(processes = 2)
 	func = partial(submitFiles, conf, samples)
-	filtered = []
 	# Call mutect
 	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
 	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
@@ -155,7 +149,6 @@ help = "Indicates that mutect should also generate bam output files.")
 			print(("\n\tFailed to run {}.").format(x.ID))
 		else:		
 			print(("\n\t{} has finished mutect.").format(x.ID))
-			filtered.append(x.Output)
 	pool.close()
 	pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
