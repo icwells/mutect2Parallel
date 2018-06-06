@@ -34,8 +34,6 @@ def getCommand(conf):
 	if conf["newpon"] == False:
 		# Format tumor-normal run
 		cmd = ("python runPair.py -r {} ").format(conf["ref"])
-		if conf["nofilter"] == True:
-			cmd += "--nofilter "
 		if conf["bamout"] == True:
 			cmd += "--bamout "
 		if "pon" in conf.keys():
@@ -79,6 +77,12 @@ def getBatchScripts(outdir, conf, batch, files):
 		scripts.append(outfile)
 	return scripts
 
+def getDelim(line):
+	# Returns delimiter from sample line
+	for i in [" ", "\t", ","]:
+		if i in line:
+			return i
+
 def getManifest(infile, pon):
 	# Returns dict of input files
 	files = {}
@@ -86,13 +90,9 @@ def getManifest(infile, pon):
 	print("\tReading input file...")
 	with open(infile, "r") as f:
 		for line in f:
-			if line[0] != "#":
+			if line[0] != "#" and line.split():
 				if first == True:
-					# Determine delimiter
-					for i in [" ", "\t", ","]:
-						if i in line:
-							delim = i
-							break
+					delim = getDelim(line)
 					first = False
 				s = line.strip().split(delim)
 				if pon == False:
@@ -158,9 +158,6 @@ help = "Path to batch script output directory (leave blank for current directory
 	args = parser.parse_args()
 	if not args.i and args.c:
 		print("\n\t[Error] Please specify input file and config file. Exiting.\n")
-		quit()
-	if args.nofilter == True and args.filter == True:
-		print("\n\t[Error] Please specify only one of filter/nofilter. Exiting.\n")
 		quit()
 	if args.o and args.o[-1] != "/":
 		args.o += "/"
