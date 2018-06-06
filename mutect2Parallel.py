@@ -39,7 +39,7 @@ def getCommand(conf):
 		if "pon" in conf.keys():
 			cmd += ("-p {} ").format(conf["pon"])
 		if "germline" in conf.keys():
-			cmd += ("-g {} ").format(conf["germline"])
+			cmd += ("-g {} --af {} ").format(conf["germline"], conf["af"])
 		if "mo" in conf.keys():
 			cmd += ('--mo "{} "').format(conf["mo"])
 	else:
