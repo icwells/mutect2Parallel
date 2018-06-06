@@ -61,7 +61,6 @@ def submitSample(infile, conf, s, name):
 	cmd = getOpt(conf, cmd)
 	# Call mutect for control and tumor
 	res = callMutect(cmd, name, s.Output)
-	s.Status = "mutect"
 	if res:
 		# Record finished sample
 		s.Output = res
@@ -78,7 +77,7 @@ def submitFiles(conf, samples, infile):
 	if name in samples.keys():
 		s = samples[name]
 	else:
-		s = Sample(name, "preflight", "starting", conf["outpath"] + name + ".vcf")
+		s = Sample(name, "mutect", "starting", conf["outpath"] + name + ".vcf")
 	s.Input = infile
 	if s.Status == "starting":
 		s = submitSample(infile, conf, s, name)
@@ -146,7 +145,7 @@ help = "Indicates that mutect should also generate bam output files.")
 	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
 	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
 		if x.Status == "failed":
-			print(("\n\tFailed to run {}.").format(x.ID))
+			print(("\n\tFailed to run {}").format(x.ID))
 		else:		
 			print(("\n\t{} has finished mutect.").format(x.ID))
 	pool.close()
