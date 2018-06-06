@@ -65,7 +65,7 @@ def getStatus(log):
 def appendLog(conf, s):
 	# Appends checkpoint status to log file
 	with open(conf["log"], "a") as l:
-			l.write(("{}\t{}\t{}\n").format(s.ID, s.Status, s.Output))
+			l.write(("{}\t{}\t{}\t{}\n").format(s.ID, s.Step, s.Status, s.Output))
 
 def getOpt(conf, cmd):
 	# Adds common flags to command
