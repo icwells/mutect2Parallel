@@ -51,7 +51,7 @@ def submitSample(infile, conf, s, name):
 		cmd = ("gatk Mutect2 -R {} ").format(conf["reference"])
 	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, 
 										bam, conf["normal"], s.Output)
-	if "bamout" in conf.keys():
+	if "bamout" in conf.keys() and conf["bamout"] == True:
 		s.Bam = s.Output[:s.Output.find(".")] + ".Mutect2.bam"
 		cmd += (" --bamout {}").format(s.Bam)
 	if "pon" in conf.keys():
