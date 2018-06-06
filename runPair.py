@@ -65,7 +65,7 @@ def submitSample(infile, conf, s, name):
 	if res:
 		# Record finished sample
 		s.Output = res
-		s.Status = "passed"
+		s.Status = "complete"
 	else:
 		s.Status = "failed"
 	appendLog(conf, s)

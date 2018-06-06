@@ -16,6 +16,7 @@ class Sample():
 		self.Output = outfile
 		self.Bam = None
 		self.Input = None
+		self.Unfilered = None
 
 	def __newStatus__(self, status):
 		# Updates self.Status
@@ -26,13 +27,23 @@ class Sample():
 
 	def __update__(self, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
-		if step == "filtering" and self.Step == "mutect":
+		if step == "comparison":
+			self.Step = step
+			self.Output = outfile
+			self.__newStatus__(status)
+		elif step == "contamination-estimate":
+			if self.Step == "filtering" or self.Step == "mutect":
+				self.Step = step
+				self.Output = outfile
+				self.__newStatus__(status)
+		elif step == "filtering" and self.Step == "mutect":
 			self.Step = step
 			self.Output = outfile
 			self.__newStatus__(status)
 		elif step == "mutect" and self.Step == "starting":
-			self.Status = mostRecent
+			self.Step = step
 			self.Output = outfile
+			self.Unfiltered = outfile
 			self.__newStatus__(status)
 
 #-------------------------------commonfunctions----------------------------------------
@@ -115,6 +126,83 @@ def configEntry(conf, arg, key):
 	else:
 		conf[key] = arg
 	return conf
+
+def getOptions(conf, line):
+	# Returns config dict with updated options
+	val = None
+	s = line.split("=")
+	if len(s) == 2:
+		target = s[0].strip()
+		val = s[1].strip()
+	if val:
+		if target == "reference_genome":
+			conf["ref"] = val
+		elif target == "bed_annotation":
+			conf["bed"] = val
+			checkFile(conf["bed"], "Bed file")
+		elif target == "output_directory":
+			if val[-1] != "/":
+				val += "/"
+			conf["outpath"] = val
+		elif target == "GATK_jar":
+			conf["gatk"] = val
+			checkFile(conf["gatk"], "GATK jar")
+		elif target == "Picard_jar":
+			conf["picard"] = val
+			checkFile(conf["picard"], "Picard jar")	
+		elif target == "normal_panel":
+			conf["pon"] = val
+			checkFile(conf["pon"], "Panel of normals file")
+		elif target == "germline_resource":
+			conf["germline"] = val
+			checkFile(conf["germline"], "Germline resource file")
+		elif target == "allele_frequency":
+			conf["af"] = val
+		elif target == "mutect_options":
+			# Extract directly from line in case options have an equals sign
+			conf["mo"] = line[line.find("=")+1:]
+			conf["mo"] = conf["mo"].strip()	
+		elif target == "mutect_options":
+			# for filterVCFs only
+			conf["fmo"] = line[line.find("=")+1:]
+			conf["fmo"] = conf["fmo"].strip()	
+		elif target == "contaminant_estimate":
+			# for filterVCFs only
+			conf["contaminant"] = val
+			checkFile(conf["contaminant"], "Contamination estimate file")
+	return conf
+
+def getConf(infile):
+	# Stores runtime options
+	batch = []
+	opt = True
+	store = False
+	conf = {"ref":None}
+	print("\n\tReading config file...")
+	with open(infile, "r") as f:
+		for line in f:
+			if "Sample Batch Script" in line:
+				opt = False
+			elif opt == True and line.strip():
+				# Store options
+					conf = getOptions(conf, line)
+			else:
+				if "#!/" in line:
+					store = True
+				if store == True:
+					# Store batch script
+					batch.append(line)
+	# Check for critical errors
+	if not os.path.isfile(conf["ref"]):
+		print("\n\t[Error] Genome fasta not found. Exiting.\n")
+		quit()
+	if not os.path.isdir(conf["outpath"]):
+		os.mkdir(conf["outpath"])
+	if "germline" in conf.keys() and "af" not in conf.keys():
+		print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n")
+		quit()	
+	return conf, batch
+
 
 #-------------------------------bamfunctions----------------------------------------
 

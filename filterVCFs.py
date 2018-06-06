@@ -1,6 +1,8 @@
 '''This script will filter mutect2 output files.'''
 
 import os
+from glob import glob
+from subprocess import Popen
 from shlex import split
 from commonUtil import *
 
@@ -63,6 +65,8 @@ def compareVCFs(conf, vcfs):
 		ret = True
 	return ret
 
+#-------------------------------Contamination/Fitlering-----------------------
+
 def filterCalls(conf, vcf):
 	# Calls gatk to filter mutect calls
 	outfile = vcf[:vcf.find(".")] + ".filtered.vcf"
@@ -85,8 +89,6 @@ def filterCalls(conf, vcf):
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 			return None
 	return bgzip(outfile)
-
-#-------------------------------Contamination---------------------------------
 
 def estContamination(conf, s):
 	# Calls gatk to get pileup summary and estimate contamination
@@ -130,86 +132,56 @@ def estContamination(conf, s):
 
 def filterSamples():
 	# Filters and estimates contamination
-	if s.Status == "mutect":
-		if "contaminant" in conf.keys():
-			status = estContamination(conf, s)
-			if status == True:
-				s.Status = "contamination-estimate:complete"
-			else:
-				s.Status = "contamination-estimate:failed"
-		else:
-			s.Status = "contamination-estimate:none"
-		appendLog(conf, s)
-	if "contamination-estimate" in s.Status and conf["nofilter"] == False:
-		# Filter vcf
-		filtered = filterCalls(conf, s.Output)
-		if filtered:
-			# Record filtered reads
-			s.Output = filtered
-			s.Status = "filtered"
-		else:
-			s.Status = "failed-filtering"
-		appendLog(conf, s)
-
-#-------------------------------IO--------------------------------------------
-
-def getConfig(args):
-	# Returns arguments as dict
-	conf = {}
-	if args.o[-1] != "/":
-		args.o += "/"
-	conf = configEntry(conf, args.s, "sample")
-	conf = configEntry(conf, args.x, "tumor1")
-	conf = configEntry(conf, args.r, "reference")
-	conf = configEntry(conf, args.o, "outpath")
-	if args.y:
-		conf = configEntry(conf, args.y, "tumor2")
-	if args.gatk:
-		conf["gatk"] = args.gatk
-	if args.picard:
-		conf["picard"] = args.picard
-	if args.g:
-		if not args.af:
-			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n")
-			quit()
-		else:
-			conf["germline"] = args.g
-			conf["af"] = args.af
-	if args.e:
-		conf["contaminant"] = args.e
-	if args.mo:
-		conf["fmo"] = args.fmo
-	return conf
-
+	paths = glob(conf["outpath"])
+	for p in paths:
+		# Iterate through each subdirectory
+		log, samples = checkOutput(p)
+		conf["log"] = log
+		# Get sample name from path
+		if sample[:-1] == "/":
+			sample = sample[:-1]
+		sample = p[p.rfind("/")+1:]
+		if len(samples.keys()) == 2:
+			# Compare output
+			print(("\n\tFiltering and comparing VCFs from {}...").format("sample"))
+			for s in in samples.keys():
+				if samples[s].Step == "mutect" and samples[s].Status == "complete":
+					samples[s].Step = "contamination-estimate"
+					if "contaminant" in conf.keys():
+						# Estimate contamination
+						status = estContamination(conf, samples[s])
+						if status == True:
+							samples[s].Status = "complete"
+						else:
+							samples[s].Status = "failed"
+					else:
+						s.Status = "none"
+					appendLog(conf, samples[s])
+				if samples[s].Step == "contamination-estimate":
+					# Filter vcf
+					samples[s].Step = "filtering"
+					filtered = filterCalls(conf, samples[s].Output)
+					if filtered:
+						# Record filtered reads
+						sample[s].Output = filtered
+						sample[s].Status = "complete"
+					else:
+						sample[s].Status = "failed"
+					appendLog(conf, s)
+			if samples[s].Step == "mutect" and samples[s].Status == "complete":
+			# Comparison
+			status = compareVCFs(conf, filtered)
+			
 def main():
 	starttime = datetime.now()
 	parser = ArgumentParser("This script will filter mutect2 output files.")
-	parser.add_argument("-s", help = "Sample name (required).")
-	parser.add_argument("-x", help = "Path to first vcf (required).")
-	parser.add_argument("-y", help = "Path to second vcf (required).")
-	parser.add_argument("-r", help = "Path to reference genome (required).")
-	parser.add_argument("-o", help = "Path to output directory (required).")
-	parser.add_argument("--gatk", help = "Path to gatk jar (if using).")
-	parser.add_argument("--picard", help = "Path to picard jar (if using).")
-	parser.add_argument("-g", help = "Path to germline resource.")
-	parser.add_argument("--af", help = "Estimated allele frequency (required if using a germline resource).")
-	parser.add_argument("-e", help = "Path to contmination estimate vcf.")
-	parser.add_argument("--fmo", help = "Additional filter mutect options in quotes")
+	parser.add_argument("-c", help = "Path to config file containing reference genome, java jars \
+(if using), and mutect options (required; input files are read from sub-directories in output_directory \
+and output will be written to same sub-directory).")
 	args = parser.parse_args()
-	conf = getConfig(args)
-	log, samples = checkOutput(conf["outpath"])
-	conf["log"] = log
-
-	if len(filtered) == 2:
-		# Compare output
-		print(("\n\tComparing filterd VCFs from {}...").format(conf["sample"]))
-		status = compareVCFs(conf, filtered)
-		if status == True:
-			# Record finished samples
-			outfile = conf["outpath"] + conf["sample"] + ".csv"
-			with open(conf["log"], "a") as l:
-				l.write(("{}\tcompleted\t{}\n").format(conf["sample"], outfile))
-
+	# Load config file and discard batch template
+	conf, _ = getConf(args.c)
+	done = filterSamples(conf)
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
