@@ -1,6 +1,8 @@
 '''This script will filter mutect2 output files.'''
 
 import os
+from argparse import ArgumentParser
+from datetime import datetime
 from glob import glob
 from subprocess import Popen
 from shlex import split
@@ -40,20 +42,15 @@ def intersect(outpath, cmd, vcfs):
 		sim = c/(a+b+c)
 	except ZeroDivisionError:
 		sim = 0.0
-	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].find(".")]
-	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].find(".")]
+	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
+	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
 	with open(outpath.replace("_PASS", "") + ".csv", "a") as output:
 		output.write(("{},{},{},{},{},{},{}\n").format(typ,sa, sb, a, b, c, sim))
 	return 1
 
-def compareVCFs(conf, vcfs):
-	# Calls gatk and pyvcf to filter and compare mutect output
-	ret = False
+def comparePair(outpath, vcfs):
+	# Calls gatk and pyvcf to filter and compare given pair of
 	done = 0
-	outpath = conf["outpath"] + conf["sample"]
-	with open(outpath + "csv", "w") as output:
-		# Initialize summary file and write header
-		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 	# Call bftools on all results
 	cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
 	cmd += " -p {}"
@@ -61,9 +58,22 @@ def compareVCFs(conf, vcfs):
 	# Call bftools on passes
 	outpath += "_PASS"
 	done += intersect(outpath, cmd + " -f .,PASS", vcfs)
-	if done == 2:
-		ret = True
-	return ret
+	return done
+
+def compareVCFs(conf, samples):
+	# Compares unfilted vs. filtered results for each combination of pair of samples
+	done = 0
+	outpath = conf["outpath"] + conf["sample"]
+	with open(outpath + "csv", "w") as output:
+		# Initialize summary file and write header
+		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
+	k = list(samples.keys())
+	done += comparePair(outpath, samples[k[0]].Output, samples[k[1]].Unfiltered)
+	done += comparePair(outpath, samples[k[1]].Output, samples[k[0]].Unfiltered)
+	if done == 4:
+		return True
+	else:
+		return False
 
 #-------------------------------Contamination/Filtering-----------------------
 
@@ -144,7 +154,7 @@ def filterSamples():
 		if len(samples.keys()) == 2:
 			# Compare output
 			print(("\n\tFiltering and comparing VCFs from {}...").format("sample"))
-			for s in in samples.keys():
+			for s in samples.keys():
 				if samples[s].Step == "mutect" and samples[s].Status == "complete":
 					samples[s].Step = "contamination-estimate"
 					if "contaminant" in conf.keys():
@@ -163,14 +173,17 @@ def filterSamples():
 					filtered = filterCalls(conf, samples[s].Output)
 					if filtered:
 						# Record filtered reads
-						sample[s].Output = filtered
-						sample[s].Status = "complete"
+						samples[s].Output = filtered
+						samples[s].Status = "complete"
 					else:
-						sample[s].Status = "failed"
+						samples[s].Status = "failed"
 					appendLog(conf, s)
-			if samples[s].Step == "filtering" and samples[s].Status == "complete":
-				# Comparison
-				status = compareVCFs(conf, filtered)
+			# Comparison
+			status = compareVCFs(conf, samples)
+			if status == True:
+				print("\tAll files filtered successfully.")
+			else:
+				print("\t[Error] Some files failed comparison.")
 			
 def main():
 	starttime = datetime.now()
