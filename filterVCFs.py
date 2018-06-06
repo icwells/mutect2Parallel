@@ -65,7 +65,7 @@ def compareVCFs(conf, vcfs):
 		ret = True
 	return ret
 
-#-------------------------------Contamination/Fitlering-----------------------
+#-------------------------------Contamination/Filtering-----------------------
 
 def filterCalls(conf, vcf):
 	# Calls gatk to filter mutect calls
@@ -168,9 +168,9 @@ def filterSamples():
 					else:
 						sample[s].Status = "failed"
 					appendLog(conf, s)
-			if samples[s].Step == "mutect" and samples[s].Status == "complete":
-			# Comparison
-			status = compareVCFs(conf, filtered)
+			if samples[s].Step == "filtering" and samples[s].Status == "complete":
+				# Comparison
+				status = compareVCFs(conf, filtered)
 			
 def main():
 	starttime = datetime.now()
