@@ -140,6 +140,20 @@ def estContamination(conf, s):
 
 #-----------------------------------------------------------------------------
 
+def printError(msg):
+	# Prints formatted error message
+	print(("\n\t[Error] {}. Skipping.\n").format(msg))
+
+def checkSamples(name, samples):
+	# Makes sure two samples have passed mutect
+	msg = ""
+	if len(samples.keys()) != 2:
+		msg = ("Could not find two sample vcfs for {}").format(name)
+	else:
+		for s in samples.keys():
+			
+ 
+
 def filterSamples():
 	# Filters and estimates contamination
 	paths = glob(conf["outpath"])
@@ -151,7 +165,8 @@ def filterSamples():
 		if sample[:-1] == "/":
 			sample = sample[:-1]
 		sample = p[p.rfind("/")+1:]
-		if len(samples.keys()) == 2:
+		proceed = checkSamples(sample, samples)
+		if proceed == True:
 			# Compare output
 			print(("\n\tFiltering and comparing VCFs from {}...").format("sample"))
 			for s in samples.keys():
@@ -181,9 +196,9 @@ def filterSamples():
 			# Comparison
 			status = compareVCFs(conf, samples)
 			if status == True:
-				print("\tAll files filtered successfully.")
+				print(("\tAll files for {} filtered successfully.").format(sample))
 			else:
-				print("\t[Error] Some files failed comparison.")
+				print(("\t[Error] Some files from {} failed comparison.").format(sample))
 			
 def main():
 	starttime = datetime.now()

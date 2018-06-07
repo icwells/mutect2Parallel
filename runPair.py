@@ -79,7 +79,7 @@ def submitFiles(conf, samples, infile):
 	else:
 		s = Sample(name, "mutect", "starting", conf["outpath"] + name + ".vcf")
 	s.Input = infile
-	if s.Status == "starting":
+	if s.Step == "mutect" and s.Status != "complete":
 		s = submitSample(infile, conf, s, name)
 	return s
 

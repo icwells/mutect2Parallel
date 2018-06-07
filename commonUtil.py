@@ -20,26 +20,24 @@ class Sample():
 
 	def __update__(self, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
-		if "failed" not in status:
-			# Ignore steps which returned failed
-			if step == "comparison":
+		if step == "comparison":
+			self.Step = step
+			self.Output = outfile
+			self.Status = status
+		elif step == "contamination-estimate":
+			if self.Step == "filtering" or self.Step == "mutect":
 				self.Step = step
 				self.Output = outfile
 				self.Status = status
-			elif step == "contamination-estimate":
-				if self.Step == "filtering" or self.Step == "mutect":
-					self.Step = step
-					self.Output = outfile
-					self.Status = status
-			elif step == "filtering" and self.Step == "mutect":
-				self.Step = step
-				self.Output = outfile
-				self.Status = status
-			elif step == "mutect" and self.Step == "starting":
-				self.Step = step
-				self.Output = outfile
-				self.Unfiltered = outfile
-				self.Status = status
+		elif step == "filtering" and self.Step == "mutect":
+			self.Step = step
+			self.Output = outfile
+			self.Status = status
+		elif step == "mutect" and self.Step == "starting":
+			self.Step = step
+			self.Output = outfile
+			self.Unfiltered = outfile
+			self.Status = status
 
 #-------------------------------commonfunctions----------------------------------------
 
