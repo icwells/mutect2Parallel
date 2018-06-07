@@ -8,7 +8,7 @@ from subprocess import Popen
 from shlex import split
 from commonUtil import *
 
-#-------------------------------Filtering-------------------------------------
+#-------------------------------Comparison------------------------------------
 
 def getTotal(vcf):
 	# Returns total number of content lines from vcf
@@ -63,13 +63,14 @@ def comparePair(outpath, vcfs):
 def compareVCFs(conf, samples):
 	# Compares unfilted vs. filtered results for each combination of pair of samples
 	done = 0
-	outpath = conf["outpath"] + conf["sample"]
+	outpath = conf["outpath"] + conf["sample"] + "_"
 	with open(outpath + "csv", "w") as output:
 		# Initialize summary file and write header
 		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
-	k = list(samples.keys())
-	done += comparePair(outpath, samples[k[0]].Output, samples[k[1]].Unfiltered)
-	done += comparePair(outpath, samples[k[1]].Output, samples[k[0]].Unfiltered)
+	s1, s2 = list(samples.keys())
+	# Append filtered smaple name when submitting
+	done += comparePair(outpath + sample[s1].ID, samples[s1].Output, samples[s2].Unfiltered)
+	done += comparePair(outpath + sample[s2].ID, samples[s2].Output, samples[s1].Unfiltered)
 	if done == 4:
 		return True
 	else:
@@ -146,13 +147,21 @@ def printError(msg):
 
 def checkSamples(name, samples):
 	# Makes sure two samples have passed mutect
+	proceed = True
 	msg = ""
 	if len(samples.keys()) != 2:
-		msg = ("Could not find two sample vcfs for {}").format(name)
+		printError(("Could not find two sample vcfs for {}").format(name))
+		proceed =  False
 	else:
+		# Ensure both have at least passed mutect
 		for s in samples.keys():
-			
- 
+			if samples[s].Step == "mutect" and samples[s].Status != "complete":
+				printError(("{} from {} has not successfully completed mutect.").format(samples[s].ID, name)) 
+				proceed = False
+			elif samples[s].Step == "filtering" and samples[s].Status != "complete":
+				# Re-attempt failed filtering steps
+				samples[s].Step = "contamination-estimate"
+ 	return proceed
 
 def filterSamples():
 	# Filters and estimates contamination
@@ -172,6 +181,7 @@ def filterSamples():
 			for s in samples.keys():
 				if samples[s].Step == "mutect" and samples[s].Status == "complete":
 					samples[s].Step = "contamination-estimate"
+					samples[s].Status = "starting"
 					if "contaminant" in conf.keys():
 						# Estimate contamination
 						status = estContamination(conf, samples[s])
@@ -183,8 +193,9 @@ def filterSamples():
 						s.Status = "none"
 					appendLog(conf, samples[s])
 				if samples[s].Step == "contamination-estimate":
-					# Filter vcf
+					# Filter vcf if contamination est has been attempted or previous filtering failed
 					samples[s].Step = "filtering"
+					samples[s].Status = "starting"
 					filtered = filterCalls(conf, samples[s].Output)
 					if filtered:
 						# Record filtered reads
@@ -193,12 +204,20 @@ def filterSamples():
 					else:
 						samples[s].Status = "failed"
 					appendLog(conf, s)
+					samples[s].Step = "comparison"
+					samples[s].Status = "starting"
 			# Comparison
 			status = compareVCFs(conf, samples)
 			if status == True:
 				print(("\tAll files for {} filtered successfully.").format(sample))
+				for s in samples.keys():
+					samples[s].Status = "complete"
+					appendLog(conf, samples[s])
 			else:
 				print(("\t[Error] Some files from {} failed comparison.").format(sample))
+				for s in samples.keys():
+					samples[s].Status = "failed"
+					appendLog(conf, samples[s])
 			
 def main():
 	starttime = datetime.now()
