@@ -52,16 +52,22 @@ def intersect(outpath, cmd, vcfs):
 def comparePair(outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
 	done = 0
+	run = True
 	for i in range(len(vcfs)):
-		# Make sure files are bgzipped
-		vcfs[i] = bgzip(vcfs[i])
-	# Call bftools on all results
-	cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
-	cmd += " -p {}"
-	done += intersect(outpath, cmd, vcfs)
-	# Call bftools on passes
-	outpath += "_PASS"
-	done += intersect(outpath, cmd + " -f .,PASS", vcfs)
+		if vcfs[i] and os.path.isfile(vcfs[i]):
+			# Make sure files are bgzipped
+			vcfs[i] = bgzip(vcfs[i])
+		else:
+			print(("\t[Error] Cannot find {}. Skipping.").format(vcfs[i]))
+			run = False
+	if run == True:
+		# Call bftools on all results
+		cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
+		cmd += " -p {}"
+		done += intersect(outpath, cmd, vcfs)
+		# Call bftools on passes
+		outpath += "_PASS"
+		done += intersect(outpath, cmd + " -f .,PASS", vcfs)
 	return done
 
 def compareVCFs(conf, name, samples):
