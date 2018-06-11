@@ -23,10 +23,6 @@ def getTotal(vcf):
 def intersect(outpath, cmd, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
 	cmd = cmd.format(outpath)
-	if "PASS" in outpath:
-		typ = "pass"
-	else:
-		typ = "all"
 	try:
 		bcf = Popen(split(cmd))
 		bcf.communicate()
@@ -44,6 +40,11 @@ def intersect(outpath, cmd, vcfs):
 		sim = 0.0
 	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
 	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
+	# Get run type for log
+	if "PASS" in outpath:
+		typ = "pass"
+	else:
+		typ = "all"
 	with open(outpath.replace("_PASS", "") + ".csv", "a") as output:
 		output.write(("{},{},{},{},{},{},{}\n").format(typ,sa, sb, a, b, c, sim))
 	return 1
@@ -51,6 +52,9 @@ def intersect(outpath, cmd, vcfs):
 def comparePair(outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
 	done = 0
+	for i in range(len(vcfs)):
+		# Make sure files are bgzipped
+		vcfs[i] = bgzip(vcfs[i])
 	# Call bftools on all results
 	cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
 	cmd += " -p {}"
@@ -60,17 +64,17 @@ def comparePair(outpath, vcfs):
 	done += intersect(outpath, cmd + " -f .,PASS", vcfs)
 	return done
 
-def compareVCFs(conf, samples):
+def compareVCFs(conf, name, samples):
 	# Compares unfilted vs. filtered results for each combination of pair of samples
 	done = 0
-	outpath = conf["outpath"] + conf["sample"] + "_"
-	with open(outpath + "csv", "w") as output:
+	outpath = conf["outpath"] + name + "/" + name
+	with open(outpath + ".csv", "w") as output:
 		# Initialize summary file and write header
 		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 	s1, s2 = list(samples.keys())
 	# Append filtered smaple name when submitting
-	done += comparePair(outpath + sample[s1].ID, samples[s1].Output, samples[s2].Unfiltered)
-	done += comparePair(outpath + sample[s2].ID, samples[s2].Output, samples[s1].Unfiltered)
+	done += comparePair(outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
+	done += comparePair(outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
 	if done == 4:
 		return True
 	else:
@@ -106,11 +110,11 @@ def estContamination(conf, s):
 	print(("\tEstimating contamination in {}...").format(s.ID))
 	if "gatk" in conf.keys():
 		# Format command for calling gatk jar
-		pu = ("java -jar {} GetPileupSummaries -R {} ").format(conf["gatk"], conf["reference"])
+		pu = ("java -jar {} GetPileupSummaries -R {} ").format(conf["gatk"], conf["ref"])
 		cc = ("java -jar {} CalculateContamination ").format(conf["gatk"])
 	else:
 		# Format command for colling gatk from path
-		pu = ("gatk GetPileupSummaries -R {} ").format(conf["reference"])
+		pu = ("gatk GetPileupSummaries -R {} ").format(conf["ref"])
 		cc = "gatk CalculateContamination "
 	# Get pileup summary
 	pileup = s.Output.replace(".vcf", ".pileup.table")
@@ -161,63 +165,66 @@ def checkSamples(name, samples):
 			elif samples[s].Step == "filtering" and samples[s].Status != "complete":
 				# Re-attempt failed filtering steps
 				samples[s].Step = "contamination-estimate"
- 	return proceed
+	return proceed
 
-def filterSamples():
+def filterSamples(conf):
 	# Filters and estimates contamination
-	paths = glob(conf["outpath"])
+	paths = glob(conf["outpath"] + "*")
 	for p in paths:
 		# Iterate through each subdirectory
-		log, samples = checkOutput(p)
-		conf["log"] = log
-		# Get sample name from path
-		if sample[:-1] == "/":
-			sample = sample[:-1]
-		sample = p[p.rfind("/")+1:]
-		proceed = checkSamples(sample, samples)
-		if proceed == True:
-			# Compare output
-			print(("\n\tFiltering and comparing VCFs from {}...").format("sample"))
-			for s in samples.keys():
-				if samples[s].Step == "mutect" and samples[s].Status == "complete":
-					samples[s].Step = "contamination-estimate"
-					samples[s].Status = "starting"
-					if "contaminant" in conf.keys():
-						# Estimate contamination
-						status = estContamination(conf, samples[s])
-						if status == True:
+		if p[:-1] != "/":
+			p += "/"
+		if os.path.isfile(p + "mutectLog.txt"):
+			# Proceed if log is present
+			log, samples = checkOutput(p)
+			conf["log"] = log
+			# Get sample name from path sans trailing slash
+			sample = p[:-1]
+			sample = sample[sample.rfind("/")+1:]
+			proceed = checkSamples(sample, samples)
+			if proceed == True:
+				# Compare output
+				print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
+				for s in samples.keys():
+					if samples[s].Step == "mutect" and samples[s].Status == "complete":
+						samples[s].Step = "contamination-estimate"
+						samples[s].Status = "starting"
+						if "contaminant" in conf.keys():
+							# Estimate contamination
+							status = estContamination(conf, samples[s])
+							if status == True:
+								samples[s].Status = "complete"
+							else:
+								samples[s].Status = "failed"
+						else:
+							s.Status = "none"
+						appendLog(conf, samples[s])
+					if samples[s].Step == "contamination-estimate":
+						# Filter vcf if contamination est has been attempted or previous filtering failed
+						samples[s].Step = "filtering"
+						samples[s].Status = "starting"
+						filtered = filterCalls(conf, samples[s].Output)
+						if filtered:
+							# Record filtered reads
+							samples[s].Output = filtered
 							samples[s].Status = "complete"
 						else:
 							samples[s].Status = "failed"
-					else:
-						s.Status = "none"
-					appendLog(conf, samples[s])
-				if samples[s].Step == "contamination-estimate":
-					# Filter vcf if contamination est has been attempted or previous filtering failed
-					samples[s].Step = "filtering"
-					samples[s].Status = "starting"
-					filtered = filterCalls(conf, samples[s].Output)
-					if filtered:
-						# Record filtered reads
-						samples[s].Output = filtered
+						appendLog(conf, samples[s])
+						samples[s].Step = "comparison"
+						samples[s].Status = "starting"
+				# Comparison
+				status = compareVCFs(conf, sample, samples)
+				if status == True:
+					print(("\tAll files for {} filtered successfully.").format(sample))
+					for s in samples.keys():
 						samples[s].Status = "complete"
-					else:
+						appendLog(conf, samples[s])
+				else:
+					print(("\t[Error] Some files from {} failed comparison.").format(sample))
+					for s in samples.keys():
 						samples[s].Status = "failed"
-					appendLog(conf, s)
-					samples[s].Step = "comparison"
-					samples[s].Status = "starting"
-			# Comparison
-			status = compareVCFs(conf, samples)
-			if status == True:
-				print(("\tAll files for {} filtered successfully.").format(sample))
-				for s in samples.keys():
-					samples[s].Status = "complete"
-					appendLog(conf, samples[s])
-			else:
-				print(("\t[Error] Some files from {} failed comparison.").format(sample))
-				for s in samples.keys():
-					samples[s].Status = "failed"
-					appendLog(conf, samples[s])
+						appendLog(conf, samples[s])
 			
 def main():
 	starttime = datetime.now()

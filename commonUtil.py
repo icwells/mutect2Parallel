@@ -7,19 +7,20 @@ from shlex import split
 
 class Sample():
 	# Stores data for managing sample progress
-	def __init__(self, name, step, status, outfile):
-		self.ID = name
-		self.Step = step
-		self.Status = "starting"
-		if "failed" not in status:
-			self.Status = status
-		self.Output = outfile
+	def __init__(self):
+		self.ID = ""
+		self.Step = ""
+		self.Status = ""
+		self.Status = ""
+		self.Output = ""
 		self.Bam = None
 		self.Input = None
-		self.Unfilered = None
+		self.Unfiltered = None
 
 	def __update__(self, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
+		if not self.ID:
+			self.ID = name
 		if step == "comparison":
 			self.Step = step
 			self.Output = outfile
@@ -33,10 +34,10 @@ class Sample():
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
-		elif step == "mutect" and self.Step == "starting":
+		elif step == "mutect":
+			self.Unfiltered = outfile
 			self.Step = step
 			self.Output = outfile
-			self.Unfiltered = outfile
 			self.Status = status
 
 #-------------------------------commonfunctions----------------------------------------
@@ -92,10 +93,10 @@ def checkOutput(outdir):
 				if first == False and line.strip():
 					line = line.strip().split("\t")
 					if len(line) == 4:
-						if line[0] in done.keys():
-							done[line[0]].__update__(line[0], line[1], line[2], line[3])
-						else:
-							done[line[0]] = Sample(line[0], line[1], line[2], line[3])
+						if line[0] not in done.keys():
+							# Initialize new sample entry
+							done[line[0]] = Sample()
+						done[line[0]].__update__(line[0], line[1], line[2], line[3])
 				else:
 					# Skip header
 					first = False
@@ -205,7 +206,7 @@ def bgzip(vcf):
 	if os.path.isfile(vcf + ".gz"):
 		gz = vcf + ".gz"
 	else:	
-		gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1)
+		gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True)
 	return gz
 
 def getFastaIndex(ref):
