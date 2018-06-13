@@ -17,7 +17,7 @@ class Sample():
 		self.Input = None
 		self.Unfiltered = None
 
-	def __update__(self, name, step, status, outfile):
+	def update(self, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
 		if not self.ID:
 			self.ID = name
@@ -91,7 +91,7 @@ def checkOutput(outdir):
 						if line[0] not in done.keys():
 							# Initialize new sample entry
 							done[line[0]] = Sample()
-						done[line[0]].__update__(line[0], line[1], line[2], line[3])
+						done[line[0]].update(line[0], line[1], line[2], line[3])
 				else:
 					# Skip header
 					first = False

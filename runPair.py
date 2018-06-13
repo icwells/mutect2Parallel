@@ -77,7 +77,8 @@ def submitFiles(conf, samples, infile):
 	if name in samples.keys():
 		s = samples[name]
 	else:
-		s = Sample(name, "mutect", "starting", conf["outpath"] + name + ".vcf")
+		s = Sample()
+		s.update(name, "mutect", "starting", conf["outpath"] + name + ".vcf")
 	s.Input = infile
 	if s.Step == "mutect" and s.Status != "complete":
 		s = submitSample(infile, conf, s, name)
