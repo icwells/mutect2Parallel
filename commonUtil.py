@@ -25,11 +25,6 @@ class Sample():
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
-		elif step == "contamination-estimate":
-			if self.Step == "filtering" or self.Step == "mutect":
-				self.Step = step
-				self.Output = outfile
-				self.Status = status
 		elif step == "filtering" and self.Step == "mutect":
 			self.Step = step
 			self.Output = outfile

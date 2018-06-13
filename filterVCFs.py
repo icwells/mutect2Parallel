@@ -86,7 +86,7 @@ def compareVCFs(conf, name, samples):
 	else:
 		return False
 
-#-------------------------------Contamination/Filtering-----------------------
+#-------------------------------Filtering-------------------------------------
 
 def filterCalls(conf, vcf):
 	# Calls gatk to filter mutect calls
@@ -110,44 +110,6 @@ def filterCalls(conf, vcf):
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 			return None
 	return bgzip(outfile)
-
-def estContamination(conf, s):
-	# Calls gatk to get pileup summary and estimate contamination
-	print(("\tEstimating contamination in {}...").format(s.ID))
-	if "gatk" in conf.keys():
-		# Format command for calling gatk jar
-		pu = ("java -jar {} GetPileupSummaries -R {} ").format(conf["gatk"], conf["ref"])
-		cc = ("java -jar {} CalculateContamination ").format(conf["gatk"])
-	else:
-		# Format command for colling gatk from path
-		pu = ("gatk GetPileupSummaries -R {} ").format(conf["ref"])
-		cc = "gatk CalculateContamination "
-	# Get pileup summary
-	pileup = s.Output.replace(".vcf", ".pileup.table")
-	pu += ("-I {} -V {} -O {}").format(s.Input, conf["contaminant"], pileup)
-	pu = getOpt(conf, pu)
-	plog = pileup.replace("table", "stdout")
-	with open(plog, "w") as l:
-		try:
-			spu = Popen(split(pu), stdout = l, stderr = l)
-			spu.communicate()
-		except:
-			print(("\t[Error] Could not call GetPileupSummaries on {}").format(s.Output))
-			return False
-	if getStatus(plog) == False:
-		return False
-	# Get contamination estimate
-	cest = pileup.replace("pileup", "contamination")
-	clog = cest.replace("table", "stdout")
-	cc += ("-I {} -O {}").format(pileup, cest)
-	with open(clog, "w") as l:
-		try:
-			ccont = Popen(split(cc), stdout = l, stderr = l)
-			ccont.communicate()
-		except:
-			print(("\t[Error] Could not call CalculateContamination on {}").format(s.Output))
-			return False
-	return getStatus(clog)
 
 #-----------------------------------------------------------------------------
 
@@ -174,7 +136,7 @@ def checkSamples(name, samples):
 	return proceed
 
 def filterSamples(conf):
-	# Filters and estimates contamination
+	# Filters
 	paths = glob(conf["outpath"] + "*")
 	for p in paths:
 		# Iterate through each subdirectory
@@ -193,20 +155,7 @@ def filterSamples(conf):
 				print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
 				for s in samples.keys():
 					if samples[s].Step == "mutect" and samples[s].Status == "complete":
-						samples[s].Step = "contamination-estimate"
-						samples[s].Status = "starting"
-						if "contaminant" in conf.keys():
-							# Estimate contamination
-							status = estContamination(conf, samples[s])
-							if status == True:
-								samples[s].Status = "complete"
-							else:
-								samples[s].Status = "failed"
-						else:
-							s.Status = "none"
-						appendLog(conf, samples[s])
-					if samples[s].Step == "contamination-estimate":
-						# Filter vcf if contamination est has been attempted or previous filtering failed
+						# Filter vcf
 						samples[s].Step = "filtering"
 						samples[s].Status = "starting"
 						filtered = filterCalls(conf, samples[s].Output)
