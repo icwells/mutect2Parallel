@@ -57,6 +57,8 @@ def comparePair(outpath, vcfs):
 		if vcfs[i] and os.path.isfile(vcfs[i]):
 			# Make sure files are bgzipped
 			vcfs[i] = bgzip(vcfs[i])
+		elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
+			vcfs[i] += ".gz"
 		else:
 			print(("\t[Error] Cannot find {}. Skipping.").format(vcfs[i]))
 			run = False
@@ -127,12 +129,16 @@ def checkSamples(name, samples):
 	else:
 		# Ensure both have at least passed mutect
 		for s in samples.keys():
-			if samples[s].Step == "mutect" and samples[s].Status != "complete":
-				printError(("{} from {} has not successfully completed mutect.").format(samples[s].ID, name)) 
-				proceed = False
+			if samples[s].Step == "mutect":
+				if samples[s].Status != "complete":
+					printError(("{} from {} has not successfully completed mutect.").format(samples[s].ID, name)) 
+					proceed = False
+				elif ".vcf" not in samples[s].Unfiltered:
+					printError(("Cannot find mutect output for {} from {}.").format(samples[s].ID, name)) 
+					proceed = False					
 			elif samples[s].Step == "filtering" and samples[s].Status != "complete":
 				# Re-attempt failed filtering steps
-				samples[s].Step = "contamination-estimate"
+				samples[s].Step = "mutect"
 	return proceed
 
 def filterSamples(conf):
