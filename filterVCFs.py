@@ -108,10 +108,10 @@ def filterCalls(conf, vcf):
 		try:
 			fmc = Popen(split(cmd), stdout = l, stderr = l)
 			fmc.communicate()
+			return bgzip(outfile)
 		except:
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 			return None
-	return bgzip(outfile)
 
 #-----------------------------------------------------------------------------
 
@@ -177,7 +177,7 @@ def filterSamples(conf):
 				# Comparison
 				status = compareVCFs(conf, sample, samples)
 				if status == True:
-					print(("\tAll files for {} filtered successfully.").format(sample))
+					print(("\tAll comparisons for {} run successfully.").format(sample))
 					for s in samples.keys():
 						samples[s].Status = "complete"
 						appendLog(conf, samples[s])
