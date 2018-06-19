@@ -1,4 +1,4 @@
-# mutect2Parallel v0.1 will create batch scripts to call Mutect2 in parallel over input files
+# mutect2Parallel v0.2 will create batch scripts to call Mutect2 in parallel over input files
 
 Copyright 2018 by Shawn Rupp
 
@@ -71,10 +71,26 @@ The resulting batch scripts will run each tumor-normal combination in parallel f
 	--bamout		Indicates that mutect should also generate bam output files (extends mutect runtime).
 	--newPON		Creates batch scripts for running mutect in tumor-only mode on normals 
 						and creating a panel of normals (instead of running both tumor-normal comparisons)
-	--nofilter		Skips filtering of mutect output. 
 	-i I			Path to space/tab/comma seperated text file of input files (format: ID Normal A B)
 	-c C			Path to config file containing reference genome, java jars (if using), and mutect options.
 	-o O			Path to batch script output directory (leave blank for current directory).
+
+After all of the batch scripts have finished running filterVCFs.py can be used to filter the mutect output and compare the resulting vcfs 
+using bcftools isec. Each filtered file will be compared to the unfiltered vcf of the other sample (i.e. filtered A vs unfiltered B 
+and vice versa) first using default parameters and then using the "-f .,PASS" options. This step is significantly faster, so it is not run 
+in parallel.
+
+	python filterVCFs.py {--summarize} -c path/to/config/file 
+
+	-h, --help		show this help message and exit
+	-c C			Path to config file containing reference genome, java jars (if using), and mutect options 
+					(required; input files are read from sub-directories in output_directory and output will be written to same sub-directory).
+	--summarize		Skips to summarize step (all other steps must be completed. Will overwrite existing summary files).
+
+Lastly, getSummary.py can be used to concatenate the individual summaries into one csv file:
+
+	python getSummary.py -i path/to/input/directory -o path/to/ouput/file
+
 
 ### Output 
 For each batch of input samples, mutect2Parallel will create one batch script for each sample. By default, each script will call runPair.py 
@@ -89,7 +105,6 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 
 	-h, --help		show this help message and exit
 	--bamout		Indicates that mutect should also generate bam output files.
-	--nofilter		Skips filtering of mutect output. 
 	-s S			Sample name (required).
 	-x X			Path to first tumor bam (required).
 	-y Y			Path to second tumor bam (required).
@@ -102,9 +117,7 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 	-p P			Path to panel of normals.
 	-g G			Path to germline resource.
 	--af AF			Estimated allele frequency (required if using a germline resource).
-	-e E			Path to contmination estimate vcf.
 	--mo MO			Additional mutect options in quotes
-	--fmo FMO		Additional filter mutect options in quotes
 
 
 ### getPON.py

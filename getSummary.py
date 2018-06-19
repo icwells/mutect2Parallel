@@ -14,24 +14,26 @@ def getCSV(csv):
 
 def summarize(indir, outfile):
 	# Copies contents of each summary csv in each subdirectory
-	paths = glob(conf["outpath"] + "*")
+	print("\n\tConcatenating summary files...")
+	paths = glob(indir + "*")
 	with open(outfile, "w") as out:
 		out.write("Sample,Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 		for p in paths:
 			# Iterate through each subdirectory
-			if p[:-1] != "/":
-				p += "/"
-			# Get sample name from path
-			sample = p.split("/")[-1]
-			csv = p + sample + ".csv"
-			if not os.path.isfile(csv):
-				print(("\t[Error] Cannot find {}. Skipping.").format(csv))
-			else:
-				s = getCSV(csv)
-				if s:
-					for i in s:
-						# Write sample name and original line
-						out.write(("{},{}\n").format(Sample, i))
+			if ".csv" not in p:
+				if p[:-1] != "/":
+					p += "/"
+				# Get sample name from path
+				sample = p.split("/")[-2]
+				csv = p + sample + ".csv"
+				if not os.path.isfile(csv):
+					print(("\t[Error] Cannot find {}. Skipping.").format(csv))
+				else:
+					s = getCSV(csv)
+					if s:
+						for i in s:
+							# Write sample name and original line
+							out.write(("{},{}").format(sample, i))
 
 def main():
 	start = datetime.now()

@@ -152,7 +152,7 @@ def checkSamples(name, samples):
 	return proceed
 
 def filterSamples(conf):
-	# Filters
+	# Filters and compares all vcfs in each subdirectory
 	paths = glob(conf["outpath"] + "*")
 	for p in paths:
 		# Iterate through each subdirectory
@@ -204,7 +204,7 @@ def main():
 (if using), and mutect options (required; input files are read from sub-directories in output_directory \
 and output will be written to same sub-directory).")
 	parser.add_argument("--summarize", action = "store_true", default = False,
-help = "Skips to summarize step (all other steps must be completed. Will overwrite existing summary files).")
+help = "Skips to summarize step (all other steps must be completed. overwrites existing summary files).")
 	args = parser.parse_args()
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
