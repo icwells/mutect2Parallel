@@ -20,36 +20,42 @@ def getTotal(vcf):
 					count += 1
 	return count
 
-def intersect(outpath, cmd, vcfs):
+def intersect(summary, outpath, cmd, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
-	cmd = cmd.format(outpath)
-	try:
-		bcf = Popen(split(cmd))
-		bcf.communicate()
-	except:
-		print(("\t[Error] Could not call bcftools with {}").format(cmd))
-		return 0
-	# Number of unique variants to each sample and number of shared
-	a = getTotal(outpath + "/0000.vcf")
-	b = getTotal(outpath + "/0001.vcf")
-	c = getTotal(outpath + "/0002.vcf")
-	# Get percentage of similarity
-	try:
-		sim = c/(a+b+c)
-	except ZeroDivisionError:
-		sim = 0.0
-	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
-	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
-	# Get run type for log
-	if "PASS" in outpath:
-		typ = "pass"
+	summarize = False
+	if summary == False:
+		cmd = cmd.format(outpath)
+		try:
+			bcf = Popen(split(cmd))
+			bcf.communicate()
+			summarize = True
+		except:
+			print(("\t[Error] Could not call bcftools with {}").format(cmd))
+			return 0
 	else:
-		typ = "all"
-	with open(outpath.replace("_PASS", "") + ".csv", "a") as output:
-		output.write(("{},{},{},{},{},{},{}\n").format(typ,sa, sb, a, b, c, sim))
-	return 1
+		summarize = True
+	if summarize == True:
+		# Number of unique variants to each sample and number of shared
+		a = getTotal(outpath + "/0000.vcf")
+		b = getTotal(outpath + "/0001.vcf")
+		c = getTotal(outpath + "/0002.vcf")
+		# Get percentage of similarity
+		try:
+			sim = c/(a+b+c)
+		except ZeroDivisionError:
+			sim = 0.0
+		sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
+		sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
+		# Get run type for log
+		if "PASS" in outpath:
+			typ = "pass"
+		else:
+			typ = "all"
+		with open(outpath.replace("_PASS", "") + ".csv", "a") as output:
+			output.write(("{},{},{},{},{},{},{}\n").format(typ,sa, sb, a, b, c, sim))
+		return 1
 
-def comparePair(outpath, vcfs):
+def comparePair(summary, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
 	done = 0
 	run = True
@@ -69,7 +75,7 @@ def comparePair(outpath, vcfs):
 		done += intersect(outpath, cmd, vcfs)
 		# Call bftools on passes
 		outpath += "_PASS"
-		done += intersect(outpath, cmd + " -f .,PASS", vcfs)
+		done += intersect(summary, outpath, cmd + " -f .,PASS", vcfs)
 	return done
 
 def compareVCFs(conf, name, samples):
@@ -81,8 +87,8 @@ def compareVCFs(conf, name, samples):
 		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 	s1, s2 = list(samples.keys())
 	# Append filtered smaple name when submitting
-	done += comparePair(outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
-	done += comparePair(outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
+	done += comparePair(conf["summary"], outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
+	done += comparePair(conf["summary"], outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
 	if done == 4:
 		return True
 	else:
@@ -160,7 +166,7 @@ def filterSamples(conf):
 				# Compare output
 				print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
 				for s in samples.keys():
-					if samples[s].Step == "mutect" and samples[s].Status == "complete":
+					if samples[s].Step == "mutect" and samples[s].Status == "complete" and not conf["summary"]:
 						# Filter vcf
 						samples[s].Step = "filtering"
 						samples[s].Status = "starting"
@@ -193,9 +199,12 @@ def main():
 	parser.add_argument("-c", help = "Path to config file containing reference genome, java jars \
 (if using), and mutect options (required; input files are read from sub-directories in output_directory \
 and output will be written to same sub-directory).")
+	parser.add_argument("--summarize", action = "store_true", default = False,
+help = "Skips to summarize step (all other steps must be completed. Will overwrite existing summary files).")
 	args = parser.parse_args()
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
+	conf["summary"] = args.summarize
 	done = filterSamples(conf)
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
