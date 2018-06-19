@@ -20,7 +20,7 @@ def getTotal(vcf):
 					count += 1
 	return count
 
-def intersect(summary, outpath, cmd, vcfs):
+def intersect(summary, log, outpath, cmd, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
 	summarize = False
 	if summary == False:
@@ -51,11 +51,11 @@ def intersect(summary, outpath, cmd, vcfs):
 			typ = "pass"
 		else:
 			typ = "all"
-		with open(outpath.replace("_PASS", "") + ".csv", "a") as output:
+		with open(log, "a") as output:
 			output.write(("{},{},{},{},{},{},{}\n").format(typ,sa, sb, a, b, c, sim))
 		return 1
 
-def comparePair(summary, outpath, vcfs):
+def comparePair(summary, log, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
 	done = 0
 	run = True
@@ -66,29 +66,30 @@ def comparePair(summary, outpath, vcfs):
 		elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
 			vcfs[i] += ".gz"
 		else:
-			print(("\t[Error] Cannot find {}. Skipping.").format(vcfs[i]))
+			printError(("Cannot find {}").format(vcfs[i]))
 			run = False
 	if run == True:
 		# Call bftools on all results
 		cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
 		cmd += " -p {}"
-		done += intersect(outpath, cmd, vcfs)
+		done += intersect(summary, log, outpath, cmd, vcfs)
 		# Call bftools on passes
 		outpath += "_PASS"
-		done += intersect(summary, outpath, cmd + " -f .,PASS", vcfs)
+		done += intersect(summary, log, outpath, cmd + " -f .,PASS", vcfs)
 	return done
 
 def compareVCFs(conf, name, samples):
 	# Compares unfilted vs. filtered results for each combination of pair of samples
 	done = 0
 	outpath = conf["outpath"] + name + "/" + name
-	with open(outpath + ".csv", "w") as output:
+	log = outpath + ".csv"
+	with open(log, "w") as output:
 		# Initialize summary file and write header
 		output.write("Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
 	s1, s2 = list(samples.keys())
 	# Append filtered smaple name when submitting
-	done += comparePair(conf["summary"], outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
-	done += comparePair(conf["summary"], outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
+	done += comparePair(conf["summary"], log, outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
+	done += comparePair(conf["summary"], log, outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
 	if done == 4:
 		return True
 	else:
@@ -135,6 +136,9 @@ def checkSamples(name, samples):
 	else:
 		# Ensure both have at least passed mutect
 		for s in samples.keys():
+			if not samples[s].Output or not os.path.isfile(samples[s].Output):
+				printError(("Cannot find {} from {}").format(samples[s].Output, name)) 
+				proceed = False	
 			if samples[s].Step == "mutect":
 				if samples[s].Status != "complete":
 					printError(("{} from {} has not successfully completed mutect.").format(samples[s].ID, name)) 
