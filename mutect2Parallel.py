@@ -117,6 +117,8 @@ def getManifest(infile, pon):
 
 def checkReferences(conf):
 	# Ensures fasta and vcf index and dict files are present
+	if not os.path.isdir(conf["outpath"]):
+		os.mkdir(conf["outpath"])
 	ref = conf["ref"]
 	if not os.path.isfile(ref + ".fai"):
 		getFastaIndex(ref)
