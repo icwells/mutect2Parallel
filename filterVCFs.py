@@ -24,13 +24,12 @@ def intersect(summary, log, outpath, cmd, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
 	summarize = False
 	if summary == False:
-		cmd = cmd.format(outpath)
 		try:
 			bcf = Popen(split(cmd))
 			bcf.communicate()
 			summarize = True
 		except:
-			print(("\t[Error] Could not call bcftools with {}").format(cmd))
+			print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
 			return 0
 	else:
 		summarize = True
@@ -57,8 +56,6 @@ def intersect(summary, log, outpath, cmd, vcfs):
 
 def comparePair(summary, log, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
-	done = 0
-	run = True
 	for i in range(len(vcfs)):
 		if vcfs[i] and os.path.isfile(vcfs[i]):
 			# Make sure files are bgzipped
@@ -67,15 +64,10 @@ def comparePair(summary, log, outpath, vcfs):
 			vcfs[i] += ".gz"
 		else:
 			printError(("Cannot find {}").format(vcfs[i]))
-			run = False
-	if run == True:
-		# Call bftools on all results
-		cmd = ("bcftools isec {} {}").format(vcfs[0], vcfs[1])
-		cmd += " -p {}"
-		done += intersect(summary, log, outpath, cmd, vcfs)
-		# Call bftools on passes
-		outpath += "_PASS"
-		done += intersect(summary, log, outpath, cmd + " -f .,PASS", vcfs)
+			return False
+	# Call bftools on all results
+	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
+	done = intersect(summary, log, outpath, cmd, vcfs)
 	return done
 
 def compareVCFs(conf, name, samples):
@@ -90,12 +82,26 @@ def compareVCFs(conf, name, samples):
 	# Append filtered smaple name when submitting
 	done += comparePair(conf["summary"], log, outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
 	done += comparePair(conf["summary"], log, outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
-	if done == 4:
+	if done == 2:
 		return True
 	else:
 		return False
 
 #-------------------------------Filtering-------------------------------------
+
+def bcftoolsFilter(vcf):
+	# Calls bcftools to filter calls before calling isec
+	outfile = vcf.replace("filtered", "passed")
+	log = outfile.replace("vcf", "stdout")
+	cmd = ("bcftools filter -f .,PASS -o {} {}").format(outfile, vcf)
+	with open(log, "w") as l:
+		try:
+			fmc = Popen(split(cmd), stdout = l, stderr = l)
+			fmc.communicate()
+			return bgzip(outfile)
+		except:
+			print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
+			return None
 
 def filterCalls(conf, vcf):
 	# Calls gatk to filter mutect calls
@@ -178,6 +184,7 @@ def filterSamples(conf):
 						if filtered:
 							# Record filtered reads
 							samples[s].Output = filtered
+							samples[s].Unfiltered = filtered
 							samples[s].Status = "complete"
 						else:
 							samples[s].Status = "failed"
