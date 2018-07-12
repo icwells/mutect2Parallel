@@ -6,7 +6,7 @@ from datetime import datetime
 from glob import glob
 
 def getCSV(csv):
-	# Returns list of summary files
+	# Returns list of summary file contents
 	with open(csv, "r") as f:
 		s = f.readlines()
 	# Return file data without header
@@ -17,7 +17,7 @@ def summarize(indir, outfile):
 	print("\n\tConcatenating summary files...")
 	paths = glob(indir + "*")
 	with open(outfile, "w") as out:
-		out.write("Sample,Type,SampleA,SampleB,#PrivateA,#PrivateB,#Common,Similarity\n")
+		out.write("Sample,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
 		for p in paths:
 			# Iterate through each subdirectory
 			if ".csv" not in p:

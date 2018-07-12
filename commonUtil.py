@@ -74,12 +74,13 @@ def getSample(fname):
 	else:
 		return s[:s.find(".")]
 
-def checkOutput(outdir):
+def checkOutput(outdir, prnt = True):
 	# Checks for output log file and reads if present
 	first = True
 	done = {}
 	log = outdir + "mutectLog.txt"
-	print("\tChecking for previous output...")
+	if prnt == True:
+		print("\tChecking for previous output...")
 	if not os.path.isdir(outdir):
 		os.mkdir(outdir)
 	if os.path.isfile(log):
@@ -197,7 +198,6 @@ def getConf(infile):
 
 def bgzip(vcf):
 	# bgzip compresses filtered vcf files
-	#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	H_SL-20-LK38-020-node-A1	H_SL-20-LK40-020-B3
 	if os.path.isfile(vcf + ".gz"):
 		gz = vcf + ".gz"
 	else:	
