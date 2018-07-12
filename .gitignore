@@ -3,3 +3,4 @@ manifest.txt
 
 # Any python generated files
 *.pyc
+__pycache__/*
