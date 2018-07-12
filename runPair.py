@@ -25,6 +25,9 @@ def callMutect(cmd, name, outfile):
 			return None
 	if getStatus(log) == True:
 		print(("\t{} has completed mutect analysis.").format(name))
+		if os.path.isfile(outfile + ".idx"):
+			# Remove index since it will not be used
+			os.remove(outfile + ".idx")
 		return outfile
 	else:
 		return None
