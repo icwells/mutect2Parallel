@@ -7,8 +7,9 @@ from subprocess import Popen
 from shlex import split
 from commonUtil import *
 
-def submitJobs(scripts, batch):
+def submitJobs(scripts, batch, outdir):
 	# Determines grid type and submits jobs
+	os.chdir(outdir)
 	cmd = ""
 	for line in batch:
 		if "#SBATCH" in line:
@@ -170,7 +171,7 @@ help = "Path to batch script output directory (leave blank for current directory
 	files = getManifest(args.i, conf["newpon"])
 	scripts = getBatchScripts(args.o, conf, batch, files)
 	if args.submit == True:
-		done = submitJobs(scripts, batch)
+		done = submitJobs(scripts, batch, args.o)
 	else:
 		done = True
 	if done == True:
