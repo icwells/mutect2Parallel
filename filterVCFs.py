@@ -88,7 +88,8 @@ def compareVCFs(conf, name, samples):
 def bcftoolsFilter(vcf):
 	# Calls bcftools to filter calls before calling isec
 	outfile = vcf.replace("unfiltered.vcf.gz", "passed.vcf")
-	cmd = ("bcftools filter -i 'FILTER=\"PASS\"' -o {} {}").format(outfile, vcf)
+	opt = '"."|","|"PASS"'
+	cmd = ("bcftools filter -i 'FILTER={}' -o {} {}").format(opt, outfile, vcf)
 	try:
 		fmc = Popen(split(cmd))
 		fmc.communicate()
