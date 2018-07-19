@@ -17,7 +17,13 @@ bcftools: http://www.htslib.org/download/
 
 pysam: 
 
-	conda install pysam 
+	conda install pysam  
+
+unixpath:  
+
+	git clone https://github.com/icwells/unixpath.git    
+	cd unixpath/  
+	python setup.py install 
 
 ## Input files:
 
