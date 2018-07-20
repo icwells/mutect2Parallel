@@ -9,9 +9,45 @@ from shlex import split
 from subprocess import Popen
 from unixpath import *
 
-A = re.compile(r"AfiltcovBNAB.*different.vcf")
-B = re.compile(r"BfiltcovBNAB.*different.vcf")
-C = re.compile(r"filtcovBNABU.*common.vcf")
+A = re.compile(r"AfiltcovBNAB.*different\.vcf")
+B = re.compile(r"BfiltcovBNAB.*different\.vcf")
+C = re.compile(r"filtcovBNABU.*common\.vcf")
+
+def getDelim(line):
+	# Returns delimiter
+	for i in ["\t", ",", " "]:
+		if i in line:
+			return i
+	print("\n\t[Error] Cannot determine delimeter. Check file formatting. Exiting.\n")
+	quit()
+
+def bcfConcat(path, com):
+	# Calls bftools concat on input files
+	outfile = path + "common.vcf"
+	cmd = ("bcftools concat -D -O v -o {} {} {}").format(outfile, com[0], com[1])
+	with open(os.devnull, "w") as dn:
+		try:
+			bc = Popen(split(cmd), stdout = dn, stderr = dn)
+			bc.communicate()
+		except:
+			print(("\t[Error] calling bcftools concat on samples in {}").format(path))
+			outfile = None
+	return outfile	
+
+def bcfSort(infile):
+	# Call bcftools sort
+	outfile = infile.replace(".vcf", ".sorted.vcf")
+	cmd = ("bcftools sort -O v -o {} {}").format(outfile, infile)
+	with open(os.devnull, "w") as dn:
+		try:
+			bs = Popen(split(cmd), stdout = dn, stderr = dn)
+			bs.communicate()
+		except:
+			print(("\t[Error] calling bcftools sort on {}").format(infile))
+			outfile = None
+	return outfile
+
+#-----------------------------------------------------------------------------
 
 def getTotal(vcf):
 	# Returns total number of content lines from vcf
@@ -85,42 +121,15 @@ def comparisonManifest(infile):
 		for line in f:
 			if first == False:
 				spl = line.split(",")
-				s = spl[0]
-				if s not in samples.keys():
-					samples[s] = {}
-				# samples{ID: {type: [vcf1, vcf2]}}
-				samples[s][spl[1]] = spl[2:]
+				if len(s) == 4:
+					s = spl[0]
+					if s not in samples.keys():
+						samples[s] = {}
+					# samples{ID: {type: [vcf1, vcf2]}}
+					samples[s][spl[1]] = spl[2:]
 			else:
 				first = False
 	return samples
-
-#-----------------------------------------------------------------------------
-
-def bcfConcat(path, com):
-	# Calls bftools concat on input files
-	outfile = path + "common.vcf"
-	cmd = ("bcftools concat -D -O v -o {} {} {}").format(outfile, com[0], com[1])
-	with open(os.devnull, "w") as dn:
-		try:
-			bc = Popen(split(cmd), stdout = dn, stderr = dn)
-			bc.communicate()
-		except:
-			print(("\t[Error] calling bcftools concat on samples in {}").format(path))
-			outfile = None
-	return outfile	
-
-def bcfSort(infile):
-	# Call bcftools sort
-	outfile = infile.replace(".vcf", ".sorted.vcf")
-	cmd = ("bcftools sort -O v -o {} {}").format(outfile, infile)
-	with open(os.devnull, "w") as dn:
-		try:
-			bs = Popen(split(cmd), stdout = dn, stderr = dn)
-			bs.communicate()
-		except:
-			print(("\t[Error] calling bcftools sort on {}").format(infile))
-			outfile = None
-	return outfile
 
 #-----------------------------------------------------------------------------
 
@@ -130,10 +139,15 @@ def mergeSamples(outfile, mut, plat):
 	with open(outfile, "w") as out:
 		out.write("ID,Sample,Mutect,Platypus\n")
 		for i in mut.keys():
-			if i in plat.keys():
-				out.write(",".join([i, "A", mut[i]["a"], plat[i]["a"]]) + "\n")
-				out.write(",".join([i, "B", mut[i]["b"], plat[i]["b"]]) + "\n")
-				out.write(",".join([i, "Common", mut[i]["c"], plat[i]["c"]]) + "\n")
+			# Write partial lines so they can be editted later
+			if i not in plat.keys():
+				plat[i] = {}
+			for k in ["a", "b", "c"]:
+				if k not in plat[i].keys():
+					plat[i][k] = ""
+			out.write(",".join([i, "A", mut[i]["a"], plat[i]["a"]]) + "\n")
+			out.write(",".join([i, "B", mut[i]["b"], plat[i]["b"]]) + "\n")
+			out.write(",".join([i, "Common", mut[i]["c"], plat[i]["c"]]) + "\n")
 
 def platypusPaths(p):
 	# Returns paths from vcfdict
@@ -144,14 +158,14 @@ def platypusPaths(p):
 			spl = line.strip().split(",")
 			if count == 3:
 				break
-			elif A.match(spl[0]) == True:
-				paths["a"] = spl[1]
+			elif A.match(spl[0]):
+				paths["a"] = p + spl[1]
 				count += 1
-			elif B.match(spl[0]) == True:
-				paths["b"] = spl[1]
+			elif B.match(spl[0]):
+				paths["b"] = p + spl[1]
 				count += 1
-			elif C.match(spl[0]) == True:
-				paths["c"] = spl[1]
+			elif C.match(spl[0]):
+				paths["c"] = p + spl[1]
 				count += 1
 	return paths	
 
@@ -173,28 +187,31 @@ def getMutectOutput(path, samples):
 	print("\tGetting mutect output...")
 	for p in paths:
 		p = checkDir(p)
-		sample = getParent(p)
+		full = getParent(p)
 		# Drop leading number from name
-		sample = sample[sample.find("_")+1:]
+		sample = full[full.find("_")+1:]
 		if sample in samples.keys():
 			com = []
 			a = samples[sample]["a"]
 			b = samples[sample]["b"]
-			pa = checkDir(p + a)
-			pb = checkDir(p + b)
-			# Sort and concatenate common vcfs
-			for i in [pa, pb]:
-				srt = bcfSort(i + "0003.vcf")
-				com.append(srt)
-			if None not in com:
-				common = bcfConcat(p, com)
-			if common != None:
-				# Save private filtered A and B, and common
-				mut[sample] = {}
-				mut[sample]["c"] = common
-				mut[sample]["a"] = pa + "0000.vcf"
-				mut[sample]["b"] = pb + "0000.vcf"
-		print(("\t[Error] {} not in manifest.").format(sample))
+			if len(a) > 1 and len(b) > 1:
+				# Get path names with full sample name
+				pa = checkDir("{}{}_{}".format(p, full, a))
+				pb = checkDir("{}{}_{}".format(p, full, b))
+				# Sort and concatenate common vcfs
+				for i in [pa, pb]:
+					srt = bcfSort(i + "0003.vcf")
+					com.append(srt)
+				if None not in com:
+					common = bcfConcat(p, com)
+				if common != None:
+					# Save private filtered A and B, and common
+					mut[sample] = {}
+					mut[sample]["c"] = common
+					mut[sample]["a"] = pa + "0000.vcf"
+					mut[sample]["b"] = pb + "0000.vcf"
+		else:
+			print(("\t[Error] {} not in manifest.").format(sample))
 	return mut
 
 def readManifest(infile):
@@ -219,7 +236,7 @@ def readManifest(infile):
 
 def checkArgs(args):
 	# Checks for errors in arguments
-	args.i = checkFile(args.i)
+	checkFile(args.i)
 	if args.m or args.p:
 		if not args.m or not args.p:
 			# Raise error if either is missing
@@ -230,7 +247,6 @@ def checkArgs(args):
 		if not args.o or os.path.isdir(args.o):
 			print("\n\t[Error] Please specify and output file. Exiting.\n")
 			quit()
-		args.o = checkFile(args.o)
 	else:
 		args.o = checkDir(args.o, make = True)
 	return args
