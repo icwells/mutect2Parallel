@@ -94,8 +94,7 @@ def compareVCFs(conf, name, samples):
 def bcftoolsFilter(vcf):
 	# Calls bcftools to filter calls before calling isec
 	outfile = vcf.replace("unfiltered.vcf.gz", "passed.vcf")
-	opt = '"."|","|"PASS"'
-	cmd = ("bcftools filter -i 'FILTER={}' -o {} {}").format(opt, outfile, vcf)
+	cmd = ('bcftools filter -e "FILTER=\'PASS\'" -o {} {}').format(outfile, vcf)
 	try:
 		fmc = Popen(split(cmd))
 		fmc.communicate()
@@ -134,60 +133,58 @@ def filterCalls(conf, vcf, outdir = None):
 
 #-----------------------------------------------------------------------------
 
-def filterSamples(conf, samples):
+def filterSamples(conf, variants):
 	# Filters and compares all vcfs in each subdirectory
-	for sample in samples.keys():
+	for sample in variants.keys():
 		# Compare output
 		pair = []
 		compare = False
-		conf["log"] = samples[sample]["log"]
+		conf["log"] = variants[sample]["log"]
 		print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
-		for i in samples[sample].keys():
-			if i != "log" and i != "outpath":
-				pair.append(samples[sample][i])
-		for s in pair:
-			if s.Step == "mutect" and s.Status == "complete" and not conf["summary"]:
-				print(("\tFiltering {}...").format(s.ID))
+		samples = variants[sample]["samples"]
+		for s in samples.keys():
+			if samples[s].Step == "mutect" and samples[s].Status == "complete" and not conf["summary"]:
+				print(("\tFiltering {}...").format(samples[s].ID))
 				# FilterMutectCalls
-				s.Step = "filtering"
-				s.Status = "starting"
-				unfiltered = filterCalls(conf, s.Output, samples[sample]["outpath"])
+				samples[s].Step = "filtering"
+				samples[s].Status = "starting"
+				unfiltered = filterCalls(conf, samples[s].Output, variants[sample]["outpath"])
 				if unfiltered:
 					# Record unfiltered reads
-					s.Output = unfiltered
-					s.Unfiltered = unfiltered
+					samples[s].Output = unfiltered
+					samples[s].Unfiltered = unfiltered
 				else:
-					s.Status = "failed"
-					appendLog(conf, s)
-				if s.Status != "failed":
+					samples[s].Status = "failed"
+					appendLog(conf, samples[s])
+				if samples[s].Status != "failed":
 					# bcftools filter
-					passed = bcftoolsFilter(s.Output)
+					passed = bcftoolsFilter(samples[s].Output)
 					if passed:
-						s.Output = passed
-						s.Status = "complete"
-						appendLog(conf, s)
-						s.Step = "comparison"
-						s.Status = "starting"
+						samples[s].Output = passed
+						samples[s].Status = "complete"
+						appendLog(conf, samples[s])
+						samples[s].Step = "comparison"
+						samples[s].Status = "starting"
 						compare = True
 					else:
-						s.Status = "failed"
-						appendLog(conf, s)
+						samples[s].Status = "failed"
+						appendLog(conf, samples[s])
 		if compare == True:
 			# Comparison
-			status = compareVCFs(conf, sample, samples[sample])
+			status = compareVCFs(conf, sample, samples)
 			if status == True:
 				print(("\tAll comparisons for {} run successfully.").format(sample))
-				for s in pair:
-					s.Status = "complete"
-					appendLog(conf, s)
+				for s in samples.keys():
+					samples[s].Status = "complete"
+					appendLog(conf, samples[s])
 			else:
 				compare = False
 		if compare == False:
 			# Call if filtering/comparison failed
 			print(("\t[Error] Some files from {} failed comparison.").format(sample))
-			for s in pair:
-				s.Status = "failed"
-				appendLog(conf, s)
+			for s in samples.keys():
+				samples[s].Status = "failed"
+				appendLog(conf, samples[s])
 
 def checkSamples(name, samples):
 	# Makes sure two samples have passed mutect
@@ -219,8 +216,8 @@ def checkSamples(name, samples):
 
 def getOutdir(conf, outdir):
 	# Reads in dictionary of input samples
-	samples = {}
-	print("\n\tReading input vcfs...")
+	variants = {}
+	print("\tReading input vcfs...")
 	paths = glob(conf["outpath"] + "*")
 	if outdir and outdir != conf["outpath"]:
 		outdir = checkDir(outdir)
@@ -242,10 +239,8 @@ def getOutdir(conf, outdir):
 				if not os.path.isfile(sampleout + "mutectLog.txt"):
 					copy(log, sampleout + "mutectLog.txt")
 				# {ID: {sample 1, sample 2, log file, outdir}
-				samples[sid] = s
-				samples[sid]["log"] = sampleout + "mutectLog.txt"
-				samples[sid]["outpath"] = sampleout
-	return samples
+				variants[sid] = {"samples": s, "log": sampleout + "mutectLog.txt", "outpath": sampleout}
+	return variants
 			
 def main():
 	starttime = datetime.now()
@@ -260,8 +255,8 @@ help = "Skips to summarize step (all other steps must be completed. overwrites e
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
 	conf["summary"] = args.summarize
-	samples = getOutdir(conf, args.o)
-	done = filterSamples(conf, samples)
+	variants = getOutdir(conf, args.o)
+	done = filterSamples(conf, variants)
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
 
 if __name__ == "__main__":
