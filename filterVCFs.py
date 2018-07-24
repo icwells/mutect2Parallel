@@ -94,7 +94,7 @@ def compareVCFs(conf, name, samples):
 def bcftoolsFilter(vcf):
 	# Calls bcftools to filter calls before calling isec
 	outfile = vcf.replace("unfiltered.vcf.gz", "passed.vcf")
-	cmd = ('bcftools filter -e "FILTER=\'PASS\'" -o {} {}').format(outfile, vcf)
+	cmd = ('bcftools filter -e "FILTER=\'germline_risk\'" -o {} {}').format(outfile, vcf)
 	try:
 		fmc = Popen(split(cmd))
 		fmc.communicate()
