@@ -38,23 +38,31 @@ def bcfMerge(path, com):
 
 def bcfSort(infile):
 	# Call bcftools sort
+	if not infile:
+		return None
 	outfile = infile.replace(".vcf", ".sorted.vcf")
 	cmd = ("bcftools sort -O z -o {} {}").format(outfile, infile)
 	with open(os.devnull, "w") as dn:
 		try:
-			bs = Popen(split(cmd))#, stdout = dn, stderr = dn)
+			bs = Popen(split(cmd), stdout = dn, stderr = dn)
 			bs.communicate()
 		except:
 			print(("\t[Error] calling bcftools sort on {}").format(infile))
 			return None
-	return pysam.tabix_index(outfile, seq_col=0, start_col=1, end_col=1, force=True)
+	if not os.path.isfile(outfile):
+		return None
+	return tabix(outfile, True)
 
-def bgzip(vcf):
-	# bgzip compresses filtered vcf files
-	if os.path.isfile(vcf + ".gz"):
+def tabix(vcf, force = False):
+	# tabix index and bgzips vcf files
+	if os.path.isfile(vcf + ".gz") and force == False:
 		gz = vcf + ".gz"
-	else:	
-		gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True)
+	else:
+		try:
+			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True)
+		except OSError:
+			print(("\t[Warning] Could not index {}.").format(vcf))
+			gz = None
 	return gz
 
 #-----------------------------------------------------------------------------
@@ -71,6 +79,11 @@ def getTotal(vcf):
 
 def bcfIsec(outpath, vcfs):
 	# Calls bcftools to get intersecting rows and summarizes output
+	for i in range(len(vcfs)):
+		# MAke sure there is an up-to-date index file
+		vcfs[i] = tabix(vcfs[i], True)
+	if None in vcfs:
+		return None
 	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
 	try:
 		bcf = Popen(split(cmd))
@@ -160,9 +173,38 @@ def platypusPaths(p):
 			elif C.match(spl[0]):
 				paths["c"] = p + spl[1]
 				count += 1
-	return paths	
+	return paths
 
-def getPlatypusOutput(path, outdir = None):
+def reheader(contigs, infile, outdir = None):
+	# Inserts contig lines into vcf header and returns outfile name
+	ins = True
+	ids = []
+	if outdir:
+		outfile = outdir + infile[infile.rfind("/")+1:]
+	else:
+		outfile = infile.replace(".vcf", "reheadered.vcf")
+	# Get list of ids in file and sort
+	with open(infile, "r") as f:
+		for line in f:
+			if line[0] != "#":
+				n = line.split("\t")[0]
+				if n not in ids:
+					ids.append(n)
+	with open(outfile, "w") as out:
+		with open(infile, "r") as f:
+			for line in f:
+				if "##FILTER=" in line and ins == True:
+					# Insert contigs before first filter line
+					for i in ids:
+						if i in contigs.keys():
+							out.write(contigs[i])
+						else:
+							print(("\t[Warning] {} not in example vcf header.").format(i))
+					ins = False
+				out.write(line)
+	return outfile
+
+def getPlatypusOutput(path, outdir = None, contigs = None):
 	# Returns dict of platypus output
 	plat = {}
 	paths = glob(path + "*/")
@@ -176,11 +218,24 @@ def getPlatypusOutput(path, outdir = None):
 			# Copy to new location
 			sdir = checkDir(outdir + sample, True)
 			for i in paths.keys():
-				vcf = copy(paths[i], sdir)
-				plat[sample][i] = bcfSort(bgzip(vcf))
+				if contigs:
+					vcf = reheader(contigs, paths[i], sdir)
+				else:
+					vcf = copy(paths[i], sdir)
+				bcf = bcfSort(tabix(vcf))
+				if bcf == None:
+					bcf = ""
+				plat[sample][i] = bcf 
 		else:
 			for i in paths.keys():
-				plat[sample][i] = bcfSort(bgzip(paths[i]))
+				if contigs:
+					vcf = reheader(contigs, paths[i], sdir)
+				else:
+					vcf = paths[i]	
+				bcf = bcfSort(tabix(vcf))
+				if bcf == None:
+					bcf = ""
+				plat[sample][i] = bcf 
 	return plat
 
 def getMutectOutput(path, samples):
@@ -203,7 +258,7 @@ def getMutectOutput(path, samples):
 				pb = checkDir("{}{}_{}".format(p, full, b))
 				# Sort and merge common vcfs
 				for i in [pa, pb]:
-					srt = bcfSort(bgzip(i + "0003.vcf"))
+					srt = bcfSort(tabix(i + "0003.vcf"))
 					com.append(srt)
 				if None not in com:
 					common = bcfMerge(p, com)
@@ -211,8 +266,8 @@ def getMutectOutput(path, samples):
 					# Save private filtered A and B, and common
 					mut[sample] = {}
 					mut[sample]["c"] = common
-					mut[sample]["a"] = pa + "0000.vcf"
-					mut[sample]["b"] = pb + "0000.vcf"
+					mut[sample]["a"] = bcfSort(tabix(pa + "0000.vcf"))
+					mut[sample]["b"] = bcfSort(tabix(pb + "0000.vcf"))
 				else:
 					print(("\t[Error] calling bcftools on {}.").format(sample))
 		else:
@@ -239,6 +294,20 @@ def readManifest(infile):
 
 #-----------------------------------------------------------------------------
 
+def getContigs(infile):
+	# Reads contig info from vcf header
+	contigs = {}
+	print("\tGetting contigs from vcf header...")
+	with open(infile, "r") as f:
+		for line in f:
+			if line[0] != "#":
+				break
+			if "##contig=" in line:
+				spl = line.split(",")
+				name = spl[0][spl[0].rfind("=")+1:]
+				contigs[name] = line
+	return contigs	
+
 def checkArgs(args):
 	# Checks for errors in arguments
 	checkFile(args.i)
@@ -254,6 +323,8 @@ def checkArgs(args):
 			quit()
 		if args.c:
 			args.c = checkDir(args.c, True)
+		if args.v:
+			checkFile(args.v)
 	else:
 		args.o = checkDir(args.o, True)
 	return args
@@ -262,6 +333,7 @@ def main():
 	start = datetime.now()
 	parser = ArgumentParser("This script will compare variants from different filtering pipelines.")
 	parser.add_argument("-c", help = "Copy target platypus data to this directory.")
+	parser.add_argument("-v", help = "Path to uncompressed vcf header (Copies contig information to platypus vcf headers).")
 	parser.add_argument("-i", 
 help = "Path to input manifest (mutect input for manifest generation or generated manifest for comparison).")
 	parser.add_argument("-m", help = "Path to mutect2parallel parent output directory.")
@@ -271,9 +343,12 @@ help = "Path to output manifest if using -m and -p. Path to output directory if 
 	args = checkArgs(parser.parse_args())
 	if args.m and args.p:
 		print("\n\tGetting new manifest for comparison...")
+		contigs = None
+		if args.v:
+			contigs = getContigs(args.v)
 		samples = readManifest(args.i)
 		mutect = getMutectOutput(args.m, samples)
-		plat = getPlatypusOutput(args.p, args.c)
+		plat = getPlatypusOutput(args.p, args.c, contigs)
 		mergeSamples(args.o, mutect, plat)
 	elif args.i:
 		# Run comparison
