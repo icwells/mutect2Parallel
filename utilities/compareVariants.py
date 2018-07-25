@@ -2,6 +2,8 @@
 
 import os
 import re
+import pysam
+from shutil import copy
 from datetime import datetime
 from argparse import ArgumentParser
 from glob import glob
@@ -21,31 +23,39 @@ def getDelim(line):
 	print("\n\t[Error] Cannot determine delimeter. Check file formatting. Exiting.\n")
 	quit()
 
-def bcfConcat(path, com):
+def bcfMerge(path, com):
 	# Calls bftools concat on input files
-	outfile = path + "common.vcf"
-	cmd = ("bcftools concat -D -O v -o {} {} {}").format(outfile, com[0], com[1])
+	outfile = path + "common.vcf.gz"
+	cmd = ("bcftools merge --force-samples -O z -o {} {} {}").format(outfile, com[0], com[1])
 	with open(os.devnull, "w") as dn:
 		try:
 			bc = Popen(split(cmd), stdout = dn, stderr = dn)
 			bc.communicate()
 		except:
-			print(("\t[Error] calling bcftools concat on samples in {}").format(path))
+			print(("\t[Error] calling bcftools merge on samples in {}").format(path))
 			outfile = None
 	return outfile	
 
 def bcfSort(infile):
 	# Call bcftools sort
 	outfile = infile.replace(".vcf", ".sorted.vcf")
-	cmd = ("bcftools sort -O v -o {} {}").format(outfile, infile)
+	cmd = ("bcftools sort -O z -o {} {}").format(outfile, infile)
 	with open(os.devnull, "w") as dn:
 		try:
-			bs = Popen(split(cmd), stdout = dn, stderr = dn)
+			bs = Popen(split(cmd))#, stdout = dn, stderr = dn)
 			bs.communicate()
 		except:
 			print(("\t[Error] calling bcftools sort on {}").format(infile))
-			outfile = None
-	return outfile
+			return None
+	return pysam.tabix_index(outfile, seq_col=0, start_col=1, end_col=1, force=True)
+
+def bgzip(vcf):
+	# bgzip compresses filtered vcf files
+	if os.path.isfile(vcf + ".gz"):
+		gz = vcf + ".gz"
+	else:	
+		gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True)
+	return gz
 
 #-----------------------------------------------------------------------------
 
@@ -79,23 +89,7 @@ def bcfIsec(outpath, vcfs):
 		sim = 0.0
 	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
 	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
-	with open(log, "a") as output:
-		output.write(("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim))
-	return 1
-
-def compareVCFS(outpath, vcfs):
-	# Calls gatk and pyvcf to filter and compare given pair of
-	for i in range(len(vcfs)):
-		if vcfs[i] and os.path.isfile(vcfs[i]):
-			# Make sure files are bgzipped
-			vcfs[i] = bgzip(vcfs[i])
-		elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
-			vcfs[i] += ".gz"
-		else:
-			printError(("Cannot find {}").format(vcfs[i]))
-			return None
-	res = bcfIsec(outpath,  vcfs)
-	return res
+	return ("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim)
 
 def comparePipelines(outdir, samples):
 	# Calls bcftools isec on each pair of vcfs and writes summary file
@@ -108,10 +102,9 @@ def comparePipelines(outdir, samples):
 			outpath = outdir + s + "/"
 			for t in ["A", "B", "Common"]:
 				# Iterate through list to keep fixed order
-				res = compareVCFS(outpath + t, samples[s][t])
+				res = bcfIsec(outpath + t, samples[s][t])
 				if res:
 					out.write(("{},{},{}\n").format(s, t, res))
-
 
 def comparisonManifest(infile):
 	# Reads in dict of vcfs to compare
@@ -120,8 +113,8 @@ def comparisonManifest(infile):
 	with open(infile, "r") as f:
 		for line in f:
 			if first == False:
-				spl = line.split(",")
-				if len(s) == 4:
+				spl = line.strip().split(",")
+				if len(spl) == 4:
 					s = spl[0]
 					if s not in samples.keys():
 						samples[s] = {}
@@ -169,7 +162,7 @@ def platypusPaths(p):
 				count += 1
 	return paths	
 
-def getPlatypusOutput(path):
+def getPlatypusOutput(path, outdir = None):
 	# Returns dict of platypus output
 	plat = {}
 	paths = glob(path + "*/")
@@ -177,7 +170,17 @@ def getPlatypusOutput(path):
 	for p in paths:
 		p = checkDir(p)
 		sample = getParent(p)
-		plat[sample] = platypusPaths(p)
+		paths = platypusPaths(p)
+		plat[sample] = {}
+		if outdir:
+			# Copy to new location
+			sdir = checkDir(outdir + sample, True)
+			for i in paths.keys():
+				vcf = copy(paths[i], sdir)
+				plat[sample][i] = bcfSort(bgzip(vcf))
+		else:
+			for i in paths.keys():
+				plat[sample][i] = bcfSort(bgzip(paths[i]))
 	return plat
 
 def getMutectOutput(path, samples):
@@ -198,18 +201,20 @@ def getMutectOutput(path, samples):
 				# Get path names with full sample name
 				pa = checkDir("{}{}_{}".format(p, full, a))
 				pb = checkDir("{}{}_{}".format(p, full, b))
-				# Sort and concatenate common vcfs
+				# Sort and merge common vcfs
 				for i in [pa, pb]:
-					srt = bcfSort(i + "0003.vcf")
+					srt = bcfSort(bgzip(i + "0003.vcf"))
 					com.append(srt)
 				if None not in com:
-					common = bcfConcat(p, com)
-				if common != None:
+					common = bcfMerge(p, com)
+				if common != None and os.path.isfile(common):
 					# Save private filtered A and B, and common
 					mut[sample] = {}
 					mut[sample]["c"] = common
 					mut[sample]["a"] = pa + "0000.vcf"
 					mut[sample]["b"] = pb + "0000.vcf"
+				else:
+					print(("\t[Error] calling bcftools on {}.").format(sample))
 		else:
 			print(("\t[Error] {} not in manifest.").format(sample))
 	return mut
@@ -245,15 +250,18 @@ def checkArgs(args):
 		args.m = checkDir(args.m)
 		args.p = checkDir(args.p)
 		if not args.o or os.path.isdir(args.o):
-			print("\n\t[Error] Please specify and output file. Exiting.\n")
+			print("\n\t[Error] Please specify an output file. Exiting.\n")
 			quit()
+		if args.c:
+			args.c = checkDir(args.c, True)
 	else:
-		args.o = checkDir(args.o, make = True)
+		args.o = checkDir(args.o, True)
 	return args
 
 def main():
 	start = datetime.now()
 	parser = ArgumentParser("This script will compare variants from different filtering pipelines.")
+	parser.add_argument("-c", help = "Copy target platypus data to this directory.")
 	parser.add_argument("-i", 
 help = "Path to input manifest (mutect input for manifest generation or generated manifest for comparison).")
 	parser.add_argument("-m", help = "Path to mutect2parallel parent output directory.")
@@ -265,7 +273,7 @@ help = "Path to output manifest if using -m and -p. Path to output directory if 
 		print("\n\tGetting new manifest for comparison...")
 		samples = readManifest(args.i)
 		mutect = getMutectOutput(args.m, samples)
-		plat = getPlatypusOutput(args.p)
+		plat = getPlatypusOutput(args.p, args.c)
 		mergeSamples(args.o, mutect, plat)
 	elif args.i:
 		# Run comparison
