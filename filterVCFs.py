@@ -17,45 +17,6 @@ def printError(msg):
 
 #-------------------------------Comparison------------------------------------
 
-def getTotal(vcf):
-	# Returns total number of content lines from vcf
-	count = 0
-	if os.path.isfile(vcf):
-		with open(vcf, "r") as f:
-			for line in f:
-				if line[0] != "#":
-					count += 1
-	return count
-
-def intersect(summary, log, outpath, cmd, vcfs):
-	# Calls bcftools to get intersecting rows and summarizes output
-	summarize = False
-	if summary == False:
-		try:
-			bcf = Popen(split(cmd))
-			bcf.communicate()
-			summarize = True
-		except:
-			print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
-			return 0
-	else:
-		summarize = True
-	if summarize == True:
-		# Number of unique variants to each sample and number of shared
-		a = getTotal(outpath + "/0000.vcf")
-		b = getTotal(outpath + "/0001.vcf")
-		c = getTotal(outpath + "/0002.vcf")
-		# Get percentage of similarity
-		try:
-			sim = c/(a+b+c)
-		except ZeroDivisionError:
-			sim = 0.0
-		sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
-		sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
-		with open(log, "a") as output:
-			output.write(("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim))
-		return 1
-
 def comparePair(summary, log, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
 	for i in range(len(vcfs)):
@@ -66,11 +27,10 @@ def comparePair(summary, log, outpath, vcfs):
 			vcfs[i] += ".gz"
 		else:
 			printError(("Cannot find {}").format(vcfs[i]))
-			return False
+			return None
 	# Call bftools on all results
-	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
-	done = intersect(summary, log, outpath, cmd, vcfs)
-	return done
+	ret = bcfIsec(outpath, vcfs, summary)
+	return ret
 
 def compareVCFs(conf, name, samples):
 	# Compares unfilted vs. passed results for each combination of pair of samples
@@ -78,14 +38,26 @@ def compareVCFs(conf, name, samples):
 	outpath = conf["outpath"] + name + "/" + name
 	log = outpath + ".csv"
 	print("\tComparing samples...")
-	with open(log, "w") as output:
-		# Initialize summary file and write header
-		output.write("SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
 	s1, s2 = list(samples.keys())
-	# Append filtered smaple name when submitting
-	done += comparePair(conf["summary"], log, outpath + "_" + samples[s1].ID, [samples[s1].Output, samples[s2].Unfiltered])
-	done += comparePair(conf["summary"], log, outpath + "_" + samples[s2].ID, [samples[s2].Output, samples[s1].Unfiltered])
+	# Append filtered sample name when submitting
+	aout = conf["summary"], log, outpath + "_" + samples[s1].ID
+	a = comparePair(aout, [samples[s1].Output, samples[s2].Unfiltered])
+	if a:
+		done += 1
+	bout = conf["summary"], log, outpath + "_" + samples[s2].ID
+	b = comparePair(bout, [samples[s2].Output, samples[s1].Unfiltered])
+	if b:
+		done += 1
 	if done == 2:
+		# Merge common variants and get total and similarity
+		common = bcfMerge(path, [aout + "/0002.vcf", bout + "/0002.vcf"])
+		c = getTotal(common)
+		try:
+			sim = c/(a+b+c)
+		except ZeroDivisionError:
+			sim = 0.0
+		with open(log, "a") as out:
+			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
 		return True
 	else:
 		return False
@@ -136,6 +108,10 @@ def filterCalls(conf, vcf, outdir = None):
 
 def filterSamples(conf, variants):
 	# Filters and compares all vcfs in each subdirectory
+	log = conf["outpath"] + "Summary.csv"
+	with open(log, "w") as out:
+		# Initialize summary file and write header
+		out.write("ID,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
 	for sample in variants.keys():
 		# Compare output
 		pair = []

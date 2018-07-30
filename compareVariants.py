@@ -17,43 +17,6 @@ A = re.compile(r"AfiltcovBNAB.*different\.vcf")
 B = re.compile(r"BfiltcovBNAB.*different\.vcf")
 C = re.compile(r"filtcovBNABU.*common\.vcf")
 
-def getTotal(vcf):
-	# Returns total number of content lines from vcf
-	count = 0
-	if os.path.isfile(vcf):
-		with open(vcf, "r") as f:
-			for line in f:
-				if line[0] != "#":
-					count += 1
-	return count
-
-def bcfIsec(outpath, vcfs):
-	# Calls bcftools to get intersecting rows and summarizes output
-	for i in range(len(vcfs)):
-		# MAke sure there is an up-to-date index file
-		vcfs[i] = tabix(vcfs[i], True)
-	if None in vcfs:
-		return None
-	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
-	try:
-		bcf = Popen(split(cmd))
-		bcf.communicate()
-	except:
-		print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
-		return None
-	# Number of unique variants to each sample and number of shared
-	a = getTotal(outpath + "/0000.vcf")
-	b = getTotal(outpath + "/0001.vcf")
-	c = getTotal(outpath + "/0002.vcf")
-	# Get percentage of similarity
-	try:
-		sim = c/(a+b+c)
-	except ZeroDivisionError:
-		sim = 0.0
-	sa = vcfs[0][vcfs[0].rfind("/")+1:vcfs[0].rfind(".")]
-	sb = vcfs[1][vcfs[1].rfind("/")+1:vcfs[1].rfind(".")]
-	return ("{},{},{},{},{},{}\n").format(sa, sb, a, b, c, sim)
-
 def comparePipelines(outdir, samples):
 	# Calls bcftools isec on each pair of vcfs and writes summary file
 	print("\tComparing samples...")
