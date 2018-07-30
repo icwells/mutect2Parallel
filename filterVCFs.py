@@ -8,6 +8,7 @@ from glob import glob
 from subprocess import Popen
 from shlex import split
 from commonUtil import *
+from bamUtils import *
 from unixpath import checkDir
 
 def printError(msg):
@@ -60,7 +61,7 @@ def comparePair(summary, log, outpath, vcfs):
 	for i in range(len(vcfs)):
 		if vcfs[i] and os.path.isfile(vcfs[i]):
 			# Make sure files are bgzipped
-			vcfs[i] = bgzip(vcfs[i])
+			vcfs[i] = tabix(vcfs[i])
 		elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
 			vcfs[i] += ".gz"
 		else:
@@ -98,7 +99,7 @@ def bcftoolsFilter(vcf):
 	try:
 		fmc = Popen(split(cmd))
 		fmc.communicate()
-		return bgzip(outfile)
+		return tabix(outfile)
 	except:
 		print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
 		return None
@@ -127,7 +128,7 @@ def filterCalls(conf, vcf, outdir = None):
 		except:
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 	if getStatus(log) == True:
-		return bgzip(outfile)
+		return tabix(outfile)
 	else:
 		return None
 

@@ -6,7 +6,7 @@ from datetime import datetime
 from subprocess import Popen
 from shlex import split
 from runPair import callMutect
-from bamUtil import checkRG, getStatus
+from bamUtils import *
 
 def makePON(infiles, outfile, gatk):
 	# Calls mutect to create a new panel of normals

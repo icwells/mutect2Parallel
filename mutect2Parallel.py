@@ -6,6 +6,7 @@ from datetime import datetime
 from subprocess import Popen
 from shlex import split
 from commonUtil import *
+from bamUtils import *
 
 def submitJobs(scripts, batch, outdir):
 	# Determines grid type and submits jobs

@@ -8,6 +8,7 @@ from multiprocessing import Pool, cpu_count
 from subprocess import Popen
 from shlex import split
 from commonUtil import *
+from bamUtils import *
 
 #-------------------------------Mutect----------------------------------------
 

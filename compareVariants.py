@@ -9,63 +9,13 @@ from argparse import ArgumentParser
 from glob import glob
 from shlex import split
 from subprocess import Popen
+from commonUtil import *
+from bamUtils import *
 from unixpath import *
 
 A = re.compile(r"AfiltcovBNAB.*different\.vcf")
 B = re.compile(r"BfiltcovBNAB.*different\.vcf")
 C = re.compile(r"filtcovBNABU.*common\.vcf")
-
-def getDelim(line):
-	# Returns delimiter
-	for i in ["\t", ",", " "]:
-		if i in line:
-			return i
-	print("\n\t[Error] Cannot determine delimeter. Check file formatting. Exiting.\n")
-	quit()
-
-def bcfMerge(path, com):
-	# Calls bftools concat on input files
-	outfile = path + "common.vcf.gz"
-	cmd = ("bcftools merge --force-samples -O z -o {} {} {}").format(outfile, com[0], com[1])
-	with open(os.devnull, "w") as dn:
-		try:
-			bc = Popen(split(cmd), stdout = dn, stderr = dn)
-			bc.communicate()
-		except:
-			print(("\t[Error] calling bcftools merge on samples in {}").format(path))
-			outfile = None
-	return outfile	
-
-def bcfSort(infile):
-	# Call bcftools sort
-	if not infile:
-		return None
-	outfile = infile.replace(".vcf", ".sorted.vcf")
-	cmd = ("bcftools sort -O z -o {} {}").format(outfile, infile)
-	with open(os.devnull, "w") as dn:
-		try:
-			bs = Popen(split(cmd), stdout = dn, stderr = dn)
-			bs.communicate()
-		except:
-			print(("\t[Error] calling bcftools sort on {}").format(infile))
-			return None
-	if not os.path.isfile(outfile):
-		return None
-	return tabix(outfile, True)
-
-def tabix(vcf, force = False):
-	# tabix index and bgzips vcf files
-	if os.path.isfile(vcf + ".gz") and force == False:
-		gz = vcf + ".gz"
-	else:
-		try:
-			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True)
-		except OSError:
-			print(("\t[Warning] Could not index {}.").format(vcf))
-			gz = None
-	return gz
-
-#-----------------------------------------------------------------------------
 
 def getTotal(vcf):
 	# Returns total number of content lines from vcf
@@ -110,14 +60,14 @@ def comparePipelines(outdir, samples):
 	log = outdir + "comparisonSummary.csv"
 	with open(log, "w") as out:
 		# Initialize summary file and write header
-		out.write("ID,Comparison,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
+		out.write("ID,Comparison,Mutect(A),Platypus(B),#PrivateA,#PrivateB,#Common,%Similarity\n")
 		for s in samples.keys():
 			outpath = outdir + s + "/"
 			for t in ["A", "B", "Common"]:
 				# Iterate through list to keep fixed order
 				res = bcfIsec(outpath + t, samples[s][t])
 				if res:
-					out.write(("{},{},{}\n").format(s, t, res))
+					out.write(("{},{},{}").format(s, t, res))
 
 def comparisonManifest(infile):
 	# Reads in dict of vcfs to compare
