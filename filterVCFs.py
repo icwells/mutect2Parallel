@@ -41,18 +41,20 @@ def compareVCFs(conf, log, name, samples):
 	outpath = conf["outpath"] + name + "/"
 	s1, s2 = list(samples.keys())
 	# Append filtered sample name when submitting
-	aout = outpath + "_" + samples[s1].ID
+	aout = outpath + samples[s1].ID
 	a = comparePair(aout, [samples[s1].Output, samples[s2].Unfiltered])
 	if a:
-		bout = outpath + "_" + samples[s2].ID
+		bout = outpath + samples[s2].ID
 		b = comparePair(bout, [samples[s2].Output, samples[s1].Unfiltered])
 		if b:	
 			# Only continue if both pass
 			cont = True
 	if cont == True:
 		# Merge common variants and get total and similarity
-		common = bcfMerge(outpath, [aout + "/0002.vcf", bout + "/0002.vcf"])
-		if common:
+		acom = tabix(aout + "/0002.vcf")
+		bcom = tabix(bout + "/0002.vcf")
+		common = bcfMerge(outpath, [acom, bcom])
+		if common and os.path.isfile(common):
 			c = getTotal(common)
 			try:
 				sim = c/(a+b+c)
@@ -193,8 +195,7 @@ def getOutdir(conf, outdir, done):
 	print("\tReading input vcfs...")
 	paths = glob(conf["outpath"] + "*")
 	if outdir and outdir != conf["outpath"]:
-		outdir = checkDir(outdir)
-		# Reassign ouutpath after getting input directories
+		# Reassign outpath after getting input directories
 		conf["outpath"] = outdir
 	for p in paths:
 		# Iterate through each subdirectory
@@ -215,7 +216,7 @@ def getOutdir(conf, outdir, done):
 					# {ID, samples, log file, outdir}
 					d = {"ID": sid, "samples": s, "log": sampleout + "mutectLog.txt", "outpath": sampleout}
 					variants.append(d)
-	return variants
+	return variants, conf
 
 def getComplete(log):
 	# Makes log file or returns list of completed samples
@@ -248,9 +249,13 @@ and output will be written to same sub-directory).")
 		args.t = cpu_count()
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
-	log = conf["outpath"] + "summary.csv"
+	if args.o:
+		args.o = checkDir(args.o)
+		log = args.o + "summary.csv"
+	else:
+		log = conf["outpath"] + "summary.csv"
 	done = getComplete(log)
-	variants = getOutdir(conf, args.o, done)
+	variants, conf = getOutdir(conf, args.o, done)
 	l = len(variants)
 	pool = Pool(processes = args.t)
 	func = partial(filterPair, conf, log)

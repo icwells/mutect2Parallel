@@ -63,7 +63,7 @@ def getTotal(vcf):
 def bcfIsec(outpath, vcfs):
 	# Calls bcftools to get intersecting rows and returns number of private A
 	for i in range(len(vcfs)):
-		# MAke sure there is an up-to-date index file
+		# Make sure there is an up-to-date index file
 		vcfs[i] = tabix(vcfs[i], True)
 	if None in vcfs:
 		return None
@@ -71,7 +71,6 @@ def bcfIsec(outpath, vcfs):
 	try:
 		bcf = Popen(split(cmd))
 		bcf.communicate()
-		summarize = True
 	except:
 		print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
 		return None
