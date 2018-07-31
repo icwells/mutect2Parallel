@@ -28,9 +28,15 @@ def comparePipelines(outdir, samples):
 			outpath = outdir + s + "/"
 			for t in ["A", "B", "Common"]:
 				# Iterate through list to keep fixed order
-				res = bcfIsec(outpath + t, samples[s][t])
-				if res:
-					out.write(("{},{},{}").format(s, t, res))
+				a = bcfIsec(outpath + t, samples[s][t])
+				if a:
+					b = getTotal(outpath + t + "/0001.vcf")
+					c = getTotal(outpath + t + "/0002.vcf")
+					try:
+						sim = c/(a+b+c)
+					except ZeroDivisionError:
+						sim = 0.0
+					out.write(("{},{},{},{},{},{},{},{:.2%}").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
 
 def comparisonManifest(infile):
 	# Reads in dict of vcfs to compare
