@@ -68,26 +68,6 @@ def mergeSamples(outfile, mut, plat):
 			out.write(",".join([i, "B", mut[i]["b"], plat[i]["b"]]) + "\n")
 			out.write(",".join([i, "Common", mut[i]["c"], plat[i]["c"]]) + "\n")
 
-def platypusPaths(p):
-	# Returns paths from vcfdict
-	count = 0
-	paths = {}
-	with open(p + "vcfdict.csv") as f:
-		for line in f:
-			spl = line.strip().split(",")
-			if count == 3:
-				break
-			elif A.match(spl[0]):
-				paths["a"] = p + spl[1]
-				count += 1
-			elif B.match(spl[0]):
-				paths["b"] = p + spl[1]
-				count += 1
-			elif C.match(spl[0]):
-				paths["c"] = p + spl[1]
-				count += 1
-	return paths
-
 def reheader(contigs, infile, outdir = None):
 	# Inserts contig lines into vcf header and returns outfile name
 	ins = True
@@ -116,6 +96,26 @@ def reheader(contigs, infile, outdir = None):
 					ins = False
 				out.write(line)
 	return outfile
+
+def platypusPaths(p):
+	# Returns paths from vcfdict
+	count = 0
+	paths = {}
+	with open(p + "vcfdict.csv") as f:
+		for line in f:
+			spl = line.strip().split(",")
+			if count == 3:
+				break
+			elif A.match(spl[0]):
+				paths["a"] = p + spl[1]
+				count += 1
+			elif B.match(spl[0]):
+				paths["b"] = p + spl[1]
+				count += 1
+			elif C.match(spl[0]):
+				paths["c"] = p + spl[1]
+				count += 1
+	return paths
 
 def getPlatypusOutput(path, outdir = None, contigs = None):
 	# Returns dict of platypus output
@@ -167,24 +167,18 @@ def getMutectOutput(path, samples):
 			b = samples[sample]["b"]
 			if len(a) > 1 and len(b) > 1:
 				# Get path names with full sample name
-				pa = checkDir("{}{}_{}".format(p, full, a))
-				pb = checkDir("{}{}_{}".format(p, full, b))
+				pa = checkDir("{}{}".format(p, a))
+				pb = checkDir("{}{}".format(p, b))
 				# Sort and merge common vcfs
-				for i in [pa, pb]:
-					srt = bcfSort(tabix(i + "0003.vcf"))
-					com.append(srt)
-				if None not in com:
-					common = bcfMerge(p, com)
+				common = tabix(p + "common.vcf")
 				if common != None and os.path.isfile(common):
 					# Save private filtered A and B, and common
 					mut[sample] = {}
 					mut[sample]["c"] = common
 					mut[sample]["a"] = bcfSort(tabix(pa + "0000.vcf"))
 					mut[sample]["b"] = bcfSort(tabix(pb + "0000.vcf"))
-				else:
-					print(("\t[Error] calling bcftools on {}.").format(sample))
 		else:
-			print(("\t[Error] {} not in manifest.").format(sample))
+			print(("\t[Warning] {} not in manifest.").format(sample))
 	return mut
 
 def readManifest(infile):

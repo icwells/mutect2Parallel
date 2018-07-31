@@ -60,29 +60,24 @@ def getTotal(vcf):
 					count += 1
 	return count
 
-def bcfIsec(outpath, vcfs, summary = False):
+def bcfIsec(outpath, vcfs):
 	# Calls bcftools to get intersecting rows and returns number of private A
 	for i in range(len(vcfs)):
 		# MAke sure there is an up-to-date index file
 		vcfs[i] = tabix(vcfs[i], True)
 	if None in vcfs:
 		return None
-	summarize = False
-	if summary == False:
-		cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
-		try:
-			bcf = Popen(split(cmd))
-			bcf.communicate()
-			summarize = True
-		except:
-			print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
-			return None
-	else:
+	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
+	try:
+		bcf = Popen(split(cmd))
+		bcf.communicate()
 		summarize = True
-	if summarize == True:
-		# Number of unique variants to each sample and number of shared
-		a = getTotal(outpath + "/0000.vcf")
-		return a
+	except:
+		print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
+		return None
+	# Number of unique variants to each sample and number of shared
+	a = getTotal(outpath + "/0000.vcf")
+	return a
 
 #-----------------------------------------------------------------------------
 
