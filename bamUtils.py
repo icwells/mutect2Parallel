@@ -19,8 +19,8 @@ def tabix(vcf, force = False):
 
 def bcfMerge(path, com):
 	# Calls bftools concat on input files
-	outfile = path + "common.vcf.gz"
-	cmd = ("bcftools merge --force-samples -O z -o {} {} {}").format(outfile, com[0], com[1])
+	outfile = path + "common.vcf"
+	cmd = ("bcftools merge --force-samples -O v -o {} {} {}").format(outfile, com[0], com[1])
 	with open(os.devnull, "w") as dn:
 		try:
 			bc = Popen(split(cmd), stdout = dn, stderr = dn)
@@ -32,10 +32,13 @@ def bcfMerge(path, com):
 
 def bcfSort(infile):
 	# Call bcftools sort
+	fmt = "v"
 	if not infile:
 		return None
 	outfile = infile.replace(".vcf", ".sorted.vcf")
-	cmd = ("bcftools sort -O z -o {} {}").format(outfile, infile)
+	if ".gz" in infile:
+		fmt = "z"
+	cmd = ("bcftools sort -O {} -o {} {}").format(fmt, outfile, infile)
 	with open(os.devnull, "w") as dn:
 		try:
 			bs = Popen(split(cmd), stdout = dn, stderr = dn)
