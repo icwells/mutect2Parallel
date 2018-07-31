@@ -71,7 +71,7 @@ def bcftoolsFilter(vcf):
 	if ".gz" in vcf:
 		fmt = "z"
 	outfile = vcf.replace("unfiltered.vcf", "passed.vcf")
-	cmd = ('bcftools filter -e "FILTER=\'germline_risk\'" -o {} {}').format(outfile, vcf)
+	cmd = ('bcftools filter -e "FILTER=\'germline_risk\'" -O {} -o {} {}').format(fmt, outfile, vcf)
 	try:
 		fmc = Popen(split(cmd))
 		fmc.communicate()
