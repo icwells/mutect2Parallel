@@ -39,7 +39,6 @@ def compareVCFs(conf, log, name, samples):
 	cont = False
 	ret = False
 	outpath = conf["outpath"] + name + "/"
-	print("\tComparing samples...")
 	s1, s2 = list(samples.keys())
 	# Append filtered sample name when submitting
 	aout = outpath + "_" + samples[s1].ID
@@ -52,7 +51,7 @@ def compareVCFs(conf, log, name, samples):
 			cont = True
 	if cont == True:
 		# Merge common variants and get total and similarity
-		common = bcfMerge(outpath, [acom, bcom])
+		common = bcfMerge(outpath, [aout + "/0002.vcf", bout + "/0002.vcf"])
 		if common:
 			c = getTotal(common)
 			try:
@@ -68,7 +67,10 @@ def compareVCFs(conf, log, name, samples):
 
 def bcftoolsFilter(vcf):
 	# Calls bcftools to filter calls before calling isec
-	outfile = vcf.replace("unfiltered.vcf.gz", "passed.vcf")
+	fmt = "v"
+	if ".gz" in vcf:
+		fmt = "z"
+	outfile = vcf.replace("unfiltered.vcf", "passed.vcf")
 	cmd = ('bcftools filter -e "FILTER=\'germline_risk\'" -o {} {}').format(outfile, vcf)
 	try:
 		fmc = Popen(split(cmd))
@@ -112,11 +114,9 @@ def filterPair(conf, log, variants):
 	# Filters and compares pair of samples
 	compare = False
 	conf["log"] = variants["log"]
-	print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
 	samples = variants["samples"]
 	for s in samples.keys():
-		if samples[s].Step == "mutect" and samples[s].Status == "complete" and not conf["summary"]:
-			print(("\tFiltering {}...").format(samples[s].ID))
+		if samples[s].Step == "mutect" and samples[s].Status == "complete":
 			# FilterMutectCalls
 			samples[s].Step = "filtering"
 			samples[s].Status = "starting"
@@ -251,14 +251,16 @@ and output will be written to same sub-directory).")
 	log = conf["outpath"] + "summary.csv"
 	done = getComplete(log)
 	variants = getOutdir(conf, args.o, done)
+	l = len(variants)
 	pool = Pool(processes = args.t)
 	func = partial(filterPair, conf, log)
-	print(("\tComparing samples with {} threads...").format(args.t))
+	print(("\tComparing samples from {} sets with {} threads...").format(l, args.t))
 	for x in pool.imap_unordered(func, variants):
+		l -= 1
 		if x[0] == False:
 			print(("\t[Error] Some files from {} failed comparison.").format(x[1]))
 		else:		
-			print(("\tAll comparisons for {} run successfully.").format(x[1]))
+			print(("\tAll comparisons for {} run successfully. {} samples remaining.").format(x[1], l))
 	pool.close()
 	pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
