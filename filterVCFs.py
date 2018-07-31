@@ -17,7 +17,7 @@ def printError(msg):
 
 #-------------------------------Comparison------------------------------------
 
-def comparePair(summary, log, outpath, vcfs):
+def comparePair(summary, outpath, vcfs):
 	# Calls gatk and pyvcf to filter and compare given pair of
 	for i in range(len(vcfs)):
 		if vcfs[i] and os.path.isfile(vcfs[i]):
@@ -32,35 +32,35 @@ def comparePair(summary, log, outpath, vcfs):
 	ret = bcfIsec(outpath, vcfs, summary)
 	return ret
 
-def compareVCFs(conf, name, samples):
+def compareVCFs(conf, log, name, samples):
 	# Compares unfilted vs. passed results for each combination of pair of samples
-	done = 0
-	outpath = conf["outpath"] + name + "/" + name
-	log = outpath + ".csv"
+	cont = False
+	ret = False
+	outpath = conf["outpath"] + name + "/"
 	print("\tComparing samples...")
 	s1, s2 = list(samples.keys())
 	# Append filtered sample name when submitting
-	aout = conf["summary"], log, outpath + "_" + samples[s1].ID
-	a = comparePair(aout, [samples[s1].Output, samples[s2].Unfiltered])
+	aout = outpath + "_" + samples[s1].ID
+	a = comparePair(conf["summary"], aout, [samples[s1].Output, samples[s2].Unfiltered])
 	if a:
-		done += 1
-	bout = conf["summary"], log, outpath + "_" + samples[s2].ID
-	b = comparePair(bout, [samples[s2].Output, samples[s1].Unfiltered])
-	if b:
-		done += 1
-	if done == 2:
+		bout = outpath + "_" + samples[s2].ID
+		b = comparePair(conf["summary"], bout, [samples[s2].Output, samples[s1].Unfiltered])
+		if b:	
+			# Only continue if both pass
+			cont = True
+	if cont == True:
 		# Merge common variants and get total and similarity
-		common = bcfMerge(path, [aout + "/0002.vcf", bout + "/0002.vcf"])
-		c = getTotal(common)
-		try:
-			sim = c/(a+b+c)
-		except ZeroDivisionError:
-			sim = 0.0
-		with open(log, "a") as out:
-			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
-		return True
-	else:
-		return False
+		common = bcfMerge(outpath, [aout + "/0002.vcf", bout + "/0002.vcf"])
+		if common:
+			c = getTotal(common)
+			try:
+				sim = c/(a+b+c)
+			except ZeroDivisionError:
+				sim = 0.0
+			with open(log, "a") as out:
+				out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
+			ret = True
+	return ret
 
 #-------------------------------Filtering-------------------------------------
 
@@ -106,62 +106,84 @@ def filterCalls(conf, vcf, outdir = None):
 
 #-----------------------------------------------------------------------------
 
+def getComplete(log):
+	# Makes log file or returns list of completed samples
+	first = True
+	done = []
+	if not os.path.isfile(log):
+		with open(log, "w") as out:
+			# Initialize summary file and write header
+			out.write("ID,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
+	else:
+		with open(log, "r") as f:
+			for line in f:
+				if first == False:
+					done.append(line.split(",")[0])
+				else:
+					first = False
+	return done
+
+def filterPair(conf, log, sample, variants):
+	# Filters and compares pair of samples
+	print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
+	samples = variants["samples"]
+	for s in samples.keys():
+		if samples[s].Step == "mutect" and samples[s].Status == "complete" and not conf["summary"]:
+			print(("\tFiltering {}...").format(samples[s].ID))
+			# FilterMutectCalls
+			samples[s].Step = "filtering"
+			samples[s].Status = "starting"
+			unfiltered = filterCalls(conf, samples[s].Output, variants["outpath"])
+			if unfiltered:
+				# Record unfiltered reads
+				samples[s].Output = unfiltered
+				samples[s].Unfiltered = unfiltered
+			else:
+				samples[s].Status = "failed"
+				appendLog(conf, samples[s])
+			if samples[s].Status != "failed":
+				# bcftools filter
+				passed = bcftoolsFilter(samples[s].Output)
+				if passed:
+					samples[s].Output = passed
+					samples[s].Status = "complete"
+					appendLog(conf, samples[s])
+					samples[s].Step = "comparison"
+					samples[s].Status = "starting"
+					compare = True
+				else:
+					samples[s].Status = "failed"
+					appendLog(conf, samples[s])
+	if compare == True:
+		# Comparison
+		status = compareVCFs(conf, log, sample, samples)
+		if status == True:
+			print(("\tAll comparisons for {} run successfully.").format(sample))
+			for s in samples.keys():
+				samples[s].Status = "complete"
+				appendLog(conf, samples[s])
+		else:
+			compare = False
+	if compare == False:
+		# Call if filtering/comparison failed
+		print(("\t[Error] Some files from {} failed comparison.").format(sample))
+		for s in samples.keys():
+			samples[s].Status = "failed"
+			appendLog(conf, samples[s])
+
 def filterSamples(conf, variants):
-	# Filters and compares all vcfs in each subdirectory
+	# Filters and compares all vcfs in each subdirectory if they are not in done
 	log = conf["outpath"] + "Summary.csv"
-	with open(log, "w") as out:
-		# Initialize summary file and write header
-		out.write("ID,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
+	done = getComplete(log)
 	for sample in variants.keys():
 		# Compare output
 		pair = []
 		compare = False
 		conf["log"] = variants[sample]["log"]
-		print(("\n\tFiltering and comparing VCFs from {}...").format(sample))
-		samples = variants[sample]["samples"]
-		for s in samples.keys():
-			if samples[s].Step == "mutect" and samples[s].Status == "complete" and not conf["summary"]:
-				print(("\tFiltering {}...").format(samples[s].ID))
-				# FilterMutectCalls
-				samples[s].Step = "filtering"
-				samples[s].Status = "starting"
-				unfiltered = filterCalls(conf, samples[s].Output, variants[sample]["outpath"])
-				if unfiltered:
-					# Record unfiltered reads
-					samples[s].Output = unfiltered
-					samples[s].Unfiltered = unfiltered
-				else:
-					samples[s].Status = "failed"
-					appendLog(conf, samples[s])
-				if samples[s].Status != "failed":
-					# bcftools filter
-					passed = bcftoolsFilter(samples[s].Output)
-					if passed:
-						samples[s].Output = passed
-						samples[s].Status = "complete"
-						appendLog(conf, samples[s])
-						samples[s].Step = "comparison"
-						samples[s].Status = "starting"
-						compare = True
-					else:
-						samples[s].Status = "failed"
-						appendLog(conf, samples[s])
-		if compare == True:
-			# Comparison
-			status = compareVCFs(conf, sample, samples)
-			if status == True:
-				print(("\tAll comparisons for {} run successfully.").format(sample))
-				for s in samples.keys():
-					samples[s].Status = "complete"
-					appendLog(conf, samples[s])
-			else:
-				compare = False
-		if compare == False:
-			# Call if filtering/comparison failed
-			print(("\t[Error] Some files from {} failed comparison.").format(sample))
-			for s in samples.keys():
-				samples[s].Status = "failed"
-				appendLog(conf, samples[s])
+		if sample not in done:
+			filterPair(conf, log, sample, variants[sample])
+
+#--------------------------------------------I/O------------------------------
 
 def checkSamples(name, samples):
 	# Makes sure two samples have passed mutect
