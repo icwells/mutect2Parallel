@@ -36,7 +36,7 @@ def comparePipelines(outdir, samples):
 						sim = c/(a+b+c)
 					except ZeroDivisionError:
 						sim = 0.0
-					out.write(("{},{},{},{},{},{},{},{:.2%}").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
+					out.write(("{},{},{},{},{},{},{},{:.2%}\n").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
 
 def comparisonManifest(infile):
 	# Reads in dict of vcfs to compare
@@ -148,7 +148,7 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 		else:
 			for i in paths.keys():
 				if contigs:
-					vcf = reheader(contigs, paths[i], sdir)
+					vcf = reheader(contigs, paths[i])
 				else:
 					vcf = paths[i]	
 				bcf = bcfSort(tabix(vcf))

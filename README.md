@@ -1,4 +1,4 @@
-# mutect2Parallel v0.2 will create batch scripts to call Mutect2 in parallel over input files
+# mutect2Parallel v0.3 will create batch scripts to call Mutect2 in parallel over input files
 
 Copyright 2018 by Shawn Rupp
 
