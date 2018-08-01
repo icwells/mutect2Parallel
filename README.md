@@ -83,19 +83,14 @@ The resulting batch scripts will run each tumor-normal combination in parallel f
 
 After all of the batch scripts have finished running filterVCFs.py can be used to filter the mutect output and compare the resulting vcfs 
 using bcftools isec. Each filtered file will be compared to the unfiltered vcf of the other sample (i.e. filtered A vs unfiltered B 
-and vice versa) first using default parameters and then using the "-f .,PASS" options. This step is significantly faster, so it is not run 
-in parallel.
+and vice versa) first using default parameters and then using the "-f .,PASS" options. 
 
 	python filterVCFs.py {--summarize} -c path/to/config/file 
 
 	-h, --help		show this help message and exit
 	-c C			Path to config file containing reference genome, java jars (if using), and mutect options 
 					(required; input files are read from sub-directories in output_directory and output will be written to same sub-directory).
-	--summarize		Skips to summarize step (all other steps must be completed. Will overwrite existing summary files).
-
-Lastly, getSummary.py can be used to concatenate the individual summaries into one csv file:
-
-	python getSummary.py -i path/to/input/directory -o path/to/ouput/file
+	-t				Number of threads.  
 
 
 ### Output 
@@ -125,6 +120,22 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 	--af AF			Estimated allele frequency (required if using a germline resource).
 	--mo MO			Additional mutect options in quotes
 
+
+### compareVariants.py  
+This script will compare variants from different filtering pipelines.
+
+	-h, --help show this help message and exit
+	-c C		Copy target platypus data to this directory.
+	-v V		Path to uncompressed vcf header (Copies contig information to
+					platypus vcf headers).
+	-i I		Path to input manifest (mutect input for manifest generation or
+					generated manifest for comparison).
+	-m M		Path to mutect2parallel parent output directory.
+	-p P		Path to platypus-based parent output directory.
+	-o O		Path to output manifest if using -m and -p. Path to output
+					directory if using -i.
+
+## Utilities  
 
 ### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
