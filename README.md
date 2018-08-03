@@ -131,8 +131,6 @@ This script will compare variants from different filtering pipelines.
 	-o O		Path to output manifest if using -m and -p. Path to output
 					directory if using -i.
 
-## Utilities  
-
 ### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
 
