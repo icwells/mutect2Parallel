@@ -31,8 +31,8 @@ unixpath:
 Change the name of example_config.txt (so it won't be replaced if there is another pull). 
 Simply add the paths to the required files after the equals sign. 
 The GATK and Picard jars can be omitted if you are loading modules on a grid system. 
-Be sure to include an template batch file after the variable definitions. The appropriate command 
-will be added to the temple and the job name will have the respective sample ID appended to it. It is
+Be sure to include a template batch file after the variable definitions. The appropriate command 
+will be added to the template and the job name will have the respective sample ID appended to it. It is
 recommended that mutect2 has at least 16Gb of RAM available. Since each batch script will call two parallel 
 instances, it is best to specify 32Gb of RAM for each script. 
 
@@ -55,7 +55,7 @@ the python script, so they may lead to errors when calling gatk if they are not 
 
 ### Manifest file 
 The manifest file may be a space, comma, or tab seperated text file with one entry per line. 
-Each entry should ahve the following format: 
+Each entry should have the following format: 
 
 	SampleID	path/to/normals	path/to/tumor/file1	path/to/tumor/file2 
 
@@ -89,14 +89,10 @@ and vice versa) first using default parameters and then using the "-f .,PASS" op
 
 	-h, --help		show this help message and exit
 	-c C			Path to config file containing reference genome, java jars (if using), and mutect options 
-					(required; input files are read from sub-directories in output_directory and output will be written to same sub-directory).
+						(required; input files are read from sub-directories in output_directory and output will be written to same sub-directory).  
+	-o				Option output dirctory to write filtered vcf files to. It will have the same structure as the mutect output, but in a 
+						seperate direcotry to avoid overwriting other filtering output.  
 	-t				Number of threads.  
-
-
-### Output 
-For each batch of input samples, mutect2Parallel will create one batch script for each sample. By default, each script will call runPair.py 
-which will call an instance of mutect for each combination of inputs. This script will call mutect2, optionally estimate the 
-comtamination of the samples, and filter the resulting vcf files. It will also store the stdout and sdterr from each program it calls. 
 
 ## Other Scripts
 runPair and getPON commands are formatted in batch scripts by mutect2Parallel, so it may not be necessary to directly call either. 
