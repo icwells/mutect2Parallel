@@ -1,6 +1,7 @@
 '''This script contains functions for parsing and analyzing bam/vcf files'''
 
 import os
+import gzip
 import pysam
 from subprocess import Popen
 from shlex import split
@@ -54,10 +55,16 @@ def getTotal(vcf):
 	# Returns total number of content lines from vcf
 	count = 0
 	if os.path.isfile(vcf):
-		with open(vcf, "r") as f:
-			for line in f:
-				if line[0] != "#":
-					count += 1
+		if ".gz" not in vcf:
+			with open(vcf, "r") as f:
+				for line in f:
+					if line[0] != "#":
+						count += 1
+		else:
+			with gzip.open(vcf, "rb") as f:
+				for line in f:
+					if "##" not in line and "#CHROM" not in line:
+						count += 1
 	return count
 
 def bcfIsec(outpath, vcfs):
