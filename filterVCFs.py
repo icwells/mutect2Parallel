@@ -132,9 +132,10 @@ def filterPair(conf, log, variants):
 	for s in samples.keys():
 		if samples[s].Step == "mutect" and samples[s].Status == "complete":
 			# Filter for germline
+			infile = samples[s].Output
 			samples[s].Step = "filtering"
 			samples[s].Status = "starting"
-			unfiltered = filterCalls(conf, samples[s].Output, False, variants["outpath"])
+			unfiltered = filterCalls(conf, infile, False, variants["outpath"])
 			if unfiltered:
 				# Record unfiltered reads
 				samples[s].Output = unfiltered
@@ -144,7 +145,7 @@ def filterPair(conf, log, variants):
 				appendLog(conf, samples[s])
 			if samples[s].Status != "failed":
 				# Filter for PASS only
-				passed = filterCalls(conf, samples[s].Output, True, variants["outpath"])
+				passed = filterCalls(conf, infile, True, variants["outpath"])
 				if passed:
 					samples[s].Output = passed
 					samples[s].Status = "complete"
