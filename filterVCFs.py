@@ -67,13 +67,18 @@ def compareVCFs(conf, log, name, samples):
 
 #-------------------------------Filtering-------------------------------------
 
-def bcftoolsFilter(vcf):
+def bcftoolsFilter(vcf, filt = False):
 	# Calls bcftools to filter calls before calling isec
 	fmt = "v"
 	if ".gz" in vcf:
 		fmt = "z"
-	outfile = vcf.replace("unfiltered.vcf", "passed.vcf")
-	cmd = ('bcftools filter -e "FILTER=\'germline_risk\'" -O {} -o {} {}').format(fmt, outfile, vcf)
+	if filt == False:
+		tag = "germline_risk"
+		outfile = vcf.replace("unfiltered.vcf", "no-germline.vcf")
+	else:
+		tag = "PASS"
+		outfile = vcf.replace("unfiltered.vcf", "PASS.vcf")
+	cmd = ('bcftools filter -i "FILTER=\'{}\'" -O {} -o {} {}').format(tag, fmt, outfile, vcf)
 	try:
 		fmc = Popen(split(cmd))
 		fmc.communicate()
@@ -82,12 +87,15 @@ def bcftoolsFilter(vcf):
 		print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
 		return None
 
-def filterCalls(conf, vcf, outdir = None):
+def filterCalls(conf, vcf, filt = False, outdir = None):
 	# Calls gatk to filter mutect calls to remove germline variants
+	ext = ".unfiltered.vcf"
+	if filt == True:
+		ext = ".filtered.vcf"
 	if outdir:
-		outfile = outdir + vcf[vcf.rfind("/")+1:vcf.find(".")] + ".unfiltered.vcf"
+		outfile = outdir + vcf[vcf.rfind("/")+1:vcf.find(".")] + ext
 	else:
-		outfile = vcf[:vcf.find(".")] + ".unfiltered.vcf"
+		outfile = vcf[:vcf.find(".")] + ext
 	log = outfile.replace("vcf", "stdout")
 	# Assemble command
 	if "gatk" in conf.keys():
@@ -95,9 +103,9 @@ def filterCalls(conf, vcf, outdir = None):
 	else:
 		cmd = "gatk FilterMutectCalls "
 	'''if "contaminant" in conf.keys():
-		cmd += ("-contamination-table {} ").format(conf["contaminant"])
-	if "fmo" in conf.keys():
-		cmd += " " + conf["fmo"]'''
+		cmd += ("-contamination-table {} ").format(conf["contaminant"])'''
+	if filt == True and "fmo" in conf.keys():
+		cmd += " " + conf["fmo"]
 	cmd += ("-V {} -O {}").format(vcf, outfile)
 	with open(log, "w") as l:
 		try:
@@ -106,7 +114,7 @@ def filterCalls(conf, vcf, outdir = None):
 		except:
 			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
 	if getStatus(log) == True:
-		return tabix(outfile)
+		return bcftoolsFilter(outfile, filt)
 	else:
 		return None
 
@@ -119,10 +127,10 @@ def filterPair(conf, log, variants):
 	samples = variants["samples"]
 	for s in samples.keys():
 		if samples[s].Step == "mutect" and samples[s].Status == "complete":
-			# FilterMutectCalls
+			# Filter for germline
 			samples[s].Step = "filtering"
 			samples[s].Status = "starting"
-			unfiltered = filterCalls(conf, samples[s].Output, variants["outpath"])
+			unfiltered = filterCalls(conf, samples[s].Output, False, variants["outpath"])
 			if unfiltered:
 				# Record unfiltered reads
 				samples[s].Output = unfiltered
@@ -131,8 +139,8 @@ def filterPair(conf, log, variants):
 				samples[s].Status = "failed"
 				appendLog(conf, samples[s])
 			if samples[s].Status != "failed":
-				# bcftools filter
-				passed = bcftoolsFilter(samples[s].Output)
+				# Filter for PASS only
+				passed = filterCalls(conf, samples[s].Output, True, variants["outpath"])
 				if passed:
 					samples[s].Output = passed
 					samples[s].Status = "complete"
