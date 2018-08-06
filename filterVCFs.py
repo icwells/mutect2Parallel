@@ -50,25 +50,23 @@ def compareVCFs(conf, log, name, samples):
 		b = comparePair(bout, [samples[s2].Output, samples[s1].Unfiltered])
 	else:
 		b = 0
-	if a > 0 or b > 0:
-		# Only continue if at least one passes
-		if a > 0 and b > 0:
-			# Merge common variants and get total and similarity
-			acom = tabix(aout + "/0002.vcf")
-			bcom = tabix(bout + "/0002.vcf")
-			common = bcfMerge(outpath, [acom, bcom])
-			if common and os.path.isfile(common):
-				c = getTotal(common)
-				try:
-					sim = c/(a+b+c)
-				except ZeroDivisionError:
-					sim = 0.0
-		else:
-			c = 0
-			sim = 0.0
-		with open(log, "a") as out:
-			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
-		ret = True
+	if a > 0 and b > 0:
+		# Merge common variants and get total and similarity
+		acom = tabix(aout + "/0002.vcf")
+		bcom = tabix(bout + "/0002.vcf")
+		common = bcfMerge(outpath, [acom, bcom])
+		if common and os.path.isfile(common):
+			c = getTotal(common)
+			try:
+				sim = c/(a+b+c)
+			except ZeroDivisionError:
+				sim = 0.0
+	else:
+		c = 0
+		sim = 0.0
+	with open(log, "a") as out:
+		out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
+	ret = True
 	return ret
 
 #-------------------------------Filtering-------------------------------------
@@ -83,7 +81,7 @@ def bcftoolsFilter(vcf, filt = False):
 		outfile = vcf.replace("unfiltered.vcf", "no-germline.vcf")
 	else:
 		tag = '-i "FILTER=\'PASS\'"'
-		outfile = vcf.replace("unfiltered.vcf", "PASS.vcf")
+		outfile = vcf.replace("filtered.vcf", "PASS.vcf")
 	cmd = ('bcftools filter {} -O {} -o {} {}').format(tag, fmt, outfile, vcf)
 	with open(os.devnull, "w") as dn:
 		try:
