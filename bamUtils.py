@@ -55,19 +55,16 @@ def getTotal(vcf):
 	# Returns total number of content lines from vcf
 	count = 0
 	if os.path.isfile(vcf):
-		if ".gz" not in vcf:
+		try:
+			with gzip.open(vcf, "rb") as f:
+				for line in f:
+					if "##" not in line and "#CHROM" not in line:
+						count += 1
+		except OSError:
 			with open(vcf, "r") as f:
 				for line in f:
 					if line[0] != "#":
 						count += 1
-		else:
-			try:
-				with gzip.open(vcf, "rb") as f:
-					for line in f:
-						if "##" not in line and "#CHROM" not in line:
-							count += 1
-			except:
-				pass
 	return count
 
 def bcfIsec(outpath, vcfs):
@@ -78,12 +75,13 @@ def bcfIsec(outpath, vcfs):
 	if None in vcfs:
 		return None
 	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
-	try:
-		bcf = Popen(split(cmd))
-		bcf.communicate()
-	except:
-		print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
-		return None
+	with open(os.devnull, "w") as dn:
+		try:
+			bcf = Popen(split(cmd), stdout = dn, stderr = dn)
+			bcf.communicate()
+		except:
+			print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
+			return None
 	# Number of unique variants to each sample and number of shared
 	a = getTotal(outpath + "/0000.vcf")
 	return a
