@@ -57,10 +57,11 @@ def getTotal(vcf):
 	if os.path.isfile(vcf):
 		try:
 			with gzip.open(vcf, "rb") as f:
+				tag = ("#").encode()
 				for line in f:
-					if "##" not in line and "#CHROM" not in line:
+					if tag not in line:
 						count += 1
-		except OSError:
+		except (OSError, UnicodeDecodeError):
 			with open(vcf, "r") as f:
 				for line in f:
 					if line[0] != "#":
