@@ -258,7 +258,7 @@ and output will be written to same sub-directory).")
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
 	if args.o:
-		args.o = checkDir(args.o)
+		args.o = checkDir(args.o, True)
 		log = args.o + "summary.csv"
 	else:
 		log = conf["outpath"] + "summary.csv"
