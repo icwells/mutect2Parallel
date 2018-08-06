@@ -63,9 +63,9 @@ def compareVCFs(conf, log, name, samples):
 					sim = c/(a+b+c)
 				except ZeroDivisionError:
 					sim = 0.0
-			else:
-				c = 0
-				sim = 0.0
+		else:
+			c = 0
+			sim = 0.0
 		with open(log, "a") as out:
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
 		ret = True
