@@ -36,7 +36,6 @@ def comparePair(outpath, vcfs):
 
 def compareVCFs(conf, log, name, samples):
 	# Compares unfilted vs. passed results for each combination of pair of samples
-	c = 0.0
 	ret = False
 	outpath = conf["outpath"] + name + "/"
 	s1, s2 = list(samples.keys())
@@ -64,6 +63,9 @@ def compareVCFs(conf, log, name, samples):
 					sim = c/(a+b+c)
 				except ZeroDivisionError:
 					sim = 0.0
+			else:
+				c = 0
+				sim = 0.0
 		with open(log, "a") as out:
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
 		ret = True
@@ -77,19 +79,20 @@ def bcftoolsFilter(vcf, filt = False):
 	if ".gz" in vcf:
 		fmt = "z"
 	if filt == False:
-		tag = "germline_risk"
+		tag = '-e "FILTER=\'germline_risk\'"'
 		outfile = vcf.replace("unfiltered.vcf", "no-germline.vcf")
 	else:
-		tag = "PASS"
+		tag = '-i "FILTER=\'PASS\'"'
 		outfile = vcf.replace("unfiltered.vcf", "PASS.vcf")
-	cmd = ('bcftools filter -i "FILTER=\'{}\'" -O {} -o {} {}').format(tag, fmt, outfile, vcf)
-	try:
-		fmc = Popen(split(cmd))
-		fmc.communicate()
-		return tabix(outfile)
-	except:
-		print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
-		return None
+	cmd = ('bcftools filter {} -O {} -o {} {}').format(tag, fmt, outfile, vcf)
+	with open(os.devnull, "w") as dn:
+		try:
+			fmc = Popen(split(cmd), stdout = dn, stderr = dn)
+			fmc.communicate()
+			return tabix(outfile)
+		except:
+			print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
+			return None
 
 def filterCalls(conf, vcf, filt = False, outdir = None):
 	# Calls gatk to filter mutect calls to remove germline variants
