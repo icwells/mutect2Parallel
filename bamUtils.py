@@ -61,10 +61,13 @@ def getTotal(vcf):
 					if line[0] != "#":
 						count += 1
 		else:
-			with gzip.open(vcf, "rb") as f:
-				for line in f:
-					if "##" not in line and "#CHROM" not in line:
-						count += 1
+			try:
+				with gzip.open(vcf, "rb") as f:
+					for line in f:
+						if "##" not in line and "#CHROM" not in line:
+							count += 1
+			except:
+				pass
 	return count
 
 def bcfIsec(outpath, vcfs):
