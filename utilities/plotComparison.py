@@ -5,6 +5,7 @@ import os
 from datetime import datetime
 from argparse import ArgumentParser
 from unixpath import *
+from plotFunctions import *
 
 def mergeSums(m, p):
 	# Returns paired lists of values such that each equivalent value has the same index
@@ -26,10 +27,11 @@ def getOutputSummary(val, infile, percent = True):
 				s = line.strip().split(",")
 				if len(s) > c.Max:
 					i = s[c.ID]
-					if i.count("_") > 1:
+					idx = i.find("_")
+					if idx == 2 or idx == 3:
 						# Trim preceding number
-						i = i[i.find("_")+1:]
-					if val == "%":
+						i = i[idx+1:]
+					if val == "s":
 						if percent == True:
 							n = float(s[c.Similarity].strip("%"))/100
 						else:
@@ -69,15 +71,15 @@ def checkArgs(args):
 			args.o += ".svg"
 	else:
 		# Write output to same directory
-		args.o = args.i.replace(".csv", ".svg")
+		args.o = args.m.replace(".csv", ".svg")
 	args.v = args.v.lower()
 	good = False
-	for i in ["%", "a", "b", "c"]:
+	for i in ["s", "a", "b", "c"]:
 		if args.v == i:
 			good = True
 			break
 	if good == False:
-		print("\n\t[Error] Please enter one of %, a, b, c for -v. Exiting.\n")
+		print("\n\t[Error] Please enter one of s, a, b, c for -v. Exiting.\n")
 		quit()
 	return args
 
@@ -85,15 +87,15 @@ def main():
 	start = datetime.now()
 	parser = ArgumentParser("This script will make an svg scatter plot of the \
 percent of similar variants between platypus and mutect2.")
-	parser.add_argument("-v", default = "%", help = "Code for values to plot. \
-Values include Percent similarity (default): %, private A: a, private b: b, common: c")
+	parser.add_argument("-v", default = "s", help = "Code for values to plot. \
+Values include Percent similarity (default): s, private A: a, private b: b, common: c")
 	parser.add_argument("-m", help = "Path to mutect2 summary file.")
 	parser.add_argument("-p", help = "Path to platypus summary file.")
 	parser.add_argument("-o", 
 help = "Path to output svg (will be written to same directory by default).")
 	args = parser.parse_args()
 	args = checkArgs(args)
-	points = getSummaries(args.v, args.m, args.m)
+	points = getSummaries(args.v, args.m, args.p)
 	plotSimilarity(args.o, args.v, points)
 	print(("\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
