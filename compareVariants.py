@@ -28,15 +28,22 @@ def comparePipelines(outdir, samples):
 			outpath = outdir + s + "/"
 			for t in ["A", "B", "Common"]:
 				# Iterate through list to keep fixed order
-				a = bcfIsec(outpath + t, samples[s][t])
-				if a:
-					b = getTotal(outpath + t + "/0001.vcf")
-					c = getTotal(outpath + t + "/0002.vcf")
-					try:
-						sim = c/(a+b+c)
-					except ZeroDivisionError:
-						sim = 0.0
-					out.write(("{},{},{},{},{},{},{},{:.2%}\n").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
+				a = None
+				if "NA" not in samples[s][t]:
+					a = bcfIsec(outpath + t, samples[s][t])
+					if a:
+						b = getTotal(outpath + t + "/0001.vcf")
+						c = getTotal(outpath + t + "/0002.vcf")
+						try:
+							sim = c/(a+b+c)
+						except ZeroDivisionError:
+							sim = 0.0
+				if not a:
+					a = "NA"
+					b = "NA"
+					c = "NA"
+					sim = 0.0
+				out.write(("{},{},{},{},{},{},{},{:.2%}\n").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
 
 def comparisonManifest(infile):
 	# Reads in dict of vcfs to compare
@@ -157,6 +164,21 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 				plat[sample][i] = bcf 
 	return plat
 
+def checkVCF(path, com = False):
+	# Determines if file exists and returns filename/NA
+	ret = None
+	filename = "/0000.vcf"
+	if com == True:
+		filename = "common.vcf"
+	if os.path.isdir(path):
+		if os.path.isfile(path + filename):
+			ret = path + filename
+		elif os.path.isfile(path + filename + ".gz"):
+			ret = path + filename + ".gz"
+		if ret:
+			ret = tabix(ret, force = True)
+	return ret
+
 def getMutectOutput(path, samples):
 	# Returns dict of fitered mutect output
 	mut = {}
@@ -172,17 +194,20 @@ def getMutectOutput(path, samples):
 			a = samples[sample]["a"]
 			b = samples[sample]["b"]
 			if len(a) > 1 and len(b) > 1:
+				mut[sample] = {}
+				mut[sample]["a"] = "NA"
+				mut[sample]["b"] = "NA"
+				mut[sample]["c"] = "NA"
 				# Get path names with full sample name
-				pa = checkDir("{}{}".format(p, a))
-				pb = checkDir("{}{}".format(p, b))
-				# Sort and merge common vcfs
-				common = tabix(p + "common.vcf")
-				if common != None and os.path.isfile(common):
-					# Save private filtered A and B, and common
-					mut[sample] = {}
-					mut[sample]["c"] = common
-					mut[sample]["a"] = bcfSort(tabix(pa + "0000.vcf"))
-					mut[sample]["b"] = bcfSort(tabix(pb + "0000.vcf"))
+				pa = checkVCF("{}{}".format(p, a))
+				if pa:
+					mut[sample]["a"] = bcfSort(pa)
+				pb = checkVCF("{}{}".format(p, b))
+				if pb:
+					mut[sample]["b"] = bcfSort(pb)
+				common = checkVCF(p, True)
+				if common:
+					mut[sample]["c"] = bcfSort(common)
 		else:
 			print(("\t[Warning] {} not in manifest.").format(sample))
 	return mut
