@@ -11,10 +11,9 @@ germline_resource =
 allele_frequency = 
 contaminant_estimate = 
 
-# The following are to include any Mutect or FilterMutect options
+# The following is to include any Mutect2 options
 # Enter the flag and option as you would for gatk
 mutect_options = 
-filter_mutect_options = 
 
 ==============================================================================
 #	Sample Batch Script (grid commands and module load commands)
@@ -45,6 +44,7 @@ filter_mutect_options =
 
 module load gatk/4.0.1.2
 module load picard/2.9.2
+module load snpEff/4.3
 
 export PATH=$PATH:/path/to/bcftools/bin
 

@@ -156,11 +156,7 @@ def getOptions(conf, line):
 		elif target == "mutect_options":
 			# Extract directly from line in case options have an equals sign
 			conf["mo"] = line[line.find("=")+1:]
-			conf["mo"] = conf["mo"].strip()	
-		elif target == "mutect_options":
-			# for filterVCFs only
-			conf["fmo"] = line[line.find("=")+1:]
-			conf["fmo"] = conf["fmo"].strip()	
+			conf["mo"] = conf["mo"].strip()		
 		elif target == "contaminant_estimate":
 			# for filterVCFs only
 			conf["contaminant"] = val

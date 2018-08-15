@@ -87,6 +87,8 @@ def bcftoolsFilter(vcf, filt = False):
 		try:
 			fmc = Popen(split(cmd), stdout = dn, stderr = dn)
 			fmc.communicate()
+			# Delete tagged but unfiltered vcf
+			os.remove(vcf)
 			return tabix(outfile)
 		except:
 			print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
@@ -109,8 +111,6 @@ def filterCalls(conf, vcf, filt = False, outdir = None):
 		cmd = "gatk FilterMutectCalls "
 	'''if "contaminant" in conf.keys():
 		cmd += ("-contamination-table {} ").format(conf["contaminant"])'''
-	if filt == True and "fmo" in conf.keys():
-		cmd += " " + conf["fmo"]
 	cmd += ("-V {} -O {}").format(vcf, outfile)
 	with open(log, "w") as l:
 		try:

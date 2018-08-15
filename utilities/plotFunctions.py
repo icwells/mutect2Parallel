@@ -62,7 +62,8 @@ def plotSimilarity(outfile, val, points):
 	main, xlab, ylab = getLabels(val)
 	# Get regression function and linear correlation
 	reg = np.poly1d(np.polyfit(points[0], points[1], 1))
-	cor = stats.pearsonr(points[0], points[1])[0]
+	cor = stats.pearsonr(points[0], points[1])
+	txt = ("Correlation = {:.4f}\nP-Value = {:.4f}").format(cor[0], cor[1])
 	fig, ax = plt.subplots()
 	ax.axis([-0.1, 1.1, -0.1, 1.1])
 	# Set labels
@@ -72,6 +73,6 @@ def plotSimilarity(outfile, val, points):
 	# Plot points, regression, and correlation
 	ax.scatter(points[0], points[1])
 	ax.plot(reg(points[0]))
-	ax.text(0.75, 0.1, ("Correlation = {:.4f}").format(cor), ha="center", va="center", transform=ax.transAxes)
+	ax.text(0.75, 0.1, txt, ha="center", va="center", transform=ax.transAxes)
 	fig.savefig(outfile)
 
