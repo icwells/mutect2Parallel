@@ -15,6 +15,18 @@ contaminant_estimate =
 # Enter the flag and option as you would for gatk
 mutect_options = 
 
+# The following are options for filtering output vcfs
+qual = 120
+min_covA = 20
+min_reads_strand = 10
+min_reads_alt = 0
+min_covB = 15
+max_altB = 9
+max_prop_altB = 0.05
+max_covN = 5
+min_freq_altN = 0.3
+min_reads_altN = 15
+
 ==============================================================================
 #	Sample Batch Script (grid commands and module load commands)
 ==============================================================================
