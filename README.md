@@ -5,7 +5,7 @@ Copyright 2018 by Shawn Rupp
 ## Installation
 ### Download the repository:
 
-git clone https://github.com/icwells/mutect2Serial.git
+git clone https://github.com/icwells/mutect2Parallel.git
 
 ### Download dependencies:
 
