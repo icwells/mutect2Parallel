@@ -163,7 +163,7 @@ help = "Path to batch script output directory (leave blank for current directory
 	if not args.i and args.c:
 		print("\n\t[Error] Please specify input file and config file. Exiting.\n")
 		quit()
-	if args.o and args.o[-1] != "/":
+	if len(args.o) > 1 and args.o[-1] != "/":
 		args.o += "/"
 	conf, batch = getConf(args.c)
 	conf["bamout"] = args.bamout

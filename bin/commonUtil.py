@@ -1,6 +1,7 @@
 '''This script contains functions for adding readgroups to bam files, as well as indexing and extracting readgroups'''
 
 import os
+from unixpath import checkFile
 
 class Sample():
 	# Stores data for managing sample progress
@@ -107,12 +108,6 @@ def checkOutput(outdir, prnt = True):
 			f.write("Filename\tStep\tStatus\tOutput\n")
 	return log, done
 
-def checkFile(infile, err):
-	# Exits if infile is not found
-	if not os.path.isfile(infile):
-		print(("\n\t[Error] {} not found. Exiting.\n").format(err))
-		quit()
-
 def configEntry(conf, arg, key):
 	# Returns dict with updated arg entry
 	if not arg:
@@ -134,23 +129,26 @@ def getOptions(conf, line):
 			conf["ref"] = val
 		elif target == "bed_annotation":
 			conf["bed"] = val
-			checkFile(conf["bed"], "Bed file")
+			checkFile(conf["bed"])
 		elif target == "output_directory":
 			if val[-1] != "/":
 				val += "/"
 			conf["outpath"] = val
 		elif target == "GATK_jar":
 			conf["gatk"] = val
-			checkFile(conf["gatk"], "GATK jar")
+			checkFile(conf["gatk"])
 		elif target == "Picard_jar":
 			conf["picard"] = val
-			checkFile(conf["picard"], "Picard jar")	
+			checkFile(conf["picard"])	
+		elif target == "SnpSift_jar":
+			conf["snpsift"] = val
+			checkFile(conf["snpsift"])	
 		elif target == "normal_panel":
 			conf["pon"] = val
-			checkFile(conf["pon"], "Panel of normals file")
+			checkFile(conf["pon"])
 		elif target == "germline_resource":
 			conf["germline"] = val
-			checkFile(conf["germline"], "Germline resource file")
+			checkFile(conf["germline"])
 		elif target == "allele_frequency":
 			conf["af"] = val
 		elif target == "mutect_options":
@@ -160,7 +158,28 @@ def getOptions(conf, line):
 		elif target == "contaminant_estimate":
 			# for filterVCFs only
 			conf["contaminant"] = val
-			checkFile(conf["contaminant"], "Contamination estimate file")
+			checkFile(conf["contaminant"])
+		# Get filtereing parameters
+		elif target == "qual":
+			conf["qual"] = int(val)
+		elif target == "min_covA":
+			conf["min_covA"] = int(val)
+		elif target == "min_reads_strand":
+			conf["min_reads_strand"] = int(val)
+		elif target == "min_reads_alt":
+			conf["min_reads_alt"] = int(val)
+		elif target == "min_covB":
+			conf["min_covB"] = int(val)
+		elif target == "max_altB":
+			conf["max_altB"] = int(val)
+		elif target == "max_prop_altB":
+			conf["max_prop_altB"] = float(val)
+		elif target == "max_covN":
+			conf["max_covN"] = int(val)
+		elif target == "min_freq_altN":
+			conf["min_freq_altN"] = float(val)
+		elif target == "min_reads_altN":
+			conf["min_reads_altN"] = int(val)
 	return conf
 
 def getConf(infile):
