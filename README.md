@@ -100,7 +100,7 @@ and vice versa) first using default parameters and then using the "-f .,PASS" op
 ## Other Scripts
 runPair and getPON commands are formatted in batch scripts by mutect2Parallel, so it may not be necessary to directly call either. 
 
-### runPair.py
+#### runPair.py
 Used to call mutect2 in parallel for each each tumor-normal comparison for one sample. This script is called by mutect2Parallel.py by default. 
 
 	-h, --help		show this help message and exit
@@ -120,7 +120,7 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 	--mo MO			Additional mutect options in quotes
 
 
-### compareVariants.py  
+#### compareVariants.py  
 This script will compare variants from different filtering pipelines.
 
 	-h, --help show this help message and exit
@@ -134,7 +134,7 @@ This script will compare variants from different filtering pipelines.
 	-o O		Path to output manifest if using -m and -p. Path to output
 					directory if using -i.
 
-### getPON.py
+#### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
 
 	-h, --help		show this help message and exit
@@ -152,8 +152,9 @@ Can be used to genrate a new panel of normals. This script will be called by mut
 	--af AF			Estimated allele frequency (required if using a germline resource).
 	-e E			Path to contmination estimate vcf.
 
+### Utilities  
 
-### getActiveRegion.py 
+#### getActiveRegion.py 
 Can be used to subset a bed annotation to examine specific regions. 
 
 	-h, --help		show this help message and exit
@@ -161,3 +162,11 @@ Can be used to subset a bed annotation to examine specific regions.
 	-i I			Path to input file.
 	-o O			Path to output file.
 
+#### plotComparison.py  
+This script will make an svg scatter plot of the percent of similar variants between platypus and mutect2.
+
+	-h, --help	show this help message and exit
+	-v V		Code for values to plot. Values include Percent similarity (default): s, private A: a, private b: b, common: c
+	-m M		Path to mutect2 summary file.
+	-p P		Path to platypus summary file.
+	-o O		Path to output svg (will be written to same directory by default).
