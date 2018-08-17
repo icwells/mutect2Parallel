@@ -68,13 +68,17 @@ def submitSample(infile, conf, s, name):
 
 def submitFiles(conf, samples, infile):
 	# Creates sample entry and calls MuTect2 over input files
+	if infile == conf["tumor1"]:
+		sample = "A"
+	elif infile == conf["tumor2"]:
+		sample = "B"
 	name = getSample(infile)
 	# Get sample info
 	if name in samples.keys():
 		s = samples[name]
 	else:
 		s = Sample()
-		s.update(name, "mutect", "starting", conf["outpath"] + name + ".vcf")
+		s.update(sample, name, "mutect", "starting", conf["outpath"] + name + ".vcf")
 	s.Input = infile
 	if s.Step == "mutect" and s.Status != "complete":
 		s = submitSample(infile, conf, s, name)
@@ -134,7 +138,7 @@ help = "Indicates that mutect should also generate bam output files.")
 	parser.add_argument("--mo", help = "Additional mutect options in quotes (these will not be checked for errors).")
 	args = parser.parse_args()
 	conf = getArgs(args)
-	log, samples = checkOutput(conf["outpath"])
+	log, samples = checkOutput(conf["outpath"], conf["normal"])
 	conf["log"] = log
 	pool = Pool(processes = 2)
 	func = partial(submitFiles, conf, samples)

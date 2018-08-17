@@ -6,17 +6,21 @@ from unixpath import checkFile
 class Sample():
 	# Stores data for managing sample progress
 	def __init__(self):
+		self.Sample = ""
 		self.ID = ""
 		self.Step = ""
 		self.Status = ""
 		self.Status = ""
 		self.Output = ""
+		self.Normal = ""
 		self.Bam = None
 		self.Input = None
 		self.Unfiltered = None
 
-	def update(self, name, step, status, outfile):
+	def update(self, sample, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
+		if not self.Sample:
+			self.Sample = sample
 		if not self.ID:
 			self.ID = name
 		if step == "comparison":
@@ -71,7 +75,7 @@ def getStatus(log):
 def appendLog(conf, s):
 	# Appends checkpoint status to log file
 	with open(conf["log"], "a") as l:
-			l.write(("{}\t{}\t{}\t{}\n").format(s.ID, s.Step, s.Status, s.Output))
+			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Sample,s.ID, s.Step, s.Status, s.Output))
 
 def getOpt(conf, cmd):
 	# Adds common flags to command
@@ -91,7 +95,7 @@ def getSample(fname):
 	else:
 		return s[:s.find(".")]
 
-def checkOutput(outdir, prnt = True):
+def checkOutput(outdir, normal, prnt = True):
 	# Checks for output log file and reads if present
 	first = True
 	done = {}
@@ -105,18 +109,23 @@ def checkOutput(outdir, prnt = True):
 			for line in f:
 				if first == False and line.strip():
 					line = line.strip().split("\t")
-					if len(line) == 4:
+					if line[0] == "N":
+		 				# Record normal
+						norm = line[-1]
+					if len(line) == 5:
 						if line[0] not in done.keys():
 							# Initialize new sample entry
 							done[line[0]] = Sample()
-						done[line[0]].update(line[0], line[1], line[2], line[3])
+							done[line[0]].Normal = norm
+						done[line[0]].update(line[0], line[1], line[2], line[3], line[4])
 				else:
 					# Skip header
 					first = False
 	else:
 		with open(log, "w") as f:
-			# Initialize log file
-			f.write("Filename\tStep\tStatus\tOutput\n")
+			# Initialize log file and record normal file
+			f.write("Sample\tName\tStep\tStatus\tOutput\n")
+			f.write("N\t\tnormal\t{}".format(normal))
 	return log, done
 
 def configEntry(conf, arg, key):
