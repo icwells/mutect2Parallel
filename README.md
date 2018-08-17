@@ -8,12 +8,14 @@ Copyright 2018 by Shawn Rupp
 git clone https://github.com/icwells/mutect2Parallel.git
 
 ### Download dependencies:
+#### Make sure bcftools and bedops are in your PATH
 
 GATK: https://software.broadinstitute.org/gatk/download/ 
-
 Picard: https://github.com/broadinstitute/picard/releases/ 
+snpeff: http://snpeff.sourceforge.net/download.html  
 
-bcftools: http://www.htslib.org/download/ 
+bedops: https://bedops.readthedocs.io/en/latest/index.html 
+bcftools: http://www.htslib.org/download/  
 
 pysam: 
 

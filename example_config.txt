@@ -1,9 +1,12 @@
+# Java jars (omit if loading modules on a server grid)
+GATK_jar = 
+Picard_jar = 
+SnpSift_jar = 
+
+# General options
 reference_genome = 
 bed_annotation = 
 output_directory = 
-
-GATK_jar = 
-Picard_jar = 
 
 # Mutect2 Options
 normal_panel = 
