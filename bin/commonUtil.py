@@ -46,6 +46,7 @@ def getDelim(line):
 def getStatus(log):
 	# Returns true if tool returns success
 	status = False
+	ret = False
 	with open(log, "r") as l:
 		for line in l:
 			if "Tool returned:" in line:
@@ -53,9 +54,9 @@ def getStatus(log):
 			elif status == True:
 				# Get exit status
 				if "SUCCESS" in line:
-					return True
-				else:
-					return False
+					ret = True
+				break
+	return ret
 
 def appendLog(conf, s):
 	# Appends checkpoint status to log file
