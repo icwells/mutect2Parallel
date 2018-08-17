@@ -7,8 +7,6 @@ from datetime import datetime
 from glob import glob
 from functools import partial
 from multiprocessing import Pool, cpu_count
-from subprocess import Popen
-from shlex import split
 from commonUtil import *
 from bamUtils import *
 from unixpath import checkDir
@@ -83,16 +81,33 @@ def bcftoolsFilter(vcf, filt = False):
 		tag = '-i "FILTER=\'PASS\'"'
 		outfile = vcf.replace("filtered.vcf", "PASS.vcf")
 	cmd = ('bcftools filter {} -O {} -o {} {}').format(tag, fmt, outfile, vcf)
-	with open(os.devnull, "w") as dn:
-		try:
-			fmc = Popen(split(cmd), stdout = dn, stderr = dn)
-			fmc.communicate()
-			# Delete tagged but unfiltered vcf
-			os.remove(vcf)
-			return tabix(outfile)
-		except:
-			print(("\t[Error] Could not call bcftools filter on {}").format(vcf))
-			return None
+	res = runProc(cmd)
+	if res == True:
+		# Delete tagged but unfiltered vcf
+		os.remove(vcf)
+		return tabix(outfile)
+	else:
+		return None
+
+def snpsiftFilter(conf, vcf, filt = False):
+	# Calls bcftools to filter calls before calling isec
+	fmt = "v"
+	if ".gz" in vcf:
+		fmt = "z"
+	if filt == False:
+		tag = '-e "FILTER=\'germline_risk\'"'
+		outfile = vcf.replace("unfiltered.vcf", "no-germline.vcf")
+	else:
+		tag = '-i "FILTER=\'PASS\'"'
+		outfile = vcf.replace("filtered.vcf", "PASS.vcf")
+	cmd = ('bcftools filter {} -O {} -o {} {}').format(tag, fmt, outfile, vcf)
+	res = runProc(cmd)
+	if res == True:
+		# Delete tagged but unfiltered vcf
+		os.remove(vcf)
+		return tabix(outfile)
+	else:
+		return None
 
 def filterCalls(conf, vcf, filt = False, outdir = None):
 	# Calls gatk to filter mutect calls to remove germline variants
@@ -112,13 +127,8 @@ def filterCalls(conf, vcf, filt = False, outdir = None):
 	'''if "contaminant" in conf.keys():
 		cmd += ("-contamination-table {} ").format(conf["contaminant"])'''
 	cmd += ("-V {} -O {}").format(vcf, outfile)
-	with open(log, "w") as l:
-		try:
-			fmc = Popen(split(cmd), stdout = l, stderr = l)
-			fmc.communicate()
-		except:
-			print(("\t[Error] Could not call FilterMutectCalls on {}").format(vcf))
-	if getStatus(log) == True:
+	res = runProc(cmd, log)
+	if res == True and getStatus(log) == True:
 		return bcftoolsFilter(outfile, filt)
 	else:
 		return None

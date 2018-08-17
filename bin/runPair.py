@@ -5,8 +5,6 @@ from argparse import ArgumentParser
 from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, cpu_count
-from subprocess import Popen
-from shlex import split
 from commonUtil import *
 from bamUtils import *
 
@@ -17,14 +15,8 @@ def callMutect(cmd, name, outfile):
 	print(("\tCalling mutect on {}...").format(name))
 	# Make log file
 	log = outfile.replace("vcf", "stdout")
-	with open(log, "w") as dn:
-		try:
-			mt = Popen(split(cmd), stdout = dn, stderr = dn)	
-			mt.communicate()
-		except:
-			print(("\t[Error] Could not call MuTect2 on {}").format(name))
-			return None
-	if getStatus(log) == True:
+	res = runProc(cmdf, log)
+	if res == True and getStatus(log) == True:
 		print(("\t{} has completed mutect analysis.").format(name))
 		if os.path.isfile(outfile + ".idx"):
 			# Remove index since it will not be used
@@ -90,7 +82,7 @@ def submitFiles(conf, samples, infile):
 
 #-----------------------------------------------------------------------------
 
-def getConfig(args):
+def getArgs(args):
 	# Returns arguments as dict
 	conf = {}
 	conf["bamout"] = args.bamout
@@ -141,7 +133,7 @@ help = "Indicates that mutect should also generate bam output files.")
 	parser.add_argument("--af", help = "Estimated allele frequency (required if using a germline resource).")
 	parser.add_argument("--mo", help = "Additional mutect options in quotes (these will not be checked for errors).")
 	args = parser.parse_args()
-	conf = getConfig(args)
+	conf = getArgs(args)
 	log, samples = checkOutput(conf["outpath"])
 	conf["log"] = log
 	pool = Pool(processes = 2)

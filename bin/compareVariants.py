@@ -7,8 +7,6 @@ from shutil import copy
 from datetime import datetime
 from argparse import ArgumentParser
 from glob import glob
-from shlex import split
-from subprocess import Popen
 from commonUtil import *
 from bamUtils import *
 from unixpath import *

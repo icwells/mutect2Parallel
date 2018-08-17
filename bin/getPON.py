@@ -3,8 +3,6 @@
 import os
 from argparse import ArgumentParser
 from datetime import datetime
-from subprocess import Popen
-from shlex import split
 from runPair import callMutect
 from bamUtils import *
 
@@ -25,15 +23,11 @@ def makePON(infiles, outfile, gatk):
 			else:
 				first = False
 	log = outfile[:outfile.find(".")] + ".stdout"
-	with open(log, "w") as l:
-		try:
-			mp = Popen(split(cmd), stdout = l, stderr = l)
-			mp.communicate()
-		except:
-			print("\n\t[Error] Could not generate panel of normals. Exiting.")
-			quit()
-
-	return getStatus(log)
+	res = runProc(cmd, log)
+	if res == True:
+		return getStatus(log)
+	else:
+		return None
 
 def submitNormal(conf):
 	# Builds mutect command
@@ -108,7 +102,7 @@ def getConfig(args):
 
 def main():
 	starttime = datetime.now()
-	parser = ArgumentParser(description = "This script will mutect2 in parallel in tumor \
+	parser = ArgumentParser(description = "This script will call mutect2 in tumor \
 only mode and assemble a panel of normals. Be sure that pysam is installed and that bcftools is in your PATH.")
 	parser.add_argument("--pon", default = False, action = "store_true", help = "Generate new \
 panel of normals from log file (requires -l (output from tumor only mode) and -o (output PON file) flags only).")

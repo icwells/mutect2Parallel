@@ -6,6 +6,27 @@ import pysam
 from subprocess import Popen
 from shlex import split
 
+def runProc(cmd, log = None):
+	# Wraps call to Popen, writes stdout/stdout err to log/devnull, returns True if no errors
+	if not log:
+		log = os.devnull
+	with open(log, "w") as out:
+		try:
+			call = Popen(split(cmd), stdout = out, stderr = out)
+			call.communicate()
+			return True
+		except:
+			s = cmd.split()
+			proc = s[0]
+			if "-" not in s[1]:
+				# Get subcommand if present
+				proc += " " + s[1]
+			elif proc == "java":
+				# Replace call to jar with name of jar
+				proc = s[2]
+			print(("\t[Warning] Could not call {}").format(proc))
+			return False
+
 def tabix(vcf, force = False):
 	# tabix index and bgzips vcf files
 	if os.path.isfile(vcf + ".gz") and force == False:
@@ -22,13 +43,9 @@ def bcfMerge(path, com):
 	# Calls bftools concat on input files
 	outfile = path + "common.vcf"
 	cmd = ("bcftools merge --force-samples -O v -o {} {} {}").format(outfile, com[0], com[1])
-	with open(os.devnull, "w") as dn:
-		try:
-			bc = Popen(split(cmd), stdout = dn, stderr = dn)
-			bc.communicate()
-		except:
-			print(("\t[Error] calling bcftools merge on samples in {}").format(path))
-			outfile = None
+	res = runProc(cmd)
+	if res == False:
+		outfile = None
 	return outfile	
 
 def bcfSort(infile):
@@ -40,14 +57,8 @@ def bcfSort(infile):
 	if ".gz" in infile:
 		fmt = "z"
 	cmd = ("bcftools sort -O {} -o {} {}").format(fmt, outfile, infile)
-	with open(os.devnull, "w") as dn:
-		try:
-			bs = Popen(split(cmd), stdout = dn, stderr = dn)
-			bs.communicate()
-		except:
-			print(("\t[Error] calling bcftools sort on {}").format(infile))
-			return None
-	if not os.path.isfile(outfile):
+	res = runProc(cmd)
+	if res == False or os.path.isfile(outfile) == False:
 		return None
 	return tabix(outfile, True)
 
@@ -70,21 +81,16 @@ def getTotal(vcf):
 
 def bcfIsec(outpath, vcfs):
 	# Calls bcftools to get intersecting rows and returns number of private A
+	a = None
 	for i in range(len(vcfs)):
 		# Make sure there is an up-to-date index file
 		vcfs[i] = tabix(vcfs[i], True)
-	if None in vcfs:
-		return None
-	cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
-	with open(os.devnull, "w") as dn:
-		try:
-			bcf = Popen(split(cmd), stdout = dn, stderr = dn)
-			bcf.communicate()
-		except:
-			print(("\t[Error] Could not call bcftools isec with {}").format(cmd))
-			return None
-	# Number of unique variants to each sample and number of shared
-	a = getTotal(outpath + "/0000.vcf")
+	if None not in vcfs:
+		cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
+		res = runProc(cmd)
+		if res == True:
+			# Number of unique variants to each sample and number of shared
+			a = getTotal(outpath + "/0000.vcf")
 	return a
 
 #-----------------------------------------------------------------------------
@@ -118,17 +124,13 @@ def addRG(bam, sid, picard):
 	else:
 		cmd = ("picard AddOrReplaceReadGroups I={} O={}").format(bam, outfile)
 	cmd += (" RGLB=lib1 RGPL=illumina RGPU={}").format(sid)
-	try:
-		print(("\tAdding read groups to {}").format(bam))
-		with open(os.devnull, "w") as dn:
-			arg = Popen(split(cmd), stdout = dn, stderr = dn)
-			arg.communicate()
-	except:
-		print(("\t[Error] Could not add read groups to {}\n").format(bam))
-		return None, None
-	if outfile:
+	print(("\tAdding read groups to {}").format(bam))
+	res = runProc(cmd)
+	if res == True and outfile:
 		name = getTumorName(outfile)
 		return outfile, name
+	else:
+		return None, None
 
 def checkRG(bam, sid, picard=None):
 	# Adds read groups, creates bam index, and returns read group name
