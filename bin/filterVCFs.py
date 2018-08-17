@@ -8,132 +8,22 @@ from glob import glob
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from commonUtil import *
-from bamUtils import *
+from vcfCompare import *
 from unixpath import checkDir
 
-def printError(msg):
-	# Prints formatted error message
-	print(("\n\t[Error] {}. Skipping.\n").format(msg))
-
-#-------------------------------Comparison------------------------------------
-
-def comparePair(outpath, vcfs):
-	# Calls gatk and pyvcf to filter and compare given pair of
-	for i in range(len(vcfs)):
-		if vcfs[i] and os.path.isfile(vcfs[i]):
-			# Make sure files are bgzipped
-			vcfs[i] = tabix(vcfs[i])
-		elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
-			vcfs[i] += ".gz"
+def rmGermline(conf, sample):
+	# Calls filterMutectCalls to remove germline risks
+	if sample.Step == "mutect" and sample.Status == "complete":
+		sample.updateStatus("starting", "filtering_germline")
+		infile = sample.Output
+		unfiltered = filterCalls(conf, infile, False, variants["outpath"])
+		if unfiltered:
+			# Record unfiltered reads
+			sample.updateStatus("complete", "filtering_germline", unfiltered, True)
 		else:
-			printError(("Cannot find {}").format(vcfs[i]))
-			return None
-	# Call bftools on all results
-	ret = bcfIsec(outpath, vcfs)
-	return ret
-
-def compareVCFs(conf, log, name, samples):
-	# Compares unfilted vs. passed results for each combination of pair of samples
-	ret = False
-	outpath = conf["outpath"] + name + "/"
-	s1, s2 = list(samples.keys())
-	aout = outpath + samples[s1].ID
-	bout = outpath + samples[s2].ID
-	# Append filtered sample name when submitting
-	if getTotal(samples[s1].Output) > 0:
-		a = comparePair(aout, [samples[s1].Output, samples[s2].Unfiltered])
-	else:
-		a = 0
-	if getTotal(samples[s2].Output) > 0:
-		b = comparePair(bout, [samples[s2].Output, samples[s1].Unfiltered])
-	else:
-		b = 0
-	if a > 0 and b > 0:
-		# Merge common variants and get total and similarity
-		acom = tabix(aout + "/0002.vcf")
-		bcom = tabix(bout + "/0002.vcf")
-		common = bcfMerge(outpath, [acom, bcom])
-		if common and os.path.isfile(common):
-			c = getTotal(common)
-			try:
-				sim = c/(a+b+c)
-			except ZeroDivisionError:
-				sim = 0.0
-	else:
-		c = 0
-		sim = 0.0
-	with open(log, "a") as out:
-		out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
-	ret = True
-	return ret
-
-#-------------------------------Filtering-------------------------------------
-
-def bcftoolsFilter(vcf, filt = False):
-	# Calls bcftools to filter calls before calling isec
-	fmt = "v"
-	if ".gz" in vcf:
-		fmt = "z"
-	if filt == False:
-		tag = '-e "FILTER=\'germline_risk\'"'
-		outfile = vcf.replace("unfiltered.vcf", "no-germline.vcf")
-	else:
-		tag = '-i "FILTER=\'PASS\'"'
-		outfile = vcf.replace("filtered.vcf", "PASS.vcf")
-	cmd = ('bcftools filter {} -O {} -o {} {}').format(tag, fmt, outfile, vcf)
-	res = runProc(cmd)
-	if res == True:
-		# Delete tagged but unfiltered vcf
-		os.remove(vcf)
-		return tabix(outfile)
-	else:
-		return None
-
-def snpsiftFilter(conf, vcf, filt = False):
-	# Calls bcftools to filter calls before calling isec
-	fmt = "v"
-	if ".gz" in vcf:
-		fmt = "z"
-	if filt == False:
-		tag = '-e "FILTER=\'germline_risk\'"'
-		outfile = vcf.replace("unfiltered.vcf", "no-germline.vcf")
-	else:
-		tag = '-i "FILTER=\'PASS\'"'
-		outfile = vcf.replace("filtered.vcf", "PASS.vcf")
-	cmd = ('bcftools filter {} -O {} -o {} {}').format(tag, fmt, outfile, vcf)
-	res = runProc(cmd)
-	if res == True:
-		# Delete tagged but unfiltered vcf
-		os.remove(vcf)
-		return tabix(outfile)
-	else:
-		return None
-
-def filterCalls(conf, vcf, filt = False, outdir = None):
-	# Calls gatk to filter mutect calls to remove germline variants
-	ext = ".unfiltered.vcf"
-	if filt == True:
-		ext = ".filtered.vcf"
-	if outdir:
-		outfile = outdir + vcf[vcf.rfind("/")+1:vcf.find(".")] + ext
-	else:
-		outfile = vcf[:vcf.find(".")] + ext
-	log = outfile.replace("vcf", "stdout")
-	# Assemble command
-	if "gatk" in conf.keys():
-		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
-	else:
-		cmd = "gatk FilterMutectCalls "
-	'''if "contaminant" in conf.keys():
-		cmd += ("-contamination-table {} ").format(conf["contaminant"])'''
-	cmd += ("-V {} -O {}").format(vcf, outfile)
-	res = runProc(cmd, log)
-	if res == True and getStatus(log) == True:
-		return bcftoolsFilter(outfile, filt)
-	else:
-		return None
-
-#-----------------------------------------------------------------------------
+			sample.updateStatus("failed")
+			appendLog(conf, samples[s])	
+	return sample	
 
 def filterPair(conf, log, variants):
 	# Filters and compares pair of samples
@@ -141,32 +31,10 @@ def filterPair(conf, log, variants):
 	conf["log"] = variants["log"]
 	samples = variants["samples"]
 	for s in samples.keys():
-		if samples[s].Step == "mutect" and samples[s].Status == "complete":
-			# Filter for germline
-			infile = samples[s].Output
-			samples[s].Step = "filtering"
-			samples[s].Status = "starting"
-			unfiltered = filterCalls(conf, infile, False, variants["outpath"])
-			if unfiltered:
-				# Record unfiltered reads
-				samples[s].Output = unfiltered
-				samples[s].Unfiltered = unfiltered
-			else:
-				samples[s].Status = "failed"
-				appendLog(conf, samples[s])
-			if samples[s].Status != "failed":
-				# Filter for PASS only
-				passed = filterCalls(conf, infile, True, variants["outpath"])
-				if passed:
-					samples[s].Output = passed
-					samples[s].Status = "complete"
-					appendLog(conf, samples[s])
-					samples[s].Step = "comparison"
-					samples[s].Status = "starting"
-					compare = True
-				else:
-					samples[s].Status = "failed"
-					appendLog(conf, samples[s])
+		samples[s] = rmGermline(conf, samples[s])
+
+
+
 	if compare == True:
 		# Comparison
 		status = compareVCFs(conf, log, variants["ID"], samples)
@@ -268,11 +136,14 @@ help = "Number of threads.")
 (if using), and mutect options (required; input files are read from sub-directories in output_directory \
 and output will be written to same sub-directory).")
 	parser.add_argument("-o", help = "Output directory (if different from directory in config file).")
+	parser.add_argument("--cleanup", action = "store_true", default = False,
+help = "Remove intermediary files (default is to keep them).")
 	args = parser.parse_args()
 	if args.t > cpu_count():
 		args.t = cpu_count()
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
+	conf["cleanup"] = args.cleanup
 	if args.o:
 		args.o = checkDir(args.o, True)
 		log = args.o + "summary.csv"

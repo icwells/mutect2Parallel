@@ -23,7 +23,7 @@ class Sample():
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
-		elif step == "filtering" and self.Step == "mutect":
+		elif step == "filtering_germline" and self.Step == "mutect":
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
@@ -32,6 +32,16 @@ class Sample():
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
+
+	def updateStatus(self, status, step = None, outfile = None, unfilt = False)
+		# Updates current status of sample
+		self.status = status
+		if step:
+			self.Step = step
+		if outfile:
+			self.Output = outfile
+		if unfilt == True:
+			self.Unfiltered = outfile
 
 #-------------------------------commonfunctions----------------------------------------
 
