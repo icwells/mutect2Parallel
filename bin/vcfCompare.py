@@ -2,6 +2,7 @@
 
 import os
 from bamUtils import *
+from commonUtil import *
 
 def printError(msg):
 	# Prints formatted error message

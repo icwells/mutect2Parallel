@@ -13,28 +13,35 @@ from unixpath import checkDir
 
 def covB(conf, samples, a, b):
 	# Calls bcf isec and uses output to generate bed files for each comparison
-	sample[a].updateStatus("starting", "filtering_covB")
-	bed = vcf2bed(sample[b].Private)
-	if not bed:
-		# Return none if failed
-		sample.updateStatus("failed")
-		appendLog(conf, samples[a])	
-		return None
-	samples[b].Bed = bed
-	bvar = unifiedGenotyper(conf, samples, a, b)
+	run = False
+	if samples[a].Step == "filtering_germline" and samples[a].Status == "complete":
+		run = True
+	if samples[a].Step == "filtering_covB" and samples[a].Status != "complete":
+		run = True
+	if run == True:
+		sample[a].updateStatus("starting", "filtering_covB")
+		bed = vcf2bed(sample[b].Private)
+		if not bed:
+			# Return none if failed
+			sample.updateStatus("failed")
+			appendLog(conf, samples[a])	
+			return None
+		samples[b].Bed = bed
+		bvar = unifiedGenotyper(conf, samples, a, b)
+		return bvar
 
-def rmGermline(conf, sample):
+def rmGermline(conf, sample, outpath):
 	# Calls filterMutectCalls and SnpSift to remove germline risks
 	if sample.Step == "mutect" and sample.Status == "complete":
 		sample.updateStatus("starting", "filtering_germline")
 		infile = sample.Output
-		unfiltered = filterCalls(conf, infile, False, variants["outpath"])
+		unfiltered = filterCalls(conf, infile, False, outpath)
 		if unfiltered:
 			# Record unfiltered reads
 			sample.updateStatus("complete", "filtering_germline", unfiltered, True)
 		else:
 			sample.updateStatus("failed")
-		appendLog(conf, samples[s])	
+		appendLog(conf, sample)	
 	return sample	
 
 def filterPair(conf, flog, ulog, variants):
@@ -43,7 +50,7 @@ def filterPair(conf, flog, ulog, variants):
 	conf["log"] = variants["log"]
 	samples = variants["samples"]
 	for s in ["A", "B"]:
-		samples[s] = rmGermline(conf, samples[s])
+		samples[s] = rmGermline(conf, samples[s], variants["outpath"])
 	# Add summary to unfiltered log and use output of bcfIsec
 	status = compareVCFs(conf, ulog, variants["ID"], samples)
 	if status == True:

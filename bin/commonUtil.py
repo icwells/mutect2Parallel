@@ -20,28 +20,26 @@ class Sample():
 
 	def update(self, sample, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
+		save = False
 		if not self.Name:
 			self.Name = sample
 		if not self.ID:
 			self.ID = name
 		if step == "comparison":
-			self.Step = step
-			self.Output = outfile
-			self.Status = status
+			save = True
 		elif step == "filtering_covB" and self.Step != "comparison":
-			self.Step = step
-			self.Output = outfile
-			self.Status = status
+			save = True
 		elif step == "filtering_germline" and self.Step == "mutect":
+			save = True
+		elif step == "mutect" and not self.Step or self.Step == "mutect":
+			self.Unfiltered = outfile
+			save = True
+		elif step == "normal" and not self.Step:
+			save = True
+		if save == True:
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
-		elif step == "mutect":
-			if status == "complete" or self.Status == "starting":
-				self.Unfiltered = outfile
-				self.Step = step
-				self.Output = outfile
-				self.Status = status
 		if getExt(outfile) == "bam":
 			self.Bam = outfile
 
@@ -84,14 +82,14 @@ def getStatus(log):
 
 def appendLog(conf, s):
 	# Appends checkpoint status to log file
-	if s.Step == "mutect" and self.Status == "starting":
+	if s.Step == "mutect" and s.Status == "starting":
 		# Record infile instead of outfile
 		out = s.Infile
 	elif "isec1" in s.Step and s.Private:
 		# Record private vcf
 		out = s.Private
 	else:
-		out = self.Output
+		out = s.Output
 	with open(conf["log"], "a") as l:
 			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Sample,s.ID, s.Step, s.Status, out))
 
