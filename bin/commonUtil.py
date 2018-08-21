@@ -1,7 +1,7 @@
 '''This script contains functions for adding readgroups to bam files, as well as indexing and extracting readgroups'''
 
 import os
-from unixpath import checkFile, getFileName
+from unixpath import *
 
 class Sample():
 	# Stores data for managing sample progress
@@ -12,6 +12,8 @@ class Sample():
 		self.Status = ""
 		self.Status = ""
 		self.Output = ""
+		self.Private = None
+		self.Bed = None
 		self.Bam = None
 		self.Input = None
 		self.Unfiltered = None
@@ -26,15 +28,22 @@ class Sample():
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
+		elif step == "filtering_covB" and self.Step != "comparison":
+			self.Step = step
+			self.Output = outfile
+			self.Status = status
 		elif step == "filtering_germline" and self.Step == "mutect":
 			self.Step = step
 			self.Output = outfile
 			self.Status = status
 		elif step == "mutect":
-			self.Unfiltered = outfile
-			self.Step = step
-			self.Output = outfile
-			self.Status = status
+			if status == "complete" or self.Status == "starting":
+				self.Unfiltered = outfile
+				self.Step = step
+				self.Output = outfile
+				self.Status = status
+		if getExt(outfile) == "bam":
+			self.Bam = outfile
 
 	def updateStatus(self, status, step = None, outfile = None, unfilt = False):
 		# Updates current status of sample
@@ -43,6 +52,8 @@ class Sample():
 			self.Step = step
 		if outfile:
 			self.Output = outfile
+			if getExt(outfile) == "bam":
+				self.Bam = outfile
 		if unfilt == True:
 			self.Unfiltered = outfile
 
@@ -73,8 +84,16 @@ def getStatus(log):
 
 def appendLog(conf, s):
 	# Appends checkpoint status to log file
+	if s.Step == "mutect" and self.Status == "starting":
+		# Record infile instead of outfile
+		out = s.Infile
+	elif "isec1" in s.Step and s.Private:
+		# Record private vcf
+		out = s.Private
+	else:
+		out = self.Output
 	with open(conf["log"], "a") as l:
-			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Sample,s.ID, s.Step, s.Status, s.Output))
+			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Sample,s.ID, s.Step, s.Status, out))
 
 def getOpt(conf, cmd):
 	# Adds common flags to command

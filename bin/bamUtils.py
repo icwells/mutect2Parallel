@@ -5,6 +5,7 @@ import gzip
 import pysam
 from subprocess import Popen
 from shlex import split
+from unixpath import getFileName
 
 def runProc(cmd, log = None):
 	# Wraps call to Popen, writes stdout/stdout err to log/devnull, returns True if no errors
@@ -23,7 +24,7 @@ def runProc(cmd, log = None):
 				proc += " " + s[1]
 			elif proc == "java":
 				# Replace call to jar with name of jar
-				proc = s[2]
+				proc = getFileName(s[2])
 			print(("\t[Warning] Could not call {}").format(proc))
 			return False
 
@@ -39,9 +40,8 @@ def tabix(vcf, force = False):
 			gz = None
 	return gz
 
-def bcfMerge(path, com):
+def bcfMerge(outfile, com):
 	# Calls bftools concat on input files
-	outfile = path + "common.vcf"
 	cmd = ("bcftools merge --force-samples -O v -o {} {} {}").format(outfile, com[0], com[1])
 	res = runProc(cmd)
 	if res == False:
@@ -92,6 +92,51 @@ def bcfIsec(outpath, vcfs):
 			# Number of unique variants to each sample and number of shared
 			a = getTotal(outpath + "/0000.vcf")
 	return a
+
+#-----------------------------------------------------------------------------
+
+def unifiedGenotyper(conf, samples, a, b):
+	# Returns summary of unified genotyper output
+	gt = samples[a].Output.replace("noGermline", "covB")
+	log = gt.replace("vcf", "stdout")
+	outfile = gt.replace("vcf", "tsv")
+	if "gatk" in conf.keys():
+		cmd = ("java -Xms512m -Xmx6G -jar {} -T UnifiedGenotyper ").format(conf["gatk"])
+	else:
+		cmd = "gatk -T UnifiedGenotyper "
+	cmd += ("-R {} -I {} -o {} ").format(conf["ref"], samples[a].Bam, gt)
+	cmd += ("--intervals {} --output_mode EMIT_ALL_SITES > {} 2>&1").format(samples[b].Bed, log)
+	# Log is supplied in call to gatk, so it is not given below
+	res1 = runProc(cmd)
+	if res1 == True:
+		sub = ('cat {} | sed "/^#/d" | ').format(gt)
+		sub += "perl -lane '$F[9]=~s/^[^:]*:([^:]*).*/$1/;@reads=split(\",\",$F[9]);$reads[1]==\"\" and $reads[1]=0;if($reads[0] eq \"./.\"){$readsref=0;$readsout=0}else{$readsref=splice(@reads,0,1);$readsout=join(\",\",@reads)};print join(\"\t\",@F[0,1,3,4],$readsref,$readsout)'"
+		sub += (" > {}").format(outfile)
+		res2 = runProc(sub)
+		if res2 == True:
+			return outfile
+	return None
+
+def vcf2bed(vcf):
+	# Converts target vcf to bed file, returns file name
+	path = vcf[:vcf.rfind(".")]
+	deletions = path + "_deletions.bed"
+	snvs =  path + "_snvs.bed"
+	bed = path + ".bed"
+	# Get bed of deletions
+	dlt = ("vcf2bed --deletions < {} > {}").format(vcf, deletions)
+	res1 = runProc(dlt)
+	if res1 == True:
+		# Get bed of single nucleotide variants
+		snv = ("vcf2bed --snvs < {} > {}").format(vcf, snvs)
+		res2 = runProc(snv)
+		if res2 == True:
+			# Merge beds
+			bdp = ("bedops --everything {} {} | awk 'BEGIN{OFS=\"\t\"}{print($1,$2,$3)}' > {}").format(deletions, snvs, bed)
+			res3 = runProc(bdp)
+			if res3 == True:
+				return bed
+	return None
 
 #-----------------------------------------------------------------------------
 

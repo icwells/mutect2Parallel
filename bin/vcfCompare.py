@@ -10,7 +10,7 @@ def printError(msg):
 #-------------------------------Comparison------------------------------------
 
 def comparePair(outpath, vcfs):
-	# Calls gatk and pyvcf to filter and compare given pair of
+	# Calls bcftools on pair of reads if both exist
 	for i in range(len(vcfs)):
 		if vcfs[i] and os.path.isfile(vcfs[i]):
 			# Make sure files are bgzipped
@@ -26,14 +26,18 @@ def comparePair(outpath, vcfs):
 
 def compareVCFs(conf, log, name, samples):
 	# Compares unfilted vs. passed results for each combination of pair of samples
-	ret = False
 	outpath = conf["outpath"] + name + "/"
-	s1, s2 = list(samples.keys())
-	aout = outpath + samples[s1].ID
-	bout = outpath + samples[s2].ID
+	if "Unfiltered" in log:
+		aout = outpath + "A_unfiltered"
+		bout = outpath + "B_unfiltered"
+		count = outpath + "common_unfiltered.vcf"
+	else:
+		aout = outpath + "A_filtered"
+		bout = outpath + "B_filtered"
+		count = outpath + "common_filtered.vcf"
 	# Append filtered sample name when submitting
 	if getTotal(samples[s1].Output) > 0:
-		a = comparePair(aout, [samples[s1].Output, samples[s2].Unfiltered])
+		a = comparePair(aout, [samples["A"].Output, samples["B"].Unfiltered])
 	else:
 		a = 0
 	if getTotal(samples[s2].Output) > 0:
@@ -44,7 +48,8 @@ def compareVCFs(conf, log, name, samples):
 		# Merge common variants and get total and similarity
 		acom = tabix(aout + "/0002.vcf")
 		bcom = tabix(bout + "/0002.vcf")
-		common = bcfMerge(outpath, [acom, bcom])
+
+		common = bcfMerge(cout, [acom, bcom])
 		if common and os.path.isfile(common):
 			c = getTotal(common)
 			try:
@@ -56,8 +61,7 @@ def compareVCFs(conf, log, name, samples):
 		sim = 0.0
 	with open(log, "a") as out:
 		out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
-	ret = True
-	return ret
+	return True
 
 #-------------------------------Filtering-------------------------------------
 

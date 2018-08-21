@@ -81,6 +81,8 @@ def submitFiles(conf, samples, infile):
 		s.update(sample, name, "mutect", "starting", conf["outpath"] + name + ".vcf")
 	s.Input = infile
 	if s.Step == "mutect" and s.Status != "complete":
+		# Record input and call mutect2
+		appendLog(conf, s)	
 		s = submitSample(infile, conf, s, name)
 	return s
 
