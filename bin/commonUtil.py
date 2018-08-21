@@ -91,7 +91,7 @@ def appendLog(conf, s):
 	else:
 		out = s.Output
 	with open(conf["log"], "a") as l:
-			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Sample,s.ID, s.Step, s.Status, out))
+			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Name, s.ID, s.Step, s.Status, out))
 
 def getOpt(conf, cmd):
 	# Adds common flags to command
