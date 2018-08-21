@@ -1,26 +1,25 @@
 '''This script contains functions for adding readgroups to bam files, as well as indexing and extracting readgroups'''
 
 import os
-from unixpath import checkFile
+from unixpath import checkFile, getFileName
 
 class Sample():
 	# Stores data for managing sample progress
 	def __init__(self):
-		self.Sample = ""
+		self.Name = ""
 		self.ID = ""
 		self.Step = ""
 		self.Status = ""
 		self.Status = ""
 		self.Output = ""
-		self.Normal = ""
 		self.Bam = None
 		self.Input = None
 		self.Unfiltered = None
 
 	def update(self, sample, name, step, status, outfile):
 		# Sorts and updates entry with additional status update
-		if not self.Sample:
-			self.Sample = sample
+		if not self.Name:
+			self.Name = sample
 		if not self.ID:
 			self.ID = name
 		if step == "comparison":
@@ -37,7 +36,7 @@ class Sample():
 			self.Output = outfile
 			self.Status = status
 
-	def updateStatus(self, status, step = None, outfile = None, unfilt = False)
+	def updateStatus(self, status, step = None, outfile = None, unfilt = False):
 		# Updates current status of sample
 		self.status = status
 		if step:
@@ -109,14 +108,10 @@ def checkOutput(outdir, normal, prnt = True):
 			for line in f:
 				if first == False and line.strip():
 					line = line.strip().split("\t")
-					if line[0] == "N":
-		 				# Record normal
-						norm = line[-1]
 					if len(line) == 5:
 						if line[0] not in done.keys():
 							# Initialize new sample entry
 							done[line[0]] = Sample()
-							done[line[0]].Normal = norm
 						done[line[0]].update(line[0], line[1], line[2], line[3], line[4])
 				else:
 					# Skip header
@@ -125,7 +120,7 @@ def checkOutput(outdir, normal, prnt = True):
 		with open(log, "w") as f:
 			# Initialize log file and record normal file
 			f.write("Sample\tName\tStep\tStatus\tOutput\n")
-			f.write("N\t\tnormal\t{}".format(normal))
+			f.write("N\t{}\tnormal\tcomplete\t{}".format(getFileName(normal), normal))
 	return log, done
 
 def configEntry(conf, arg, key):

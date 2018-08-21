@@ -32,7 +32,7 @@ def filterPair(conf, log, variants):
 	samples = variants["samples"]
 	for s in samples.keys():
 		samples[s] = rmGermline(conf, samples[s])
-
+	
 
 
 	if compare == True:
