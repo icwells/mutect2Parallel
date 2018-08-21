@@ -15,7 +15,7 @@ def callMutect(cmd, name, outfile):
 	print(("\tCalling mutect on {}...").format(name))
 	# Make log file
 	log = outfile.replace("vcf", "stdout")
-	res = runProc(cmdf, log)
+	res = runProc(cmd, log)
 	if res == True and getStatus(log) == True:
 		print(("\t{} has completed mutect analysis.").format(name))
 		if os.path.isfile(outfile + ".idx"):
