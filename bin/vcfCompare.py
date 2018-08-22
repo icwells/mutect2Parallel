@@ -37,12 +37,12 @@ def compareVCFs(conf, log, name, samples):
 		bout = outpath + "B_filtered"
 		count = outpath + "common_filtered.vcf"
 	# Append filtered sample name when submitting
-	if getTotal(samples[s1].Output) > 0:
+	if getTotal(samples["A"].Output) > 0:
 		a = comparePair(aout, [samples["A"].Output, samples["B"].Unfiltered])
 	else:
 		a = 0
-	if getTotal(samples[s2].Output) > 0:
-		b = comparePair(bout, [samples[s2].Output, samples[s1].Unfiltered])
+	if getTotal(samples["B"].Output) > 0:
+		b = comparePair(bout, [samples["B"].Output, samples["A"].Unfiltered])
 	else:
 		b = 0
 	if a > 0 and b > 0:
@@ -61,14 +61,15 @@ def compareVCFs(conf, log, name, samples):
 		c = 0
 		sim = 0.0
 	with open(log, "a") as out:
-		out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples[s1].ID, samples[s2].ID, a, b, c, sim))
+		out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, samples["A"].ID, samples["B"].ID, a, b, c, sim))
 	return True
 
 #-------------------------------Filtering-------------------------------------
 
 def snpsiftOpt(conf, typ):
-	# Formats command with approriate parameters
+	# Returns string with approriate parameters
 	k = conf.keys()
+	print(k)
 	params = "("
 	if typ == "a":
 		params += "(FILTER != germline_risk) & "
@@ -80,7 +81,7 @@ def snpsiftOpt(conf, typ):
 			params += "((NR >= {}) & (NF >= {})) & ".format(conf["min_reads_strand"], conf["min_reads_strand"])
 		if "min_reads_alt" in k:
 			params += "(GEN[*].NV[*] >= {}) & ".format(conf["min_reads_alt"])
-	'''elif typ == "b":
+	elif typ == "b":
 		params += "(FILTER != germline_risk) & "
 		if "min_covB" in k:
 			params += "(GEN[ALL].DP[*] >= {}) & ".format(conf["min_covB"])
@@ -88,11 +89,13 @@ def snpsiftOpt(conf, typ):
 			params += "(GEN[*].NV[*] <= {}) & ".format(conf["max_altB"])
 		if "max_prop_altB" in k:
 			params += "(GEN[*].NV[*] <= {}) & ".format(conf["max_prop_altB"])
-	elif typ == "n":'''
+	'''elif typ == "n":'''
 
-	# Replace trailing spaces and ampersand with close parentheses
-	params = params[:-3] + ")"
-	return params	
+	if len(params) > 3:
+		# Replace trailing spaces and ampersand with close parentheses
+		return params[:-3] + ")"
+	else:
+		return None	
 
 def snpsiftFilter(conf, vcf, typ):
 	# Calls bcftools to filter calls before calling isec
@@ -103,8 +106,11 @@ def snpsiftFilter(conf, vcf, typ):
 		cmd = ("java -jar {} filter ").format(conf["snpsift"])
 	else:
 		cmd = "snpsift filter "
-	cmd += snpsiftOpt(conf, typ)
-	cmd += " -f {} > {}".format(vcf, outfile)
+	opt = snpsiftOpt(conf, typ)
+	if opt:
+		cmd += (' "{}"').format(opt)
+	cmd += (" -f {} > {}").format(vcf, outfile)
+	print(cmd)
 	res = runProc(cmd, log)
 	if res == False:
 		outfile = None

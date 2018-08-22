@@ -1,7 +1,7 @@
 '''This script will filter mutect2 output files.'''
 
 import os
-from shutil import copy
+from shutil import copy, rmtree
 from argparse import ArgumentParser
 from datetime import datetime
 from glob import glob
@@ -11,31 +11,46 @@ from commonUtil import *
 from vcfCompare import *
 from unixpath import checkDir
 
+def cleanUp(outpath):
+	# Removes intermediate files
+	paths = glob(outpath + "*")
+	for i in paths:
+		if os.path.isdir(i):
+			if "_unfiltered" in i:
+				# Remove intermediate isec results
+				rmtree(i)
+		else:
+			if ".stdout" in i:	
+				# Remove logs
+				os.remove(i)
+			elif ".unfiltered" in i or ".noGermline" in i:
+				# Remove unfiltered results
+				os.remove(i)
+
 def covB(conf, samples, a, b):
 	# Calls bcf isec and uses output to generate bed files for each comparison
 	run = False
 	if samples[a].Step == "filtering_germline" and samples[a].Status == "complete":
 		run = True
-	if samples[a].Step == "filtering_covB" and samples[a].Status != "complete":
+	elif samples[a].Step == "filtering_covB" and samples[a].Status != "complete":
 		run = True
 	if run == True:
-		sample[a].updateStatus("starting", "filtering_covB")
+		samples[a].updateStatus("starting", "filtering_covB")
 		bed = vcf2bed(sample[b].Private)
 		if not bed:
 			# Return none if failed
-			sample.updateStatus("failed")
+			samples[a].updateStatus("failed")
 			appendLog(conf, samples[a])	
 			return None
 		samples[b].Bed = bed
 		bvar = unifiedGenotyper(conf, samples, a, b)
-		return bvar
+		return samples
 
 def rmGermline(conf, sample, outpath):
 	# Calls filterMutectCalls and SnpSift to remove germline risks
 	if sample.Step == "mutect" and sample.Status == "complete":
 		sample.updateStatus("starting", "filtering_germline")
-		infile = sample.Output
-		unfiltered = filterCalls(conf, infile, False, outpath)
+		unfiltered = filterCalls(conf, sample.Output, "a", outpath)
 		if unfiltered:
 			# Record unfiltered reads
 			sample.updateStatus("complete", "filtering_germline", unfiltered, True)
@@ -46,23 +61,31 @@ def rmGermline(conf, sample, outpath):
 
 def filterPair(conf, flog, ulog, variants):
 	# Filters and compares pair of samples
-	compare = False
+	covb = False
+	nan = False
 	conf["log"] = variants["log"]
 	samples = variants["samples"]
 	for s in ["A", "B"]:
 		samples[s] = rmGermline(conf, samples[s], variants["outpath"])
 	# Add summary to unfiltered log and use output of bcfIsec
 	status = compareVCFs(conf, ulog, variants["ID"], samples)
-	if status == True:
-		# Update statuses
-		for s in ["A", "B"]:
-			self.Private = ("{}{}/{}_unfiltered/0000.vcf").format(conf["outpath"], variants["ID"], s)
+	# Update statuses
+	for s in ["A", "B"]:
+		if status == True:
+			samples[s].Private = ("{}{}/{}_unfiltered/0000.vcf").format(conf["outpath"], variants["ID"], s)
 			samples[s].updateStatus = ("complete", "filtering_isec1")
-			appendLog(conf, samples[s])
-	samples["A"] = covB(conf, samples, "A", "B")
-	samples["B"] = covB(conf, samples, "B", "A")
+			covb = True
+		else:
+			samples[s].updateStatus = ("failed", "filtering_isec1")
+	appendLog(conf, samples[s])
+	if covb == True:
+		samples = covB(conf, samples, "A", "B")
+		samples = covB(conf, samples, "B", "A")
 
-	return [compare, variants["ID"]]
+	if nan == True and conf["cleanup"] == True:
+		# Remove intermediary files if indicated and program exited successfully
+		cleanUp(variants["outpath"])
+	return [nan, variants["ID"]]
 
 #--------------------------------------------I/O------------------------------
 

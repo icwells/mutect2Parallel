@@ -71,6 +71,8 @@ def getStatus(log):
 	ret = False
 	with open(log, "r") as l:
 		for line in l:
+			if "error" in line.lower():
+				break
 			if "Tool returned:" in line:
 				status = True
 			elif status == True:
@@ -84,7 +86,7 @@ def appendLog(conf, s):
 	# Appends checkpoint status to log file
 	if s.Step == "mutect" and s.Status == "starting":
 		# Record infile instead of outfile
-		out = s.Infile
+		out = s.Input
 	elif "isec1" in s.Step and s.Private:
 		# Record private vcf
 		out = s.Private
