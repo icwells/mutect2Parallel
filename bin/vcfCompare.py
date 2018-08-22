@@ -69,7 +69,6 @@ def compareVCFs(conf, log, name, samples):
 def snpsiftOpt(conf, typ):
 	# Returns string with approriate parameters
 	k = conf.keys()
-	print(k)
 	params = "("
 	if typ == "a":
 		params += "(FILTER != germline_risk) & "
@@ -82,7 +81,6 @@ def snpsiftOpt(conf, typ):
 		if "min_reads_alt" in k:
 			params += "(GEN[*].NV[*] >= {}) & ".format(conf["min_reads_alt"])
 	elif typ == "b":
-		params += "(FILTER != germline_risk) & "
 		if "min_covB" in k:
 			params += "(GEN[ALL].DP[*] >= {}) & ".format(conf["min_covB"])
 		if "max_altB" in k:
