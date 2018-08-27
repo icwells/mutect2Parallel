@@ -154,6 +154,11 @@ Can be used to genrate a new panel of normals. This script will be called by mut
 
 ### Utilities  
 
+#### checkLogs.py  
+This script will check the output logs from mutect2parallel to identify any samples which were not successful.  
+
+	outdir	Path to output directory of mutect2 parallel.  
+
 #### getActiveRegion.py 
 Can be used to subset a bed annotation to examine specific regions. 
 
