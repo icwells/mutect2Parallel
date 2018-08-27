@@ -139,7 +139,7 @@ def checkOutput(outdir, normal, prnt = True):
 		with open(log, "w") as f:
 			# Initialize log file and record normal file
 			f.write("Sample\tName\tStep\tStatus\tOutput\n")
-			f.write("N\t{}\tnormal\tcomplete\t{}".format(getFileName(normal), normal))
+			f.write("N\t{}\tnormal\tcomplete\t{}\n".format(getFileName(normal), normal))
 	return log, done
 
 def configEntry(conf, arg, key):
