@@ -41,12 +41,11 @@ def submitSample(infile, conf, s, name):
 	# Assemble command
 	if "gatk" in conf.keys():
 		# Format command for calling gatk jar
-		cmd = ("java -jar {} Mutect2 -R {} ").format(conf["gatk"], conf["reference"])
+		cmd = ("java -jar {} Mutect2 -RF AllowAllReadsReadFilter -R {} ").format(conf["gatk"], conf["reference"])
 	else:
 		# Format command for colling gatk from path
-		cmd = ("gatk Mutect2 -R {} ").format(conf["reference"])
-	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, 
-										bam, conf["normal"], s.Output)
+		cmd = ("gatk Mutect2 -RF AllowAllReadsReadFilter -R {} ").format(conf["reference"])
+	cmd += ("--tumor-sample {} -I {} -I {} --output {}").format(tumorname, bam, conf["normal"], s.Output)
 	if "bamout" in conf.keys() and conf["bamout"] == True:
 		s.Bam = s.Output[:s.Output.find(".")] + ".Mutect2.bam"
 		cmd += (" --bamout {}").format(s.Bam)
