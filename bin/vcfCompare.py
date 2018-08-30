@@ -66,12 +66,12 @@ def compareVCFs(conf, log, name, samples):
 
 #-------------------------------Filtering-------------------------------------
 
-def snpsiftOpt(conf, typ):
+def filterOpt(conf, typ):
 	# Returns string with approriate parameters
 	k = conf.keys()
-	params = "("
+	params = ""
 	if typ == "a":
-		params += "(FILTER != germline_risk) & "
+		params += "FILTER != 'germline_risk' & "
 		if "qual" in k:
 			params += "(QUAL >= {}) & ".format(conf["qual"])
 		if "min_covA" in k:

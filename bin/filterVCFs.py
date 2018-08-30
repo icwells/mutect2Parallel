@@ -47,7 +47,7 @@ def covB(conf, samples, a, b):
 		return samples
 
 def rmGermline(conf, sample, outpath):
-	# Calls filterMutectCalls and SnpSift to remove germline risks
+	# Calls filterMutectCalls and bcftools to remove germline risks
 	if sample.Step == "mutect" and sample.Status == "complete":
 		sample.updateStatus("starting", "filtering_germline")
 		unfiltered = filterCalls(conf, sample.Output, "a", outpath)

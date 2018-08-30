@@ -173,10 +173,7 @@ def getOptions(conf, line):
 			checkFile(conf["gatk"])
 		elif target == "Picard_jar":
 			conf["picard"] = val
-			checkFile(conf["picard"])	
-		elif target == "SnpSift_jar":
-			conf["snpsift"] = val
-			checkFile(conf["snpsift"])	
+			checkFile(conf["picard"])
 		elif target == "normal_panel":
 			conf["pon"] = val
 			checkFile(conf["pon"])

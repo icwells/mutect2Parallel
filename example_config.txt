@@ -1,7 +1,6 @@
 # Java jars (omit if loading modules on a server grid)
 GATK_jar = 
 Picard_jar = 
-SnpSift_jar = 
 
 # General options
 reference_genome = 
