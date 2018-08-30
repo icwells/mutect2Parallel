@@ -102,13 +102,12 @@ def bcfFilter(conf, vcf, typ):
 		fmt = "z"
 	if "unfiltered" in vcf:
 		outfile = vcf.replace("unfiltered", "noGermline")
-	log = outfile.replace("vcf", "stdout")
 	# Get command with output format and file
 	cmd = ("bcftools filter -O {} -o {} ").format(fmt, outfile)
 	opt = filterOpt(conf, typ)
 	if opt:
 		cmd += ('-i "{}" ').format(opt)
-	res = runProc(cmd + vcf, log)
+	res = runProc(cmd + vcf)
 	if res == False:
 		outfile = None
 	return outfile

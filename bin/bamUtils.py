@@ -131,9 +131,10 @@ def vcf2bed(vcf):
 		snv = ("vcf2bed --snvs < {} > {}").format(vcf, snvs)
 		res2 = runProc(snv)
 		if res2 == True:
-			# Merge beds
-			bdp = ("bedops --everything {} {} | awk 'BEGIN{OFS=\"\t\"}{print($1,$2,$3)}' > {}").format(deletions, snvs, bed)
-			res3 = runProc(bdp)
+			# Merge beds (use multiple lines to avoid escaping braces)
+			bdp = ("bedops --everything {} {} ").format(deletions, snvs)
+			bdp += "| awk 'BEGIN{OFS=\"\t\"}{print($1,$2,$3)}' > "
+			res3 = runProc(bdp + bed)
 			if res3 == True:
 				return bed
 	return None

@@ -35,8 +35,8 @@ def covB(conf, samples, a, b):
 	elif samples[a].Step == "filtering_covB" and samples[a].Status != "complete":
 		run = True
 	if run == True:
-		samples[a].updateStatus("starting", "filtering_covB")
-		bed = vcf2bed(sample[b].Private)
+		#samples[a].updateStatus("starting", "filtering_covB")
+		bed = vcf2bed(samples[b].Private)
 		if not bed:
 			# Return none if failed
 			samples[a].updateStatus("failed")
@@ -44,7 +44,7 @@ def covB(conf, samples, a, b):
 			return None
 		samples[b].Bed = bed
 		bvar = unifiedGenotyper(conf, samples, a, b)
-		return samples
+	return samples
 
 def rmGermline(conf, sample, outpath):
 	# Calls filterMutectCalls and bcftools to remove germline risks
