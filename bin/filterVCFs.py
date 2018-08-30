@@ -30,14 +30,14 @@ def cleanUp(outpath):
 def covB(conf, samples):
 	# Calls bcf isec and uses output to generate bed files for each comparison
 	run = False
-	if samples["A"].Step == "filtering_germline" and samples[a].Status == "complete":
+	if samples["A"].Step == "filtering_germline" and samples["A"].Status == "complete":
 		run = True
-	elif samples["A"].Step == "filtering_covB" and samples[a].Status != "complete":
+	elif samples["A"].Step == "filtering_covB" and samples["B"].Status != "complete":
 		run = True
 	if run == True:
 		# Update statuses and get output file names and log
-		samples["A"].updateStatus("starting", "filtering_covB")
-		samples["B"].updateStatus("starting", "filtering_covB")
+		'''samples["A"].updateStatus("starting", "filtering_covB")
+		samples["B"].updateStatus("starting", "filtering_covB")'''
 		log = conf["log"].replace("mutectLog.txt", "bedops.stdout")
 		samples["A"].Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
 		samples["B"].Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
@@ -45,7 +45,7 @@ def covB(conf, samples):
 		cmd = ("bash covB.sh {} {} {} {} ").format(samples["A"].Private, samples["B"].Private, samples["B"].Output, samples["A"].Output)
 		cmd += ("{} {} {} {}").format(samples["A"].Bam, samples["B"].Bam, conf["ref"], conf["gatk"])
 		res = runProc(cmd, log)
-		if res == True:
+		'''if res == True:
 			# Output names have already been updated
 			samples["A"].updateStatus("complete")
 			samples["B"].updateStatus("complete")
@@ -53,12 +53,17 @@ def covB(conf, samples):
 			samples["A"].updateStatus("failed")
 			samples["B"].updateStatus("failed")
 		appendLog(conf, samples["A"])
-		appendLog(conf, samples["B"])
+		appendLog(conf, samples["B"])'''
 	return samples
 
 def rmGermline(conf, sample, outpath):
 	# Calls filterMutectCalls and bcftools to remove germline risks
+	run = False
 	if sample.Step == "mutect" and sample.Status == "complete":
+		run = True
+	elif sample.Step == "filtering_germline" and sample.Status == "failed":
+		run == True
+	if run == True:
 		sample.updateStatus("starting", "filtering_germline")
 		unfiltered = filterCalls(conf, sample.Output, "a", outpath)
 		if unfiltered:
