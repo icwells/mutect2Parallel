@@ -18,10 +18,8 @@ contaminant_estimate =
 mutect_options = 
 
 # The following are options for filtering output vcfs
-qual = 120
 min_covA = 20
 min_reads_strand = 10
-min_reads_alt = 0
 min_covB = 15
 max_altB = 9
 max_prop_altB = 0.05

@@ -191,18 +191,12 @@ def getOptions(conf, line):
 			conf["contaminant"] = val
 			checkFile(conf["contaminant"])
 		# Get filtereing parameters
-		elif target == "qual":
-			conf["qual"] = int(val)
 		elif target == "min_covA":
 			conf["min_covA"] = int(val)
 		elif target == "min_reads_strand":
 			conf["min_reads_strand"] = int(val)
-		elif target == "min_reads_alt":
-			conf["min_reads_alt"] = int(val)
 		elif target == "min_covB":
 			conf["min_covB"] = int(val)
-		elif target == "max_altB":
-			conf["max_altB"] = int(val)
 		elif target == "max_prop_altB":
 			conf["max_prop_altB"] = float(val)
 		elif target == "max_covN":

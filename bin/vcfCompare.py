@@ -31,11 +31,11 @@ def compareVCFs(conf, log, name, samples):
 	if "Unfiltered" in log:
 		aout = outpath + "A_unfiltered"
 		bout = outpath + "B_unfiltered"
-		count = outpath + "common_unfiltered.vcf"
+		cout = outpath + "common_unfiltered.vcf"
 	else:
 		aout = outpath + "A_filtered"
 		bout = outpath + "B_filtered"
-		count = outpath + "common_filtered.vcf"
+		cout = outpath + "common_filtered.vcf"
 	# Append filtered sample name when submitting
 	if getTotal(samples["A"].Output) > 0:
 		a = comparePair(aout, [samples["A"].Output, samples["B"].Unfiltered])
@@ -66,50 +66,49 @@ def compareVCFs(conf, log, name, samples):
 
 #-------------------------------Filtering-------------------------------------
 
+def fmtParameters(params):
+	# Adds ampersand to parameters if needed
+	if len(params) > 0:
+		params += " & "
+	return params
+
 def filterOpt(conf, typ):
 	# Returns string with approriate parameters
 	k = conf.keys()
 	params = ""
 	if typ == "a":
-		params += "FILTER != 'germline_risk' & "
-		if "qual" in k:
-			params += "(QUAL >= {}) & ".format(conf["qual"])
+		params += "FILTER != 'germline_risk' & QUAL == '.'"
 		if "min_covA" in k:
-			params += "(GEN[ALL].DP[*] >= {}) & ".format(conf["min_covA"])
+			params = fmtParameters(params)
+			params += "DP[*] >= {}".format(conf["min_covA"])
 		if "min_reads_strand" in k:
-			params += "((NR >= {}) & (NF >= {})) & ".format(conf["min_reads_strand"], conf["min_reads_strand"])
-		if "min_reads_alt" in k:
-			params += "(GEN[*].NV[*] >= {}) & ".format(conf["min_reads_alt"])
+			params = fmtParameters(params)
+			params += "F1R2[*] >= {} & F2R1[*] >= {}".format(conf["min_reads_strand"], conf["min_reads_strand"])
 	elif typ == "b":
 		if "min_covB" in k:
-			params += "(GEN[ALL].DP[*] >= {}) & ".format(conf["min_covB"])
-		if "max_altB" in k:
-			params += "(GEN[*].NV[*] <= {}) & ".format(conf["max_altB"])
+			params = fmtParameters(params)
+			params += "DP[*] >= {}".format(conf["min_covB"])
 		if "max_prop_altB" in k:
-			params += "(GEN[*].NV[*] <= {}) & ".format(conf["max_prop_altB"])
+			params = fmtParameters(params)
+			params += "AF[*] <= {}".format(conf["max_prop_altB"])
 	'''elif typ == "n":'''
 
-	if len(params) > 3:
-		# Replace trailing spaces and ampersand with close parentheses
-		return params[:-3] + ")"
-	else:
-		return None	
+	return params
 
-def snpsiftFilter(conf, vcf, typ):
+def bcfFilter(conf, vcf, typ):
 	# Calls bcftools to filter calls before calling isec
+	fmt = "v"
+	if ".gz" in vcf:
+		fmt = "z"
 	if "unfiltered" in vcf:
 		outfile = vcf.replace("unfiltered", "noGermline")
 	log = outfile.replace("vcf", "stdout")
-	if "snpsift" in conf.keys():
-		cmd = ("java -jar {} filter ").format(conf["snpsift"])
-	else:
-		cmd = "snpsift filter "
-	opt = snpsiftOpt(conf, typ)
+	# Get command with output format and file
+	cmd = ("bcftools filter -O {} -o {} ").format(fmt, outfile)
+	opt = filterOpt(conf, typ)
 	if opt:
-		cmd += (' "{}"').format(opt)
-	cmd += (" -f {} > {}").format(vcf, outfile)
-	print(cmd)
-	res = runProc(cmd, log)
+		cmd += ('-i "{}" ').format(opt)
+	res = runProc(cmd + vcf, log)
 	if res == False:
 		outfile = None
 	return outfile
@@ -130,6 +129,6 @@ def filterCalls(conf, vcf, typ, outdir = None):
 	cmd += ("-V {} -O {}").format(vcf, outfile)
 	res = runProc(cmd, log)
 	if res == True and getStatus(log) == True:
-		return snpsiftFilter(conf, outfile, typ)
+		return bcfFilter(conf, outfile, typ)
 	else:
 		return None
