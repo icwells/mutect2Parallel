@@ -27,23 +27,33 @@ def cleanUp(outpath):
 				# Remove unfiltered results
 				os.remove(i)
 
-def covB(conf, samples, a, b):
+def covB(conf, samples):
 	# Calls bcf isec and uses output to generate bed files for each comparison
 	run = False
-	if samples[a].Step == "filtering_germline" and samples[a].Status == "complete":
+	if samples["A"].Step == "filtering_germline" and samples[a].Status == "complete":
 		run = True
-	elif samples[a].Step == "filtering_covB" and samples[a].Status != "complete":
+	elif samples["A"].Step == "filtering_covB" and samples[a].Status != "complete":
 		run = True
 	if run == True:
-		#samples[a].updateStatus("starting", "filtering_covB")
-		bed = vcf2bed(samples[b].Private)
-		if not bed:
-			# Return none if failed
-			samples[a].updateStatus("failed")
-			appendLog(conf, samples[a])	
-			return None
-		samples[b].Bed = bed
-		bvar = unifiedGenotyper(conf, samples, a, b)
+		# Update statuses and get output file names and log
+		samples["A"].updateStatus("starting", "filtering_covB")
+		samples["B"].updateStatus("starting", "filtering_covB")
+		log = conf["log"].replace("mutectLog.txt", "bedops.stdout")
+		samples["A"].Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
+		samples["B"].Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
+		# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
+		cmd = ("bash covB.sh {} {} {} {} ").format(samples["A"].Private, samples["B"].Private, samples["B"].Output, samples["A"].Output)
+		cmd += ("{} {} {} {}").format(samples["A"].Bam, samples["B"].Bam, conf["ref"], conf["gatk"])
+		res = runProc(cmd, log)
+		if res == True:
+			# Output names have already been updated
+			samples["A"].updateStatus("complete")
+			samples["B"].updateStatus("complete")
+		else:
+			samples["A"].updateStatus("failed")
+			samples["B"].updateStatus("failed")
+		appendLog(conf, samples["A"])
+		appendLog(conf, samples["B"])
 	return samples
 
 def rmGermline(conf, sample, outpath):
@@ -79,8 +89,7 @@ def filterPair(conf, flog, ulog, variants):
 			samples[s].updateStatus = ("failed", "filtering_isec1")
 	appendLog(conf, samples[s])
 	if covb == True:
-		samples = covB(conf, samples, "A", "B")
-		samples = covB(conf, samples, "B", "A")
+		samples = covB(conf, samples)
 
 	if nan == True and conf["cleanup"] == True:
 		# Remove intermediary files if indicated and program exited successfully
