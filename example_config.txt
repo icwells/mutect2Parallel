@@ -11,7 +11,6 @@ output_directory =
 normal_panel = 
 germline_resource = 
 allele_frequency = 
-contaminant_estimate = 
 
 # The following is to include any Mutect2 options
 # Enter the flag and option as you would for gatk

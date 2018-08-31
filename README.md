@@ -7,11 +7,9 @@ Copyright 2018 by Shawn Rupp
 
 git clone https://github.com/icwells/mutect2Parallel.git
 
-### Download dependencies (or ensure modules are available on server):
+### Download gatk (a gatk jar file is required):
 
 GATK: https://software.broadinstitute.org/gatk/download/ 
-Picard: https://github.com/broadinstitute/picard/releases/ 
-snpeff: http://snpeff.sourceforge.net/download.html  
 
 #### Make sure bcftools, bedops, and bedtools are in your PATH
 bedops: https://bedops.readthedocs.io/en/latest/index.html 
@@ -47,14 +45,12 @@ instances, it is best to specify 32Gb of RAM for each script.
 	normal_panel	 		Path to panel of normals VCF (Can use mutect2Parallel/getPON to generate)
 	germline_resource		Path to germline recource file. 
 	allele_frequency		Decimal frequency of alleles in germline recource (i.e. 1/# of individuals; required if using germline resource). 
-	contaminant_estimate	Path to VCF used to estimate contmaination in samples. 
 
 The followng lines are to include any additional Mutect or FilterMutect options. Simply enter the flag and option as you would for 
 gatk (i.e. --enable_clustered_read_position_filter --annotation {annotator}). Be aware that these option will not be checked for errors by 
 the python script, so they may lead to errors when calling gatk if they are not correct. 
 
 	mutect_options			Additional options for mutect2
-	filter_mutect_options	Additional options for FilterMutectCalls
 
 ### Manifest file 
 The manifest file may be a space, comma, or tab seperated text file with one entry per line. 

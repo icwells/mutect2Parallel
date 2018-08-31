@@ -178,8 +178,6 @@ def getOptions(conf, line):
 			conf["bed"] = val
 			checkFile(conf["bed"])
 		elif target == "output_directory":
-			if val[-1] != "/":
-				val += "/"
 			conf["outpath"] = val
 		elif target == "GATK_jar":
 			conf["gatk"] = val
@@ -241,11 +239,9 @@ def getConf(infile):
 					# Store batch script
 					batch.append(line)
 	# Check for critical errors
-	if not os.path.isfile(conf["ref"]):
-		print("\n\t[Error] Genome fasta not found. Exiting.\n")
-		quit()
-	if not os.path.isdir(conf["outpath"]):
-		os.mkdir(conf["outpath"])
+	checkFile(conf["ref"]
+	conf["outpath"] = checkDir(conf["outpath"], True)
+	checkFile(conf["gatk"])
 	if "germline" in conf.keys() and "af" not in conf.keys():
 		print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n")
 		quit()	
