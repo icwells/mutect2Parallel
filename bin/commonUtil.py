@@ -10,13 +10,26 @@ class Sample():
 		self.ID = ""
 		self.Step = ""
 		self.Status = ""
-		self.Status = ""
 		self.Output = ""
-		self.Private = None
-		self.Bed = None
-		self.Bam = None
-		self.Input = None
-		self.Unfiltered = None
+		self.Private = ""
+		self.Bed = ""
+		self.Bam = ""
+		self.Input = ""
+		self.Unfiltered = ""
+
+	def __str__(self):
+		# Return formatted string
+		ret = "Name: {}\n".format(self.Name)
+		ret += "ID: {}\n".format(self.ID)
+		ret += "Step: {}\n".format(self.Step)
+		ret += "Status: {}\n".format(self.Status)
+		ret += "Output VCF: {}\n".format(self.Output)
+		ret += "Private Variants: {}\n".format(self.Private)
+		ret += "Bed File: {}\n".format(self.Bed)
+		ret += "Source Bam File: {}\n".format(self.Bam)
+		ret += "Input VCF: {}\n".format(self.Input)
+		ret += "Unfiltered VCF: {}\n".format(self.Unfiltered)
+		return ret
 
 	def update(self, sample, name, step, status, outfile):
 		# Sorts and updates entry with additional status update

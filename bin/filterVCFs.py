@@ -44,6 +44,8 @@ def covB(conf, samples):
 		# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
 		cmd = ("bash covB.sh {} {} {} {} ").format(samples["A"].Private, samples["B"].Private, samples["B"].Output, samples["A"].Output)
 		cmd += ("{} {} {} {}").format(samples["A"].Bam, samples["B"].Bam, conf["ref"], conf["gatk"])
+		print(cmd)
+		quit()
 		res = runProc(cmd, log)
 		'''if res == True:
 			# Output names have already been updated
