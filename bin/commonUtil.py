@@ -239,7 +239,7 @@ def getConf(infile):
 					# Store batch script
 					batch.append(line)
 	# Check for critical errors
-	checkFile(conf["ref"]
+	checkFile(conf["ref"])
 	conf["outpath"] = checkDir(conf["outpath"], True)
 	checkFile(conf["gatk"])
 	if "germline" in conf.keys() and "af" not in conf.keys():
