@@ -67,17 +67,17 @@ def submitSample(infile, conf, s, name):
 
 def submitFiles(conf, samples, infile):
 	# Creates sample entry and calls MuTect2 over input files
+	name = getSample(infile)
 	if infile == conf["tumor1"]:
 		sample = "A"
 	elif infile == conf["tumor2"]:
 		sample = "B"
-	name = getSample(infile)
 	# Get sample info
-	if name in samples.keys():
-		s = samples[name]
+	if sample in samples.keys():
+		s = samples[sample]
 	else:
 		s = Sample()
-		s.update(sample, name, "mutect", "starting", conf["outpath"] + name + ".vcf")
+		s.update(sample, name, "mutect", "starting", conf["outpath"] + sample + ".vcf")
 	s.Input = infile
 	if s.Step == "mutect" and s.Status != "complete":
 		# Record input and call mutect2
