@@ -36,9 +36,9 @@ def covB(conf, samples):
 		run = True
 	if run == True:
 		# Update statuses and get output file names and log
-		samples["A"].updateStatus("starting", "filtering_covB")
-		samples["B"].updateStatus("starting", "filtering_covB")
-		log = conf["log"].replace("mutectLog.txt", "bedops.stdout")
+		'''samples["A"].updateStatus("starting", "filtering_covB")
+		samples["B"].updateStatus("starting", "filtering_covB")'''
+		#log = conf["log"].replace("mutectLog.txt", "bedops.stdout")
 		samples["A"].Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
 		samples["B"].Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
 		# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar

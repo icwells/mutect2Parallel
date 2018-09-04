@@ -112,8 +112,39 @@ def bcfFilter(conf, vcf, typ):
 		outfile = None
 	return outfile
 
+def reheader(infile):
+	# Inserts contig lines into vcf header and returns outfile name
+	insert = '##INFO=<ID=P_CONTAM,Number=A,Type=Float,Description="Posterior probability an site reperesents contamination">\n'
+	pos = False
+	ins = True
+	outfile = infile + "~"
+	# Get list of ids in file and sort
+	with open(outfile, "w") as out:
+		with open(infile, "r") as f:
+			for line in f:
+				if "##INFO=" in line:
+					if "P_CONTAM" in line:
+						# Only insert line once
+						ins = False
+						break
+					pos = True
+				else:
+					if ins == True and pos == True:
+						# Insert line after last info field
+						out.write(insert)
+						ins = False
+				out.write(line)
+	# Remove infile and rename outfile
+	if ins == True:
+		os.remove(infile)
+		os.rename(outfile, infile)
+	else:
+		os.remove(outfile)
+
 def filterCalls(conf, vcf, typ, outdir = None):
 	# Calls gatk to filter mutect calls to remove germline variants
+	if typ == "a" and ".gz" not in vcf:
+		reheader(vcf)
 	ext = ".unfiltered.vcf"
 	if outdir:
 		outfile = outdir + vcf[vcf.rfind("/")+1:vcf.find(".")] + ext

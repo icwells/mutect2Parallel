@@ -13,7 +13,7 @@ def runProc(cmd, log = None):
 		log = os.devnull
 	with open(log, "w") as out:
 		try:
-			call = Popen(split(cmd))#, stdout = out, stderr = out)
+			call = Popen(split(cmd), stdout = out, stderr = out)
 			call.communicate()
 			return True
 		except:
