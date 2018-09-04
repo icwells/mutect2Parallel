@@ -28,13 +28,13 @@ def runProc(cmd, log = None):
 			print(("\t[Warning] Could not call {}").format(proc))
 			return False
 
-def tabix(vcf, force = False):
+def tabix(vcf, force = False, keep = False):
 	# tabix index and bgzips vcf files
 	if os.path.isfile(vcf + ".gz") and force == False:
 		gz = vcf + ".gz"
 	else:
 		try:
-			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True)
+			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
 		except OSError:
 			print(("\t[Warning] Could not index {}.").format(vcf))
 			gz = None

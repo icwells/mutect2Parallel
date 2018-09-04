@@ -49,7 +49,6 @@ def compareVCFs(conf, log, name, samples):
 		# Merge common variants and get total and similarity
 		acom = tabix(aout + "/0002.vcf")
 		bcom = tabix(bout + "/0002.vcf")
-
 		common = bcfMerge(cout, [acom, bcom])
 		if common and os.path.isfile(common):
 			c = getTotal(common)
@@ -110,7 +109,7 @@ def bcfFilter(conf, vcf, typ):
 	res = runProc(cmd + vcf)
 	if res == False:
 		outfile = None
-	return outfile
+	return outfile, res
 
 def reheader(infile):
 	# Inserts contig lines into vcf header and returns outfile name
@@ -158,7 +157,7 @@ def filterCalls(conf, vcf, typ, outdir = None):
 		cmd = "gatk FilterMutectCalls "
 	cmd += ("-V {} -O {}").format(vcf, outfile)
 	res = runProc(cmd, log)
-	if res == True and getStatus(log) == True:
+	if res == True and getStatus(log) == True and getTotal(outfile) > 0:
 		return bcfFilter(conf, outfile, typ)
 	else:
-		return None
+		return None, False

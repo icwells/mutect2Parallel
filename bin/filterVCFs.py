@@ -67,10 +67,10 @@ def rmGermline(conf, sample, outpath):
 		run == True
 	if run == True:
 		sample.updateStatus("starting", "filtering_germline")
-		unfiltered = filterCalls(conf, sample.Output, "a", outpath)
-		if unfiltered:
+		unfiltered, res = filterCalls(conf, sample.Output, "a", outpath)
+		if res == True and ".noGermline." in unfiltered:
 			# Record unfiltered reads
-			sample.updateStatus("complete", "filtering_germline", unfiltered, True)
+			sample.updateStatus("complete", outfile = unfiltered, unfilt = True)
 		else:
 			sample.updateStatus("failed")
 		appendLog(conf, sample)	
@@ -84,17 +84,20 @@ def filterPair(conf, flog, ulog, variants):
 	samples = variants["samples"]
 	for s in ["A", "B"]:
 		samples[s] = rmGermline(conf, samples[s], variants["outpath"])
-	# Add summary to unfiltered log and use output of bcfIsec
-	status = compareVCFs(conf, ulog, variants["ID"], samples)
-	# Update statuses
-	for s in ["A", "B"]:
-		if status == True:
-			samples[s].Private = ("{}{}/{}_unfiltered/0000.vcf").format(conf["outpath"], variants["ID"], s)
-			samples[s].updateStatus = ("complete", "filtering_isec1")
-			covb = True
-		else:
-			samples[s].updateStatus = ("failed", "filtering_isec1")
-	appendLog(conf, samples[s])
+	print(samples["A"], samples["B"])
+	quit()
+	if samples["B"].Status == "complete" and samples["A"].Status == "complete":
+		# Add summary to unfiltered log and use output of bcfIsec
+		status = compareVCFs(conf, ulog, variants["ID"], samples)
+		# Update statuses
+		for s in ["A", "B"]:
+			if status == True:
+				samples[s].Private = ("{}{}/{}_unfiltered/0000.vcf").format(conf["outpath"], variants["ID"], s)
+				samples[s].updateStatus = ("complete", "filtering_isec1")
+				covb = True
+			else:
+				samples[s].updateStatus = ("failed", "filtering_isec1")
+			appendLog(conf, samples[s])
 	if covb == True:
 		samples = covB(conf, samples)
 
