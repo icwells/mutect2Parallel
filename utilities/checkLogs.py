@@ -3,7 +3,7 @@ any samples which were not successful'''
 
 from argparse import ArgumentParser
 from glob import glob
-from unixpath import checkDir
+from unixpath import checkDir, getParent
 
 def identifyFails(outdir):
 	# Searches mutect logs to identify samples which did not complete successfully
@@ -13,8 +13,11 @@ def identifyFails(outdir):
 		with open(i, "r") as f:
 			lines = f.readlines()
 		for j in lines[-2:]:
+			# Check last two lines
 			if "complete" not in j:
-				print(j.strip())
+				sample = getParent(i)
+				j = j.strip()
+				print(("{}\t{}").format(sample, j))
 
 def main():
 	parser = ArgumentParser("This script will check the output logs from \

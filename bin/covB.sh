@@ -2,7 +2,7 @@
 
 usage="$0 vcf1 vcf2 outputvcf_datavcf1bedvcf2 outputvcf_datavcf2bedvcf1 bam1 bam2 genome gatkjar"
 
-if [[ $# -ne 6 ]] || [[ ! -f $1 ]] || [[ ! -f $2 ]] || [[ ! -f $5 ]] || [[ ! -f $6 ]]
+if [[ $# -ne 8 ]] || [[ ! -f $1 ]] || [[ ! -f $2 ]] || [[ ! -f $5 ]] || [[ ! -f $6 ]]
 then
     echo -e $usage
     exit 1

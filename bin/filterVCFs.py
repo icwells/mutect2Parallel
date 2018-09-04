@@ -36,8 +36,8 @@ def covB(conf, samples):
 		run = True
 	if run == True:
 		# Update statuses and get output file names and log
-		'''samples["A"].updateStatus("starting", "filtering_covB")
-		samples["B"].updateStatus("starting", "filtering_covB")'''
+		samples["A"].updateStatus("starting", "filtering_covB")
+		samples["B"].updateStatus("starting", "filtering_covB")
 		log = conf["log"].replace("mutectLog.txt", "bedops.stdout")
 		samples["A"].Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
 		samples["B"].Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
@@ -47,7 +47,7 @@ def covB(conf, samples):
 		print(cmd)
 		quit()
 		res = runProc(cmd, log)
-		'''if res == True:
+		if res == True:
 			# Output names have already been updated
 			samples["A"].updateStatus("complete")
 			samples["B"].updateStatus("complete")
@@ -55,7 +55,7 @@ def covB(conf, samples):
 			samples["A"].updateStatus("failed")
 			samples["B"].updateStatus("failed")
 		appendLog(conf, samples["A"])
-		appendLog(conf, samples["B"])'''
+		appendLog(conf, samples["B"])
 	return samples
 
 def rmGermline(conf, sample, outpath):
