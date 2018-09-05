@@ -91,6 +91,30 @@ class Samples():
 		self.A.rmGermline(S.Conf, self.Outdir)
 		self.B.rmGermline(S.Conf, self.Outdir)
 
+	def covB(self):
+		# Calls bcf isec and uses output to generate bed files for each comparison
+		run = False
+		if self.A.Step == "filtering_germline" and self.A.Status == "complete":
+			run = True
+		elif self.A.Step == "filtering_covB" and self.A.Status != "complete":
+			run = True
+		if run == True:
+			# Update statuses and get output file names and log
+			self.updateStatuses("starting", "filtering_covB")
+			self.A.Output = self.A.Unfiltered.replace(".noGermline", ".covB")
+			self.B.Output = self.B.Unfiltered.replace(".noGermline", ".covB")
+			# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
+			cmd = ("bash covB.sh {} {} {} {} ").format(self.A.Private, self.B.Private, self.B.Output, self.A.Output)
+			cmd += ("{} {} {} {}").format(self.A.Bam, self.B.Bam, self.Conf["ref"], self.Conf["gatk"])
+			print(cmd)
+			quit()
+			res = runProc(cmd, log)
+			if res == True:
+				# Output names have already been updated
+				self.updateStatuses("complete", append = True)
+			else:
+				self.updateStatuses("failed", append = True)
+
 #-----------------------------------------------------------------------------
 
 	def comparePair(self, outpath, vcfs):

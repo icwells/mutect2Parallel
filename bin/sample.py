@@ -170,10 +170,7 @@ class Sample():
 		outfile = outdir + self.Output[self.Output.rfind("/")+1:self.Output.find(".")] + ext
 		log = outfile.replace("vcf", "stdout")
 		# Assemble command
-		if "gatk" in conf.keys():
-			cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
-		else:
-			cmd = "gatk FilterMutectCalls "
+		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
 		cmd += ("-V {} -O {}").format(vcf, outfile)
 		res = runProc(cmd, log)
 		if res == True and getStatus(log) == True and getTotal(outfile) > 0:

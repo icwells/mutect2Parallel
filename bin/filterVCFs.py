@@ -27,39 +27,10 @@ def cleanUp(outpath):
 				# Remove unfiltered results
 				os.remove(i)
 
-def covB(S):
-	# Calls bcf isec and uses output to generate bed files for each comparison
-	run = False
-	if S.A.Step == "filtering_germline" and S.A.Status == "complete":
-		run = True
-	elif S.A.Step == "filtering_covB" and S.A.Status != "complete":
-		run = True
-	if run == True:
-		# Update statuses and get output file names and log
-		S.updateStatuses("starting", "filtering_covB")
-		S.A.Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
-		S.B.Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
-		# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
-		cmd = ("bash covB.sh {} {} {} {} ").format(S.A.Private, samples["B"].Private, samples["B"].Output, samples["A"].Output)
-		cmd += ("{} {} {} {}").format(samples["A"].Bam, samples["B"].Bam, conf["ref"], conf["gatk"])
-		print(cmd)
-		quit()
-		res = runProc(cmd, log)
-		if res == True:
-			# Output names have already been updated
-			samples["A"].updateStatus("complete")
-			samples["B"].updateStatus("complete")
-		else:
-			samples["A"].updateStatus("failed")
-			samples["B"].updateStatus("failed")
-		appendLog(conf, samples["A"])
-		appendLog(conf, samples["B"])
-	return samples
-
 def filterPair(S):
 	# Filters and compares pair of samples
 	covb = False
-	nan = False
+	nab = False
 	S.rmGermline()
 	print(S.A, S.B)
 	quit()
@@ -71,12 +42,17 @@ def filterPair(S):
 			S.updateStatuses("complete", "filtering_isec1", True)
 			covb = True
 	if covb == True:
-		S = covB(S)
-
-	if nan == True and conf["cleanup"] == True:
-		# Remove intermediary files if indicated and program exited successfully
-		cleanUp(variants["outpath"])
-	return [nan, variants["ID"]]
+		S.covB()
+		if S.B.Status == "complete" and S.A.Status == "complete":
+			nan = True
+	if nab == True: 
+		S.NAB
+		if S.B.Status == "failed" or S.A.Status == "failed":
+			nab = False
+		elif conf["cleanup"] == True:
+			# Remove intermediary files if indicated and program exited successfully
+			cleanUp(variants["outpath"])
+	return [nab, S.ID]
 
 #--------------------------------------------I/O------------------------------
 
