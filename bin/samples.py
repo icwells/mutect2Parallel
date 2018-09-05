@@ -171,9 +171,7 @@ class Samples():
 			# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
 			cmd = ("bash covB.sh {} {} {} {} ").format(self.A.Private, self.B.Private, self.B.Output, self.A.Output)
 			cmd += ("{} {} {} {}").format(self.A.Bam, self.B.Bam, self.Conf["ref"], self.Conf["gatk"])
-			print(cmd)
-			quit()
-			res = runProc(cmd, log)
+			res = runProc(cmd)
 			if res == True:
 				# Output names have already been updated
 				self.updateStatuses("complete", append = True)
