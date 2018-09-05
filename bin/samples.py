@@ -88,6 +88,8 @@ class Samples():
 			self.appendLog(self.A)
 			self.appendLog(self.B)
 
+#-----------------------------------------------------------------------------
+
 	def rmGermline(self):
 		# Wraps calls to Sample.rmGermline
 		run = self.A.rmGermline(self.Conf, self.Outdir)
@@ -97,32 +99,6 @@ class Samples():
 		run = self.B.rmGermline(self.Conf, self.Outdir)
 		if run == True:
 			self.appendLog(self.B)
-
-	def covB(self):
-		# Calls bcf isec and uses output to generate bed files for each comparison
-		run = False
-		if self.A.Step == "filtering_germline" and self.A.Status == "complete":
-			run = True
-		elif self.A.Step == "filtering_covB" and self.A.Status != "complete":
-			run = True
-		if run == True:
-			# Update statuses and get output file names and log
-			self.updateStatuses("starting", "filtering_covB")
-			self.A.Output = self.A.Unfiltered.replace(".noGermline", ".covB")
-			self.B.Output = self.B.Unfiltered.replace(".noGermline", ".covB")
-			# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
-			cmd = ("bash covB.sh {} {} {} {} ").format(self.A.Private, self.B.Private, self.B.Output, self.A.Output)
-			cmd += ("{} {} {} {}").format(self.A.Bam, self.B.Bam, self.Conf["ref"], self.Conf["gatk"])
-			print(cmd)
-			quit()
-			res = runProc(cmd, log)
-			if res == True:
-				# Output names have already been updated
-				self.updateStatuses("complete", append = True)
-			else:
-				self.updateStatuses("failed", append = True)
-
-#-----------------------------------------------------------------------------
 
 	def comparePair(self, outpath, vcfs):
 		# Calls bcftools on pair of reads if both exist
@@ -179,3 +155,27 @@ class Samples():
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(self.ID, self.A.ID, self.B.ID, a, b, c, sim))
 		self.A.Private = aout + "/0000.vcf"
 		self.B.Private = bout + "/0000.vcf"
+
+	def covB(self):
+		# Calls bcf isec and uses output to generate bed files for each comparison
+		run = False
+		if self.A.Step == "filtering_isec1" and self.A.Status == "complete":
+			run = True
+		elif self.A.Step == "filtering_covB" and self.A.Status != "complete":
+			run = True
+		if run == True:
+			# Update statuses and get output file names and log
+			self.updateStatuses("starting", "filtering_covB")
+			self.A.Output = self.A.Unfiltered.replace(".noGermline", ".covB").replace(".gz", "")
+			self.B.Output = self.B.Unfiltered.replace(".noGermline", ".covB").replace(".gz", "")
+			# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
+			cmd = ("bash covB.sh {} {} {} {} ").format(self.A.Private, self.B.Private, self.B.Output, self.A.Output)
+			cmd += ("{} {} {} {}").format(self.A.Bam, self.B.Bam, self.Conf["ref"], self.Conf["gatk"])
+			print(cmd)
+			quit()
+			res = runProc(cmd, log)
+			if res == True:
+				# Output names have already been updated
+				self.updateStatuses("complete", append = True)
+			else:
+				self.updateStatuses("failed", append = True)
