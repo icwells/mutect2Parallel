@@ -7,7 +7,8 @@ from datetime import datetime
 from glob import glob
 from multiprocessing import Pool, cpu_count
 from commonUtil import *
-from vcfCompare import *
+from samples import *
+from sample import *
 from unixpath import checkDir
 
 def cleanUp(outpath):
@@ -55,42 +56,20 @@ def covB(S):
 		appendLog(conf, samples["B"])
 	return samples
 
-def rmGermline(conf, sample, outpath):
-	# Calls filterMutectCalls and bcftools to remove germline risks
-	run = False
-	if sample.Step == "mutect" and sample.Status == "complete":
-		run = True
-	elif sample.Step == "filtering_germline" and sample.Status == "failed":
-		run == True
-	if run == True:
-		sample.updateStatus("starting", "filtering_germline")
-		unfiltered, res = filterCalls(conf, sample.Output, "a", outpath)
-		if res == True and ".noGermline." in unfiltered:
-			# Record unfiltered reads
-			sample.updateStatus("complete", outfile = unfiltered, unfilt = True)
-		else:
-			sample.updateStatus("failed")
-		appendLog(conf, sample)	
-	return sample	
-
-def filterPair(conf, S):
+def filterPair(S):
 	# Filters and compares pair of samples
 	covb = False
 	nan = False
-	S.A = rmGermline(S.Conf, S.A, S.Outdir)
-	S.B = rmGermline(S.Conf, S.B, S.Outdir)
+	S.rmGermline()
 	print(S.A, S.B)
 	quit()
 	if S.B.Status == "complete" and S.A.Status == "complete":
 		# Add summary to unfiltered log and use output of bcfIsec
 		S.compareVCFs()
 		# Update statuses
-			if status == True:
-				S.A.Private = 
-				S.updateStatuses("complete", "filtering_isec1", True)
-				covb = True
-			else:
-				S.updateStatuses("failed", "filtering_isec1", True)
+		if status == True:
+			S.updateStatuses("complete", "filtering_isec1", True)
+			covb = True
 	if covb == True:
 		S = covB(S)
 

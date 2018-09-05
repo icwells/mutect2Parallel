@@ -1,9 +1,10 @@
-'''This script defines classes for Samples and Sample to manage filtering of mutect2 output'''
+'''This script defines classes for Samples to manage filtering of mutect2 output'''
 
 import os
 from shutil import copy
 from unixpath import *
 from commonUtil import *
+from sample import *
 
 class Samples():
 	# Stores data for all samples in a comparison
@@ -85,7 +86,14 @@ class Samples():
 			appendLog(self.Conf, self.A)
 			appendLog(self.Conf, self.B)
 
-	def comparePair(outpath, vcfs):
+	def rmGermline(self):
+		# Wraps calls to Sample.rmGermline
+		self.A.rmGermline(S.Conf, self.Outdir)
+		self.B.rmGermline(S.Conf, self.Outdir)
+
+#-----------------------------------------------------------------------------
+
+	def comparePair(self, outpath, vcfs):
 		# Calls bcftools on pair of reads if both exist
 		for i in range(len(vcfs)):
 			if vcfs[i] and os.path.isfile(vcfs[i]):
@@ -113,11 +121,11 @@ class Samples():
 			cout = self.Outdir + "common_filtered.vcf"
 		# Append filtered sample name when submitting
 		if getTotal(self.A.Output) > 0:
-			a = comparePair(aout, [self.A.Output, self.B.Unfiltered])
+			a = self.comparePair(aout, [self.A.Output, self.B.Unfiltered])
 		else:
 			a = 0
 		if getTotal(self.B.Output) > 0:
-			b = comparePair(bout, [self.B.Output, self.A.Unfiltered])
+			b = self.comparePair(bout, [self.B.Output, self.A.Unfiltered])
 		else:
 			b = 0
 		if a > 0 and b > 0:
@@ -138,87 +146,3 @@ class Samples():
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, self.A.ID, self.B.ID, a, b, c, sim))
 		self.A.Private = aout + "/0000.vcf"
 		self.B.Private = bout + "/0000.vcf"
-
-#-----------------------------------------------------------------------------
-
-class Sample():
-	# Stores data for managing sample progress
-	def __init__(self):
-		self.Name = ""
-		self.ID = ""
-		self.Step = ""
-		self.Status = ""
-		self.Output = ""
-		self.Private = ""
-		self.Bed = ""
-		self.Bam = ""
-		self.Input = ""
-		self.Unfiltered = ""
-
-	def __str__(self):
-		# Return formatted string
-		ret = "Name: {}\n".format(self.Name)
-		ret += "ID: {}\n".format(self.ID)
-		ret += "Step: {}\n".format(self.Step)
-		ret += "Status: {}\n".format(self.Status)
-		ret += "Output VCF: {}\n".format(self.Output)
-		ret += "Private Variants: {}\n".format(self.Private)
-		ret += "Bed File: {}\n".format(self.Bed)
-		ret += "Source Bam File: {}\n".format(self.Bam)
-		ret += "Input VCF: {}\n".format(self.Input)
-		ret += "Unfiltered VCF: {}\n".format(self.Unfiltered)
-		return ret
-
-	def update(self, sample, name, step, status, outfile):
-		# Sorts and updates entry with additional status update
-		save = False
-		if not self.Name:
-			self.Name = sample
-		if not self.ID:
-			self.ID = name
-		if step == "comparison":
-			save = True
-		elif step == "filtering_covB" and self.Step != "comparison":
-			save = True
-		elif step == "filtering_germline" and self.Step == "mutect":
-			save = True
-		elif step == "mutect" and not self.Step or self.Step == "mutect":
-			save = True
-		elif step == "normal" and not self.Step:
-			save = True
-		if save == True:
-			self.Step = step
-			self.Output = outfile
-			self.Status = status
-		if getExt(outfile) == "bam":
-			self.Bam = outfile
-
-	def checkStatus(self, sid):
-		# Makes sure filtering can proceed from mutect output
-		ret = True
-		if not os.path.isfile(self.Output):
-			if os.path.isfile(self.Output + ".gz"):
-				self.Output = self.Output + ".gz"
-			else:
-				printError(("Cannot find {} from {}").format(self.Output, sid)) 
-				ret = False	
-		if self.Step == "mutect":
-			if self.Status != "complete":
-				printError(("{} from {} has not successfully completed mutect.").format(self.ID, sid)) 
-				ret = False			
-		elif samples[s].Step == "filtering" and samples[s].Status != "complete":
-			# Re-attempt failed filtering steps
-			samples[s].Step = "mutect"
-		return ret
-
-	def updateStatus(self, status, step = None, outfile = None, unfilt = False):
-		# Updates current status of sample
-		self.status = status
-		if step:
-			self.Step = step
-		if outfile:
-			self.Output = outfile
-			if getExt(outfile) == "bam":
-				self.Bam = outfile
-		if unfilt == True:
-			self.Unfiltered = outfile
