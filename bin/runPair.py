@@ -6,7 +6,6 @@ from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, cpu_count
 from commonUtil import *
-from bamUtils import *
 
 #-------------------------------Mutect----------------------------------------
 

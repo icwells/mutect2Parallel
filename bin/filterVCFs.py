@@ -1,11 +1,10 @@
 '''This script will filter mutect2 output files.'''
 
 import os
-from shutil import copy, rmtree
+from shutil import rmtree
 from argparse import ArgumentParser
 from datetime import datetime
 from glob import glob
-from functools import partial
 from multiprocessing import Pool, cpu_count
 from commonUtil import *
 from vcfCompare import *
@@ -27,22 +26,20 @@ def cleanUp(outpath):
 				# Remove unfiltered results
 				os.remove(i)
 
-def covB(conf, samples):
+def covB(S):
 	# Calls bcf isec and uses output to generate bed files for each comparison
 	run = False
-	if samples["A"].Step == "filtering_germline" and samples["A"].Status == "complete":
+	if S.A.Step == "filtering_germline" and S.A.Status == "complete":
 		run = True
-	elif samples["A"].Step == "filtering_covB" and samples["B"].Status != "complete":
+	elif S.A.Step == "filtering_covB" and S.A.Status != "complete":
 		run = True
 	if run == True:
 		# Update statuses and get output file names and log
-		'''samples["A"].updateStatus("starting", "filtering_covB")
-		samples["B"].updateStatus("starting", "filtering_covB")'''
-		#log = conf["log"].replace("mutectLog.txt", "bedops.stdout")
-		samples["A"].Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
-		samples["B"].Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
+		S.updateStatuses("starting", "filtering_covB")
+		S.A.Output = samples["A"].Unfiltered.replace(".noGermline", ".covB")
+		S.B.Output = samples["B"].Unfiltered.replace(".noGermline", ".covB")
 		# Call covB.sh: vcf1 vcf2 outputvcf2 outputvcf1 bam1 bam2 genome gatkjar
-		cmd = ("bash covB.sh {} {} {} {} ").format(samples["A"].Private, samples["B"].Private, samples["B"].Output, samples["A"].Output)
+		cmd = ("bash covB.sh {} {} {} {} ").format(S.A.Private, samples["B"].Private, samples["B"].Output, samples["A"].Output)
 		cmd += ("{} {} {} {}").format(samples["A"].Bam, samples["B"].Bam, conf["ref"], conf["gatk"])
 		print(cmd)
 		quit()
@@ -76,30 +73,26 @@ def rmGermline(conf, sample, outpath):
 		appendLog(conf, sample)	
 	return sample	
 
-def filterPair(conf, flog, ulog, variants):
+def filterPair(conf, S):
 	# Filters and compares pair of samples
 	covb = False
 	nan = False
-	conf["log"] = variants["log"]
-	samples = variants["samples"]
-	for s in ["A", "B"]:
-		samples[s] = rmGermline(conf, samples[s], variants["outpath"])
-	print(samples["A"], samples["B"])
+	S.A = rmGermline(S.Conf, S.A, S.Outdir)
+	S.B = rmGermline(S.Conf, S.B, S.Outdir)
+	print(S.A, S.B)
 	quit()
-	if samples["B"].Status == "complete" and samples["A"].Status == "complete":
+	if S.B.Status == "complete" and S.A.Status == "complete":
 		# Add summary to unfiltered log and use output of bcfIsec
-		status = compareVCFs(conf, ulog, variants["ID"], samples)
+		S.compareVCFs()
 		# Update statuses
-		for s in ["A", "B"]:
 			if status == True:
-				samples[s].Private = ("{}{}/{}_unfiltered/0000.vcf").format(conf["outpath"], variants["ID"], s)
-				samples[s].updateStatus = ("complete", "filtering_isec1")
+				S.A.Private = 
+				S.updateStatuses("complete", "filtering_isec1", True)
 				covb = True
 			else:
-				samples[s].updateStatus = ("failed", "filtering_isec1")
-			appendLog(conf, samples[s])
+				S.updateStatuses("failed", "filtering_isec1", True)
 	if covb == True:
-		samples = covB(conf, samples)
+		S = covB(S)
 
 	if nan == True and conf["cleanup"] == True:
 		# Remove intermediary files if indicated and program exited successfully
@@ -108,79 +101,40 @@ def filterPair(conf, flog, ulog, variants):
 
 #--------------------------------------------I/O------------------------------
 
-def checkSamples(name, samples):
-	# Makes sure two samples have passed mutect
-	proceed = True
-	msg = ""
-	if len(samples.keys()) != 3:
-		printError(("Could not find two sample vcfs for {}").format(name))
-		proceed =  False
-	else:
-		# Ensure both have at least passed mutect
-		for s in samples.keys():
-			if not os.path.isfile(samples[s].Output):
-				if os.path.isfile(samples[s].Output + ".gz"):
-					samples[s].Output = samples[s].Output + ".gz"
-				else:
-					printError(("Cannot find {} from {}").format(samples[s].Output, name)) 
-					proceed = False	
-			if samples[s].Name != "N" and samples[s].Step == "mutect":
-				if samples[s].Status != "complete":
-					printError(("{} from {} has not successfully completed mutect.").format(samples[s].ID, name)) 
-					proceed = False
-				elif ".vcf" not in samples[s].Unfiltered:
-					printError(("Cannot find mutect output for {} from {}.").format(samples[s].ID, name)) 
-					proceed = False					
-			elif samples[s].Step == "filtering" and samples[s].Status != "complete":
-				# Re-attempt failed filtering steps
-				samples[s].Step = "mutect"
-	return proceed
-
-def getOutdir(conf, outdir, done):
+def getOutdir(conf, outdir, done, flog, ulog):
 	# Reads in dictionary of input samples
 	variants = []
 	print("\tReading input vcfs...")
 	paths = glob(conf["outpath"] + "*")
-	if outdir and outdir != conf["outpath"]:
-		# Reassign outpath after getting input directories
-		conf["outpath"] = outdir
 	for p in paths:
 		# Iterate through each subdirectory
-		if p[:-1] != "/":
-			p += "/"
-		if os.path.isfile(p + "mutectLog.txt"):
-			# Get sample name from path sans trailing slash
-			sid = p[:-1]
-			sid = sid[sid.rfind("/")+1:]
-			if sid not in done:
-				# Proceed if sample not done and log is present
-				log, s = checkOutput(p, False)
-				proceed = checkSamples(sid, s)
-				if proceed == True:
-					sampleout = checkDir(conf["outpath"] + sid, True)
-					if not os.path.isfile(sampleout + "mutectLog.txt"):
-						copy(log, sampleout + "mutectLog.txt")
-					# {ID, samples, log file, outdir}
-					d = {"ID": sid, "samples": s, "log": sampleout + "mutectLog.txt", "outpath": sampleout}
-					variants.append(d)
-	return variants, conf
+		S = Samples()
+		S.setLogs(flog, ulog, conf)
+		res = S.setSamples(p, outdir, done)
+		if res == True:
+			variants.append(S)
+	return variants
 
-def getComplete(log):
+def getComplete(outdir):
 	# Makes log file or returns list of completed samples
-	first = True
-	done = []
-	if not os.path.isfile(log):
-		with open(log, "w") as out:
-			# Initialize summary file and write header
-			out.write("ID,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
-	else:
-		with open(log, "r") as f:
-			for line in f:
-				if first == False:
-					done.append(line.split(",")[0])
-				else:
-					first = False
-	return done
+	summary = self.Outdir + "summary_Filtered.csv"
+	ulog = outdir + "summary_Unfiltered.csv"
+	for log in [ulog, summary]:
+		# Check summary last to keep final output
+		first = True
+		done = []
+		if not os.path.isfile(log):
+			with open(log, "w") as out:
+				# Initialize summary file and write header
+				out.write("ID,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
+		else:
+			with open(log, "r") as f:
+				for line in f:
+					if first == False:
+						done.append(line.split(",")[0])
+					else:
+						first = False
+	return done, summary, ulog
 			
 def main():
 	starttime = datetime.now()
@@ -201,19 +155,14 @@ help = "Remove intermediary files (default is to keep them).")
 	conf["cleanup"] = args.cleanup
 	if args.o:
 		args.o = checkDir(args.o, True)
-		flog = args.o + "summary_Filtered.csv"
-		ulog = args.o + "summary_Unfiltered.csv"
+		done, flog, ulog = getComplete(args.o)
 	else:
-		flog = conf["outpath"] + "summary_Filtered.csv"
-		ulog = conf["outpath"] + "summary_Unfiltered.csv"
-	_ = getComplete(ulog)
-	done = getComplete(flog)
-	variants, conf = getOutdir(conf, args.o, done)
+		done, flog, ulog = getComplete(conf["outpath"])
+	variants = getOutdir(conf, args.o, done, flog, ulog)
 	l = len(variants)
 	pool = Pool(processes = args.t)
-	func = partial(filterPair, conf, flog, ulog)
 	print(("\tComparing samples from {} sets with {} threads...").format(l, args.t))
-	for x in pool.imap_unordered(func, variants):
+	for x in pool.imap_unordered(filterPair, variants):
 		l -= 1
 		if x[0] == False:
 			print(("\t[Error] Some files from {} failed comparison.").format(x[1]))

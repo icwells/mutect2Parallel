@@ -1,74 +1,156 @@
 '''This script contains functions for adding readgroups to bam files, as well as indexing and extracting readgroups'''
 
 import os
+import gzip
+import pysam
+from subprocess import Popen
+from shlex import split
 from unixpath import *
 
-class Sample():
-	# Stores data for managing sample progress
-	def __init__(self):
-		self.Name = ""
-		self.ID = ""
-		self.Step = ""
-		self.Status = ""
-		self.Output = ""
-		self.Private = ""
-		self.Bed = ""
-		self.Bam = ""
-		self.Input = ""
-		self.Unfiltered = ""
+def runProc(cmd, log = None):
+	# Wraps call to Popen, writes stdout/stdout err to log/devnull, returns True if no errors
+	if not log:
+		log = os.devnull
+	with open(log, "w") as out:
+		try:
+			call = Popen(split(cmd), stdout = out, stderr = out)
+			call.communicate()
+			return True
+		except:
+			s = cmd.split()
+			proc = s[0]
+			if "-" not in s[1]:
+				# Get subcommand if present
+				proc += " " + s[1]
+			elif proc == "java":
+				# Replace call to jar with name of jar
+				proc = getFileName(s[2])
+			print(("\t[Warning] Could not call {}").format(proc))
+			return False
 
-	def __str__(self):
-		# Return formatted string
-		ret = "Name: {}\n".format(self.Name)
-		ret += "ID: {}\n".format(self.ID)
-		ret += "Step: {}\n".format(self.Step)
-		ret += "Status: {}\n".format(self.Status)
-		ret += "Output VCF: {}\n".format(self.Output)
-		ret += "Private Variants: {}\n".format(self.Private)
-		ret += "Bed File: {}\n".format(self.Bed)
-		ret += "Source Bam File: {}\n".format(self.Bam)
-		ret += "Input VCF: {}\n".format(self.Input)
-		ret += "Unfiltered VCF: {}\n".format(self.Unfiltered)
-		return ret
+def tabix(vcf, force = False, keep = False):
+	# tabix index and bgzips vcf files
+	if os.path.isfile(vcf + ".gz") and force == False:
+		gz = vcf + ".gz"
+	else:
+		try:
+			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
+		except OSError:
+			print(("\t[Warning] Could not index {}.").format(vcf))
+			gz = None
+	return gz
 
-	def update(self, sample, name, step, status, outfile):
-		# Sorts and updates entry with additional status update
-		save = False
-		if not self.Name:
-			self.Name = sample
-		if not self.ID:
-			self.ID = name
-		if step == "comparison":
-			save = True
-		elif step == "filtering_covB" and self.Step != "comparison":
-			save = True
-		elif step == "filtering_germline" and self.Step == "mutect":
-			save = True
-		elif step == "mutect" and not self.Step or self.Step == "mutect":
-			self.Unfiltered = outfile
-			save = True
-		elif step == "normal" and not self.Step:
-			save = True
-		if save == True:
-			self.Step = step
-			self.Output = outfile
-			self.Status = status
-		if getExt(outfile) == "bam":
-			self.Bam = outfile
+def bcfMerge(outfile, com):
+	# Calls bftools concat on input files
+	cmd = ("bcftools merge --force-samples -O v -o {} {} {}").format(outfile, com[0], com[1])
+	res = runProc(cmd)
+	if res == False:
+		outfile = None
+	return outfile	
 
-	def updateStatus(self, status, step = None, outfile = None, unfilt = False):
-		# Updates current status of sample
-		self.status = status
-		if step:
-			self.Step = step
-		if outfile:
-			self.Output = outfile
-			if getExt(outfile) == "bam":
-				self.Bam = outfile
-		if unfilt == True:
-			self.Unfiltered = outfile
+def bcfSort(infile):
+	# Call bcftools sort
+	fmt = "v"
+	if not infile:
+		return None
+	outfile = infile.replace(".vcf", ".sorted.vcf")
+	if ".gz" in infile:
+		fmt = "z"
+	cmd = ("bcftools sort -O {} -o {} {}").format(fmt, outfile, infile)
+	res = runProc(cmd)
+	if res == False or os.path.isfile(outfile) == False:
+		return None
+	return tabix(outfile, True)
 
+def getTotal(vcf):
+	# Returns total number of content lines from vcf
+	count = 0
+	if os.path.isfile(vcf):
+		try:
+			with gzip.open(vcf, "rb") as f:
+				tag = ("#").encode()
+				for line in f:
+					if tag not in line:
+						count += 1
+		except (OSError, UnicodeDecodeError):
+			with open(vcf, "r") as f:
+				for line in f:
+					if line[0] != "#":
+						count += 1
+	return count
+
+def bcfIsec(outpath, vcfs):
+	# Calls bcftools to get intersecting rows and returns number of private A
+	a = None
+	for i in range(len(vcfs)):
+		# Make sure there is an up-to-date index file
+		vcfs[i] = tabix(vcfs[i], True)
+	if None not in vcfs:
+		cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
+		res = runProc(cmd)
+		if res == True:
+			# Number of unique variants to each sample and number of shared
+			a = getTotal(outpath + "/0000.vcf")
+	return a
+
+#-----------------------------------------------------------------------------
+
+def getFastaIndex(ref):
+	# Creates fasta index for reference genome
+	print("\tGenerating reference fasta index...")
+	pysam.faidx(ref)
+
+def samIndex(bam):
+	# Call samtools to index sam/bam file
+	if not os.path.isfile(bam + ".bai"):
+		print(("\tGenerating sam index for {}...").format(bam))
+		pysam.index(bam)
+
+def getTumorName(bam):
+	# Gets relevent header data and extracts tumor sample name from bam file
+	try:
+		header = pysam.view("-H", bam)
+		rg = header[header.find("@RG"):header.find("@PG")]
+		name = rg[rg.find("SM:"):]
+		return name[name.find(":")+1:name.find("\t")]
+	except pysam.utils.SamtoolsError:
+		return None
+
+def addRG(bam, sid, picard):
+	# Adds readgroups to bam files
+	outfile = bam[:bam.rfind(".")] + ".withRG.bam"
+	if picard:
+		cmd = ("java -jar {} AddOrReplaceReadGroups I={} O={} ").format(picard, bam, outfile)
+	else:
+		cmd = ("picard AddOrReplaceReadGroups I={} O={}").format(bam, outfile)
+	cmd += (" RGLB=lib1 RGPL=illumina RGPU={}").format(sid)
+	print(("\tAdding read groups to {}").format(bam))
+	res = runProc(cmd)
+	if res == True and outfile:
+		name = getTumorName(outfile)
+		return outfile, name
+	else:
+		return None, None
+
+def checkRG(bam, sid, picard=None):
+	# Adds read groups, creates bam index, and returns read group name
+	idx = True
+	name = getTumorName(bam)
+	if type(name) != str:
+		idx = False
+		bam, name = addRG(bam, sid, picard)
+		if not bam or not name:
+			return None, None
+		else:
+			idx = True
+	if idx == True:
+		samIndex(bam)
+		return name, bam
 #-------------------------------commonfunctions----------------------------------------
+
+def printError(msg):
+	# Prints formatted error message
+	print(("\n\t[Error] {}. Skipping.\n").format(msg))
 
 def getDelim(line):
 	# Returns delimiter
@@ -95,19 +177,6 @@ def getStatus(log):
 				break
 	return ret
 
-def appendLog(conf, s):
-	# Appends checkpoint status to log file
-	if s.Step == "mutect" and s.Status == "starting":
-		# Record infile instead of outfile
-		out = s.Input
-	elif "isec1" in s.Step and s.Private:
-		# Record private vcf
-		out = s.Private
-	else:
-		out = s.Output
-	with open(conf["log"], "a") as l:
-			l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Name, s.ID, s.Step, s.Status, out))
-
 def getOpt(conf, cmd):
 	# Adds common flags to command
 	if "bed" in conf.keys():
@@ -126,7 +195,7 @@ def getSample(fname):
 	else:
 		return s[:s.find(".")]
 
-def checkOutput(outdir, normal, prnt = True):
+def checkOutput(outdir, normal = None, prnt = True):
 	# Checks for output log file and reads if present
 	first = True
 	done = {}
@@ -152,7 +221,8 @@ def checkOutput(outdir, normal, prnt = True):
 		with open(log, "w") as f:
 			# Initialize log file and record normal file
 			f.write("Sample\tName\tStep\tStatus\tOutput\n")
-			f.write("N\t{}\tnormal\tcomplete\t{}\n".format(getFileName(normal), normal))
+			if normal:
+				f.write("N\t{}\tnormal\tcomplete\t{}\n".format(getFileName(normal), normal))
 	return log, done
 
 def configEntry(conf, arg, key):

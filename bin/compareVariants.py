@@ -8,7 +8,6 @@ from datetime import datetime
 from argparse import ArgumentParser
 from glob import glob
 from commonUtil import *
-from bamUtils import *
 from unixpath import *
 
 A = re.compile(r"AfiltcovBNAB.*different\.vcf")
