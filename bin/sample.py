@@ -44,6 +44,11 @@ class Sample():
 		elif step == "filtering_covB" and self.Step != "comparison":
 			save = True
 		elif step == "filtering_germline" and self.Step == "mutect":
+			unf = outfile[:outfile.find(".")] + ".noGermline.vcf"
+			if os.path.isfile(unf):
+				self.Unfiltered = unf
+			elif os.path.isfile(unf + ".gz"):
+				self.Unfiltered = unf + ".gz"
 			save = True
 		elif step == "mutect" and not self.Step or self.Step == "mutect":
 			save = True
@@ -69,9 +74,9 @@ class Sample():
 			if self.Status != "complete":
 				commonUtil.printError(("{} from {} has not successfully completed mutect.").format(self.ID, sid)) 
 				ret = False			
-		elif samples[s].Step == "filtering" and samples[s].Status != "complete":
+		elif self.Step == "filtering" and self.Status != "complete":
 			# Re-attempt failed filtering steps
-			samples[s].Step = "mutect"
+			self.Step = "mutect"
 		return ret
 
 	def updateStatus(self, status, step = None, outfile = None, unfilt = False):
@@ -188,3 +193,4 @@ class Sample():
 		if run == True:
 			self.updateStatus("starting", "filtering_germline")
 			unfiltered = self.filterCalls(conf, outdir)
+		return run

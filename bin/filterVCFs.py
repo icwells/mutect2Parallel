@@ -36,11 +36,8 @@ def filterPair(S):
 		# Add summary to unfiltered log and use output of bcfIsec
 		S.compareVCFs()
 		# Update statuses
-		if status == True:
-			S.updateStatuses("complete", "filtering_isec1", True)
-			covb = True
-	print(S.A, S.B)
-	quit()
+		S.updateStatuses("complete", "filtering_isec1", True)
+		covb = True
 	if covb == True:
 		S.covB()
 		if S.B.Status == "complete" and S.A.Status == "complete":

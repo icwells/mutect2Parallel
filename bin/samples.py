@@ -90,10 +90,13 @@ class Samples():
 
 	def rmGermline(self):
 		# Wraps calls to Sample.rmGermline
-		self.A.rmGermline(self.Conf, self.Outdir)
-		self.appendLog(self.A)
-		self.B.rmGermline(self.Conf, self.Outdir)
-		self.appendLog(self.B)
+		run = self.A.rmGermline(self.Conf, self.Outdir)
+		if run == True:
+			self.appendLog(self.A)
+		run = False
+		run = self.B.rmGermline(self.Conf, self.Outdir)
+		if run == True:
+			self.appendLog(self.B)
 
 	def covB(self):
 		# Calls bcf isec and uses output to generate bed files for each comparison
@@ -130,6 +133,7 @@ class Samples():
 			elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
 				vcfs[i] += ".gz"
 			else:
+				print(vcfs)
 				printError(("Cannot find {}").format(vcfs[i]))
 				return None
 		# Call bftools on all results
@@ -138,15 +142,16 @@ class Samples():
 
 	def compareVCFs(self, filt = False):
 		# Compares unfilted vs. passed results for each combination of pair of samples
-		outpath = conf["outpath"] + name + "/"
 		if filt == False:
 			aout = self.Outdir + "A_unfiltered"
 			bout = self.Outdir + "B_unfiltered"
 			cout = self.Outdir + "common_unfiltered.vcf"
+			log = self.Ulog
 		else:
 			aout = self.Outdir + "A_filtered"
 			bout = self.Outdir + "B_filtered"
 			cout = self.Outdir + "common_filtered.vcf"
+			log = self.Summary
 		# Append filtered sample name when submitting
 		if getTotal(self.A.Output) > 0:
 			a = self.comparePair(aout, [self.A.Output, self.B.Unfiltered])
@@ -171,6 +176,6 @@ class Samples():
 			c = 0
 			sim = 0.0
 		with open(log, "a") as out:
-			out.write(("{},{},{},{},{},{},{:.2%}\n").format(name, self.A.ID, self.B.ID, a, b, c, sim))
+			out.write(("{},{},{},{},{},{},{:.2%}\n").format(self.ID, self.A.ID, self.B.ID, a, b, c, sim))
 		self.A.Private = aout + "/0000.vcf"
 		self.B.Private = bout + "/0000.vcf"
