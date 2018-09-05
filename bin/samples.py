@@ -8,7 +8,7 @@ from sample import *
 
 class Samples():
 	# Stores data for all samples in a comparison
-	def __init__(self, parent):
+	def __init__(self):
 		self.Ulog = ""
 		self.Summary = ""
 		self.Conf = {}
@@ -66,10 +66,12 @@ class Samples():
 	def setSamples(self, indir, outdir, done):
 		# Sets samples A, B, and N; returns True if ID not in done
 		ret = False
+		indir = checkDir(indir)
+		outdir = checkDir(outdir, True)
 		self.ID = getParent(indir)
-		self.Outdir = checkDir(checkDir(outdir, True) + self.ID)
-		self.Log = outdir + "mutectLog.txt"
-		if indir != outdir:
+		self.Outdir = outdir + self.ID + "/"
+		self.Log = self.Outdir + "mutectLog.txt"
+		if not os.path.isfile(self.Log):
 			# Copy log file to new directory
 			copy(indir + "mutectLog.txt", self.Log)
 		if os.path.isfile(self.Log) and self.ID not in done:
@@ -83,13 +85,15 @@ class Samples():
 		self.A.updateStatus(status, step)
 		self.B.updateStatus(status, step)
 		if append == True:
-			appendLog(self.Conf, self.A)
-			appendLog(self.Conf, self.B)
+			self.appendLog(self.A)
+			self.appendLog(self.B)
 
 	def rmGermline(self):
 		# Wraps calls to Sample.rmGermline
-		self.A.rmGermline(S.Conf, self.Outdir)
-		self.B.rmGermline(S.Conf, self.Outdir)
+		self.A.rmGermline(self.Conf, self.Outdir)
+		self.appendLog(self.A)
+		self.B.rmGermline(self.Conf, self.Outdir)
+		self.appendLog(self.B)
 
 	def covB(self):
 		# Calls bcf isec and uses output to generate bed files for each comparison

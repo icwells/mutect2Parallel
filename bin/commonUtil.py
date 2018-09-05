@@ -6,6 +6,7 @@ import pysam
 from subprocess import Popen
 from shlex import split
 from unixpath import *
+from sample import Sample
 
 def runProc(cmd, log = None):
 	# Wraps call to Popen, writes stdout/stdout err to log/devnull, returns True if no errors

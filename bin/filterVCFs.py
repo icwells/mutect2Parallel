@@ -32,8 +32,6 @@ def filterPair(S):
 	covb = False
 	nab = False
 	S.rmGermline()
-	print(S.A, S.B)
-	quit()
 	if S.B.Status == "complete" and S.A.Status == "complete":
 		# Add summary to unfiltered log and use output of bcfIsec
 		S.compareVCFs()
@@ -41,6 +39,8 @@ def filterPair(S):
 		if status == True:
 			S.updateStatuses("complete", "filtering_isec1", True)
 			covb = True
+	print(S.A, S.B)
+	quit()
 	if covb == True:
 		S.covB()
 		if S.B.Status == "complete" and S.A.Status == "complete":
@@ -62,17 +62,18 @@ def getOutdir(conf, outdir, done, flog, ulog):
 	print("\tReading input vcfs...")
 	paths = glob(conf["outpath"] + "*")
 	for p in paths:
-		# Iterate through each subdirectory
-		S = Samples()
-		S.setLogs(flog, ulog, conf)
-		res = S.setSamples(p, outdir, done)
-		if res == True:
-			variants.append(S)
+		if os.path.isfile(p) == False:
+			# Iterate through each subdirectory
+			S = Samples()
+			S.setLogs(flog, ulog, conf)
+			res = S.setSamples(p, outdir, done)
+			if res == True:
+				variants.append(S)
 	return variants
 
 def getComplete(outdir):
 	# Makes log file or returns list of completed samples
-	summary = self.Outdir + "summary_Filtered.csv"
+	summary = outdir + "summary_Filtered.csv"
 	ulog = outdir + "summary_Unfiltered.csv"
 	for log in [ulog, summary]:
 		# Check summary last to keep final output
@@ -112,6 +113,7 @@ help = "Remove intermediary files (default is to keep them).")
 		args.o = checkDir(args.o, True)
 		done, flog, ulog = getComplete(args.o)
 	else:
+		args.o = conf["outpath"]
 		done, flog, ulog = getComplete(conf["outpath"])
 	variants = getOutdir(conf, args.o, done, flog, ulog)
 	l = len(variants)

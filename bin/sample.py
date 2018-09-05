@@ -1,7 +1,8 @@
 '''This script defines classes for Sample to manage filtering of mutect2 output'''
 
 import os
-from commonUtil import *
+from unixpath import *
+import commonUtil
 
 class Sample():
 	# Stores data for managing sample progress
@@ -62,11 +63,11 @@ class Sample():
 			if os.path.isfile(self.Output + ".gz"):
 				self.Output = self.Output + ".gz"
 			else:
-				printError(("Cannot find {} from {}").format(self.Output, sid)) 
+				commonUtil.printError(("Cannot find {} from {}").format(self.Output, sid)) 
 				ret = False	
 		if self.Step == "mutect":
 			if self.Status != "complete":
-				printError(("{} from {} has not successfully completed mutect.").format(self.ID, sid)) 
+				commonUtil.printError(("{} from {} has not successfully completed mutect.").format(self.ID, sid)) 
 				ret = False			
 		elif samples[s].Step == "filtering" and samples[s].Status != "complete":
 			# Re-attempt failed filtering steps
@@ -87,7 +88,7 @@ class Sample():
 
 #-------------------------------Filtering-------------------------------------
 
-	def fmtParameters(params):
+	def fmtParameters(self, params):
 		# Adds ampersand to parameters if needed
 		if len(params) > 0:
 			params += " & "
@@ -100,17 +101,17 @@ class Sample():
 		if self.Step == "filtering_germline":
 			params += "FILTER != 'germline_risk' & QUAL == '.'"
 			if "min_covA" in k:
-				params = fmtParameters(params)
+				params = self.fmtParameters(params)
 				params += "DP[*] >= {}".format(conf["min_covA"])
 			if "min_reads_strand" in k:
-				params = fmtParameters(params)
+				params = self.fmtParameters(params)
 				params += "F1R2[*] >= {} & F2R1[*] >= {}".format(conf["min_reads_strand"], conf["min_reads_strand"])
 		elif self.Step == "filtering_covB":
 			if "min_covB" in k:
-				params = fmtParameters(params)
+				params = self.fmtParameters(params)
 				params += "DP[*] >= {}".format(conf["min_covB"])
 			if "max_prop_altB" in k:
-				params = fmtParameters(params)
+				params = self.fmtParameters(params)
 				params += "AF[*] <= {}".format(conf["max_prop_altB"])
 		'''elif self.Step == "filtering_NAB":'''
 
@@ -128,13 +129,12 @@ class Sample():
 		opt = self.filterOpt(conf)
 		if opt:
 			cmd += ('-i "{}" ').format(opt)
-		res = runProc(cmd + vcf)
+		res = commonUtil.runProc(cmd + self.Output)
 		# Record results
 		if res == True and os.path.isfile(outfile):
 			self.updateStatus("complete", outfile = outfile, unfilt = True)
 		else:
 			self.updateStatus("failed")
-		appendLog(conf, self)
 
 	def reheader(self):
 		# Inserts contig lines into vcf header and returns outfile name
@@ -150,7 +150,6 @@ class Sample():
 						if "P_CONTAM" in line:
 							# Only insert line once
 							ins = False
-							break
 						pos = True
 					else:
 						if ins == True and pos == True:
@@ -171,14 +170,13 @@ class Sample():
 		log = outfile.replace("vcf", "stdout")
 		# Assemble command
 		cmd = ("java -jar {} FilterMutectCalls ").format(conf["gatk"])
-		cmd += ("-V {} -O {}").format(vcf, outfile)
-		res = runProc(cmd, log)
-		if res == True and getStatus(log) == True and getTotal(outfile) > 0:
+		cmd += ("-V {} -O {}").format(self.Output, outfile)
+		res = commonUtil.runProc(cmd, log)
+		if res == True and commonUtil.getStatus(log) == True and commonUtil.getTotal(outfile) > 0:
 			self.Output = outfile
 			self.bcfFilter(conf)
 		else:
 			self.updateStatus("failed")
-			appendLog(conf, self)
 
 	def rmGermline(self, conf, outdir):
 		# Calls filterMutectCalls and bcftools to remove germline risks
