@@ -166,7 +166,7 @@ def checkVCF(path, com = False):
 	ret = None
 	filename = "/0000.vcf"
 	if com == True:
-		filename = "common.vcf"
+		filename = "common_nab.vcf"
 	if os.path.isdir(path):
 		if os.path.isfile(path + filename):
 			ret = path + filename
@@ -176,7 +176,7 @@ def checkVCF(path, com = False):
 			ret = tabix(ret, force = True)
 	return ret
 
-def getMutectOutput(path, samples):
+def getMutectOutput(path):
 	# Returns dict of fitered mutect output
 	mut = {}
 	paths = glob(path + "*/")
@@ -186,46 +186,22 @@ def getMutectOutput(path, samples):
 		full = getParent(p)
 		# Drop leading number from name
 		sample = full[full.find("_")+1:]
-		if sample in samples.keys():
-			com = []
-			a = samples[sample]["a"]
-			b = samples[sample]["b"]
-			if len(a) > 1 and len(b) > 1:
-				mut[sample] = {}
-				mut[sample]["a"] = "NA"
-				mut[sample]["b"] = "NA"
-				mut[sample]["c"] = "NA"
-				# Get path names with full sample name
-				pa = checkVCF("{}{}".format(p, a))
-				if pa:
-					mut[sample]["a"] = bcfSort(pa)
-				pb = checkVCF("{}{}".format(p, b))
-				if pb:
-					mut[sample]["b"] = bcfSort(pb)
-				common = checkVCF(p, True)
-				if common:
-					mut[sample]["c"] = bcfSort(common)
-		else:
-			print(("\t[Warning] {} not in manifest.").format(sample))
+		if len(a) > 1 and len(b) > 1:
+			mut[sample] = {}
+			mut[sample]["a"] = "NA"
+			mut[sample]["b"] = "NA"
+			mut[sample]["c"] = "NA"
+			# Get path names with full sample name
+			pa = checkVCF("{}{}".format(p, "A_NAB"))
+			if pa:
+				mut[sample]["a"] = bcfSort(pa)
+			pb = checkVCF("{}{}".format(p, "B_NAB"))
+			if pb:
+				mut[sample]["b"] = bcfSort(pb)
+			common = checkVCF(p, True)
+			if common:
+				mut[sample]["c"] = bcfSort(common)
 	return mut
-
-def readManifest(infile):
-	# Returns dict of sample names
-	samples = {}
-	first = True
-	print("\tReading mutect manifest...")
-	with open(infile, "r") as f:
-		for line in f:
-			if line[0] != "#" and line.split():
-				if first == True:
-					delim = getDelim(line)
-					first = False
-				spl = line.strip().split(delim)
-				s = spl[0][spl[0].find("_")+1:]
-				a = getFileName(spl[2])
-				b = getFileName(spl[3])
-				samples[s] = {"a": a, "b": b}
-	return samples
 
 #-----------------------------------------------------------------------------
 
@@ -269,20 +245,18 @@ def main():
 	parser = ArgumentParser("This script will compare variants from different filtering pipelines.")
 	parser.add_argument("-c", help = "Copy target platypus data to this directory.")
 	parser.add_argument("-v", help = "Path to uncompressed vcf header (Copies contig information to platypus vcf headers).")
-	parser.add_argument("-i", 
-help = "Path to input manifest (mutect input for manifest generation or generated manifest for comparison).")
 	parser.add_argument("-m", help = "Path to mutect2parallel parent output directory.")
 	parser.add_argument("-p", help = "Path to platypus-based parent output directory.")
 	parser.add_argument("-o", 
 help = "Path to output manifest if using -m and -p. Path to output directory if using -i.")
+	parser.add_argument("-i", help = "Path to input manifest for comparison.")
 	args = checkArgs(parser.parse_args())
 	if args.m and args.p:
 		print("\n\tGetting new manifest for comparison...")
 		contigs = None
 		if args.v:
 			contigs = getContigs(args.v)
-		samples = readManifest(args.i)
-		mutect = getMutectOutput(args.m, samples)
+		mutect = getMutectOutput(args.m)
 		plat = getPlatypusOutput(args.p, args.c, contigs)
 		mergeSamples(args.o, mutect, plat)
 	elif args.i:
