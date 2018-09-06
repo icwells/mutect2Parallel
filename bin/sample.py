@@ -198,9 +198,9 @@ class Sample():
 			run == True
 		if run == True:
 			# Update statuses and get output file names
-			self.updateStatus("starting", step2)
 			infile = self.Output
 			self.Output = self.Output.replace(".noGemline", tag).replace(".gz", "")
+			self.updateStatus("starting", step2, self.Output)
 			cmd = ("heterAnalyzer {} {}").format(mode, params)
 			cmd += ("-i {} -v {} -o {}").format(infile, bed, self.Output)
 			res = commonUtil.runProc(cmd)
@@ -208,5 +208,4 @@ class Sample():
 				self.updateStatus("complete")
 			else:
 				self.updateStatuses("failed")
-				run = False
 		return run
