@@ -13,19 +13,19 @@ import (
 type Params struct {
 	nab     bool
 	minb    int
-	minaltb int
-	minprob float64
+	maxaltb int
+	maxprob float64
 	maxn    int
 	maxaltn int
 	maxpron float64
 }
 
-func (p *Params) setParameters(nab bool, minb, minaltb, maxn, maxaltn int, minprob, maxpron float64) {
+func (p *Params) setParameters(nab bool, minb, maxaltb, maxn, maxaltn int, maxprob, maxpron float64) {
 	// Stores parameters for filtering
 	p.nab = nab
 	p.minb = minb
-	p.minaltb = minaltb
-	p.minprob = minprob
+	p.maxaltb = maxaltb
+	p.maxprob = maxprob
 	p.maxn = maxn
 	p.maxaltn = maxaltn
 	p.maxpron = maxpron
@@ -42,8 +42,8 @@ func (r *Region) setRegion(ref, alt, rreads, areads string) {
 	// Converts and stores region values
 	r.Ref = ref
 	r.Alt = alt
-	r.RefReads = strconv.ParseInt(rreads, 10, 64)
-	r.AltReads = strconv.ParseInt(areads, 10, 64)
+	r.RefReads, _ = strconv.ParseInt(rreads, 10, 64)
+	r.AltReads, _ = strconv.ParseInt(areads, 10, 64)
 }
 
 type Intervals struct {
@@ -51,10 +51,10 @@ type Intervals struct {
 	Regions  map[string]map[int]Region
 }
 
-func (i *Intervals) setIntervals(nab bool, minb, minaltb, maxn, maxaltn int, minprob, maxpron float64) {
+func (i *Intervals) setIntervals(nab bool, minb, maxaltb, maxn, maxaltn int, maxprob, maxpron float64) {
 	// Initializes interval values
 	i.Regions = make(map[string]map[int]Region)
-	i.Settings.setParameters(nab, minb, minaltb, maxn, maxaltn, minprob, maxpron)
+	i.Settings.setParameters(nab, minb, maxaltb, maxn, maxaltn, maxprob, maxpron)
 }
 
 func (i *Intervals) loadIntervals(infile string) {
@@ -73,7 +73,7 @@ func (i *Intervals) loadIntervals(infile string) {
 		// Use coordinates as unique map key to store region values
 		var reg Region
 		reg.setRegion(s[2], s[3], s[4], s[5])
-		loc := strconv.ParseInt(s[1], 10, 64)
+		loc, _ := strconv.ParseInt(s[1], 10, 64)
 		i.Regions[s[0]][loc] = reg
 	}
 }

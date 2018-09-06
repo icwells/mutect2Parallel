@@ -32,7 +32,7 @@ done
 
 # lineageSimulator 
 echo "Building main..."
-go build -o bin/$MAIN src/$MAIN/*.go
+go build -o bin/$MAIN src/*.go
 
 echo "Finished"
 echo ""
