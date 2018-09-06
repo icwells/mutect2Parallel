@@ -5,7 +5,6 @@ package main
 import (
 	"fmt"
 	"github.com/icwells/go-tools/iotools"
-	"os"
 	"strconv"
 	"strings"
 )
@@ -19,16 +18,17 @@ func filterCovB(reg Intervals, row []string) bool {
 	// Returns true if row passes filtering for coverage in B
 	ret := false
 	p := reg.Settings
-	loc, err := strings.ParseInt(row[1], 10, 64)
+	loc, err := strconv.ParseInt(row[1], 10, 64)
+	l := int(loc)
 	if err == nil {
 		_, exists := reg.Regions[row[0]]
 		if exists == true {
-			_, e := reg.Regions[row[0]][loc]
+			_, e := reg.Regions[row[0]][l]
 			if e == true {
-				ref = true
-				alt = true
-				prop = true
-				r := reg.Regions[row[0]][loc]
+				ref := true
+				alt := true
+				prop := true
+				r := reg.Regions[row[0]][l]
 				// Store false if any filter is greater than 0 and is not met
 				if p.minb > 0 && r.RefReads <= p.minb {
 					ref = false
@@ -36,8 +36,11 @@ func filterCovB(reg Intervals, row []string) bool {
 				if p.maxaltb > 0 && r.AltReads >= p.maxaltb {
 					alt = false
 				}
-				if p.maxprob > 0.0 && (r.AltReads/r.RefReads) >= p.maxprob {
-					prop = false
+				if p.maxprob > 0.0 { 
+					refprop := float64(r.AltReads)/float64(r.RefReads)
+					if refprop >= p.maxprob {
+						prop = false
+					}
 				}
 				if ref == true && alt == true && prop == true {
 					// Store true if all filters are passed
@@ -58,10 +61,11 @@ func filterVCF(reg Intervals, infile, outfile string) {
 	defer out.Close()
 	input := iotools.GetScanner(f)
 	for input.Scan() {
+		line := string(input.Text())
 		if strings.Contains(line, "#") == true {
 			// Write header unchanged
-			err := out.WriteString(line)
-			_ := iotools.CheckError("Writing header line", err, 0)
+			_, err := out.WriteString(line + "\n")
+			iotools.CheckError("Writing header line", err, 0)
 		} else {
 			var res bool
 			s := strings.Split(line, "\t")
@@ -73,8 +77,8 @@ func filterVCF(reg Intervals, infile, outfile string) {
 			}
 			if res == true {
 				// Write lines that passed filtering
-				err := out.WriteString(line)
-				_ := iotools.CheckError("Writing filtered line", err, 0)
+				_, err := out.WriteString(line + "\n")
+				iotools.CheckError("Writing filtered line", err, 0)
 			}
 		}
 	}
