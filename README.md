@@ -11,10 +11,11 @@ git clone https://github.com/icwells/mutect2Parallel.git
 
 GATK: https://software.broadinstitute.org/gatk/download/ 
 
-#### Make sure bcftools, bedops, and bedtools are in your PATH
+#### Make sure bcftools and bedops are in your PATH
 bedops: https://bedops.readthedocs.io/en/latest/index.html 
 bcftools: http://www.htslib.org/download/  
-bedtools: https://bedtools.readthedocs.io/en/latest/content/installation.html  
+#### Picard can be in your path (loaded in a module) or given in the config file  
+picard: https://github.com/broadinstitute/picard/releases/tag/2.18.12  
 
 pysam: 
 

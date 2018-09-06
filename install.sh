@@ -1,7 +1,7 @@
 #!/bin/bash
 
 ##############################################################################
-# This script will install scripts for the compOncDB package.
+# This script will install scripts for heterAnalyzer in the mutect2parallel package.
 # 
 # Required programs:	Go 1.7+
 ##############################################################################
