@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage="$0 vcf1 vcf2 outputvcf_datavcf1bedvcf2 outputvcf_datavcf2bedvcf1 bam1 bam2 genome gatkjar"
+usage="$0 vcf1 vcf2 output_tsv1 output_tsv2 bam1 bam2 genome gatkjar"
 
 if [[ $# -ne 8 ]] || [[ ! -f $1 ]] || [[ ! -f $2 ]] || [[ ! -f $5 ]] || [[ ! -f $6 ]]
 then

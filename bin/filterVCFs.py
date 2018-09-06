@@ -40,10 +40,8 @@ def filterPair(S):
 		covb = True
 	if covb == True:
 		S.covB()
-		print(S.A, S.B)
-		quit()
-		if S.B.Status == "complete" and S.A.Status == "complete":
-			nan = True
+		'''if S.B.Status == "complete" and S.A.Status == "complete":
+			nan = True'''
 	if nab == True: 
 		S.NAB
 		if S.B.Status == "failed" or S.A.Status == "failed":
