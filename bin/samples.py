@@ -10,6 +10,7 @@ class Samples():
 	# Stores data for all samples in a comparison
 	def __init__(self):
 		self.Ulog = ""
+		self.Blog = ""
 		self.Summary = ""
 		self.Conf = {}
 		self.ID = ""
@@ -32,10 +33,11 @@ class Samples():
 		with open(self.Log, "a") as l:
 				l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Name, s.ID, s.Step, s.Status, out))
 
-	def setLogs(self, summary, ulog, conf):
+	def setLogs(self, summary, ulog, blog, conf):
 		# Stores logs and config
 		self.Summary = summary
 		self.Ulog = ulog
+		self.Blog = blog
 		self.Conf = conf
 
 	def checkSamples(self, samples):
@@ -116,17 +118,24 @@ class Samples():
 		ret = bcfIsec(outpath, vcfs)
 		return ret
 
-	def compareVCFs(self, filt = False):
+	def compareVCFs(self, step):
 		# Compares unfilted vs. passed results for each combination of pair of samples
-		if filt == False:
+		if step = "a":
 			aout = self.Outdir + "A_unfiltered"
 			bout = self.Outdir + "B_unfiltered"
 			cout = self.Outdir + "common_unfiltered.vcf"
 			log = self.Ulog
-		else:
-			aout = self.Outdir + "A_filtered"
-			bout = self.Outdir + "B_filtered"
-			cout = self.Outdir + "common_filtered.vcf"
+			self.A.Private = aout + "/0000.vcf"
+			self.B.Private = bout + "/0000.vcf"
+		elif step == "b":
+			aout = self.Outdir + "A_covb"
+			bout = self.Outdir + "B_covb"
+			cout = self.Outdir + "common_covb.vcf"
+			log = self.Blog
+		elif step == "n":
+			aout = self.Outdir + "A_nab"
+			bout = self.Outdir + "B_nab"
+			cout = self.Outdir + "common_nab.vcf"
 			log = self.Summary
 		# Append filtered sample name when submitting
 		if getTotal(self.A.Output) > 0:
@@ -153,18 +162,16 @@ class Samples():
 			sim = 0.0
 		with open(log, "a") as out:
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(self.ID, self.A.ID, self.B.ID, a, b, c, sim))
-		self.A.Private = aout + "/0000.vcf"
-		self.B.Private = bout + "/0000.vcf"
 
 	def covB(self):
-		# Calls bcf isec and uses output to generate bed files for each comparison
+		# Calls covB.sh to generate bed files for each comparison
 		run = False
 		if self.A.Step == "filtering_isec1" and self.A.Status == "complete":
 			run = True
 		elif self.A.Step == "filtering_covB" and self.A.Status != "complete":
 			run = True
 		if run == True:
-			# Update statuses and get output file names and log
+			# Update statuses and get output file names
 			self.updateStatuses("starting", "filtering_covB")
 			self.A.Bed = self.A.Private[:self.A.Private.rfind("/")] + "/A.private.tsv"
 			self.B.Bed = self.B.Private[:self.B.Private.rfind("/")] + "/B.private.tsv"
@@ -173,7 +180,32 @@ class Samples():
 			cmd += ("{} {} {} {}").format(self.A.Bam, self.B.Bam, self.Conf["ref"], self.Conf["gatk"])
 			res = runProc(cmd)
 			if res == True:
-				# Output names have already been updated
 				self.updateStatuses("complete", append = True)
 			else:
 				self.updateStatuses("failed", append = True)
+
+	def filterParams(self, mode):
+		# Returns parameters for heterAnalyzer
+		params = ""
+		if mode == "covb":
+			opt = ["min_covB", "max_altB", "max_prop_altB"]
+		elif mode == "nab":
+			opt = ["max_prop_altB", "min_freq_altN", "min_reads_altN"]
+		for i in opt:
+			if i in self.Conf.keys():
+				params += "--{} {} ").format(i, self.Conf[i])
+		return params
+
+	def filterForB(self):
+		# Calls heterAnalyzer to filter for coverage in paired sample
+		params = self.FilterParams("covb")
+		a = self.A.FilterForCoverage("covb", params, "filtForB", self.B.Bed)
+		if a == True:
+			self.appendLog(self.A)
+		b = self.B.FilterForCoverage("covb", params, "filtForA", self.A.Bed)
+		if b == True:
+			self.appendLog(self.B)
+
+	def NAB(self):
+		# Calls covN.sh to extract coverage from normal bam file
+		pass

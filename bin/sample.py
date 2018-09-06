@@ -102,24 +102,13 @@ class Sample():
 	def filterOpt(self, conf):
 		# Returns string with approriate parameters
 		k = conf.keys()
-		params = ""
-		if self.Step == "filtering_germline":
-			params += "FILTER != 'germline_risk' & QUAL == '.'"
-			if "min_covA" in k:
-				params = self.fmtParameters(params)
-				params += "DP[*] >= {}".format(conf["min_covA"])
-			if "min_reads_strand" in k:
-				params = self.fmtParameters(params)
-				params += "F1R2[*] >= {} & F2R1[*] >= {}".format(conf["min_reads_strand"], conf["min_reads_strand"])
-		elif self.Step == "filtering_covB":
-			if "min_covB" in k:
-				params = self.fmtParameters(params)
-				params += "DP[*] >= {}".format(conf["min_covB"])
-			if "max_prop_altB" in k:
-				params = self.fmtParameters(params)
-				params += "AF[*] <= {}".format(conf["max_prop_altB"])
-		'''elif self.Step == "filtering_NAB":'''
-
+		params = "FILTER != 'germline_risk' & QUAL == '.'"
+		if "min_covA" in k:
+			params = self.fmtParameters(params)
+			params += "DP[*] >= {}".format(conf["min_covA"])
+		if "min_reads_strand" in k:
+			params = self.fmtParameters(params)
+			params += "F1R2[*] >= {} & F2R1[*] >= {}".format(conf["min_reads_strand"], conf["min_reads_strand"])
 		return params
 
 	def bcfFilter(self, conf):
@@ -127,8 +116,7 @@ class Sample():
 		fmt = "v"
 		if ".gz" in self.Output:
 			fmt = "z"
-		if self.Step == "filtering_germline":
-			outfile = self.Output.replace("unfiltered", "noGermline")
+		outfile = self.Output.replace("unfiltered", "noGermline")
 		# Get command with output format and file
 		cmd = ("bcftools filter -O {} -o {} ").format(fmt, outfile)
 		opt = self.filterOpt(conf)
@@ -193,4 +181,25 @@ class Sample():
 		if run == True:
 			self.updateStatus("starting", "filtering_germline")
 			unfiltered = self.filterCalls(conf, outdir)
+		return run
+
+	def FilterForCoverage(self, mode, params, tag, bed):
+		# Filters for coverage using given mode and parameters
+		run = False
+		if self.Step == "filtering_covB" and self.Status == "complete":
+			run == True
+		elif self.Step == "filtering_forB" and self.Status != "complete":
+			run == True
+		if run == True:
+			# Update statuses and get output file names
+			self.updateStatus("starting", "filtering_forB")
+			infile = self.Output
+			self.Output = self.Output.replace(".noGemline", tag).replace(".gz", "")
+			cmd = ("heterAnalyzer {} {}").format(mode, params)
+			res = commonUtil.runProc(cmd + ("-i {} -v {} -o {}").format(infile, bed, self.Output)
+			if res == True:
+				self.updateStatus("complete")
+			else:
+				self.updateStatuses("failed")
+				run = False
 		return run

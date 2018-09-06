@@ -279,6 +279,8 @@ def getOptions(conf, line):
 			conf["min_reads_strand"] = int(val)
 		elif target == "min_covB":
 			conf["min_covB"] = int(val)
+		elif target == "max_altB":
+			conf["max_altB"] = int(val)
 		elif target == "max_prop_altB":
 			conf["max_prop_altB"] = float(val)
 		elif target == "max_covN":

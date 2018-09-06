@@ -16,15 +16,18 @@ def cleanUp(outpath):
 	paths = glob(outpath + "*")
 	for i in paths:
 		if os.path.isdir(i):
-			if "_unfiltered" in i:
+			if "_nab" not in i:
 				# Remove intermediate isec results
 				rmtree(i)
 		else:
 			if ".stdout" in i:	
 				# Remove logs
 				os.remove(i)
-			elif ".unfiltered" in i or ".noGermline" in i:
+			elif ".unfiltered" in i or ".noGermline" in i or ".covB" in i:
 				# Remove unfiltered results
+				os.remove(i)
+			elif "common" in i and "_nab" not in i:
+				# Remove intermediary isec unions
 				os.remove(i)
 
 def filterPair(S):
@@ -34,21 +37,34 @@ def filterPair(S):
 	S.rmGermline()
 	if S.B.Status == "complete" and S.A.Status == "complete":
 		# Add summary to unfiltered log and use output of bcfIsec
-		S.compareVCFs()
+		S.compareVCFs("a")
 		# Update statuses
 		S.updateStatuses("complete", "filtering_isec1", True)
 		covb = True
 	if covb == True:
 		S.covB()
-		'''if S.B.Status == "complete" and S.A.Status == "complete":
-			nan = True'''
+		if S.B.Status == "complete" and S.A.Status == "complete":
+			S.filterForB()
+			if S.B.Status == "complete" and S.A.Status == "complete":
+				# Add summary to log b and use output of bcfIsec
+				S.compareVCFs("b")
+				# Update statuses
+				S.updateStatuses("complete", "filtering_isec2", True)
+				nab = True
 	if nab == True: 
-		S.NAB
-		if S.B.Status == "failed" or S.A.Status == "failed":
+		S.NAB()
+		if S.B.Status == "complete" and S.A.Status == "complete":
+			s.filterForN()
+			if S.B.Status == "complete" and S.A.Status == "complete":
+				# Add isec results to summary and update log
+				S.compareVCFs("n")
+				# Update statuses
+				S.updateStatuses("complete", "filtering_isec3", True)
+				if conf["cleanup"] == True:
+					# Remove intermediary files if indicated and program exited successfully
+					cleanUp(variants["outpath"])
+		else:
 			nab = False
-		elif conf["cleanup"] == True:
-			# Remove intermediary files if indicated and program exited successfully
-			cleanUp(variants["outpath"])
 	return [nab, S.ID]
 
 #--------------------------------------------I/O------------------------------
@@ -70,9 +86,10 @@ def getOutdir(conf, outdir, done, flog, ulog):
 
 def getComplete(outdir):
 	# Makes log file or returns list of completed samples
-	summary = outdir + "summary_Filtered.csv"
+	summary = outdir + "summary_NAB.csv"
 	ulog = outdir + "summary_Unfiltered.csv"
-	for log in [ulog, summary]:
+	blog = outdir + "summary_covB.csv"
+	for log in [ulog, blog, summary]:
 		# Check summary last to keep final output
 		first = True
 		done = []
@@ -87,7 +104,7 @@ def getComplete(outdir):
 						done.append(line.split(",")[0])
 					else:
 						first = False
-	return done, summary, ulog
+	return done, summary, blog, ulog
 			
 def main():
 	starttime = datetime.now()
@@ -108,10 +125,10 @@ help = "Remove intermediary files (default is to keep them).")
 	conf["cleanup"] = args.cleanup
 	if args.o:
 		args.o = checkDir(args.o, True)
-		done, flog, ulog = getComplete(args.o)
+		done, flog, blog, ulog = getComplete(args.o)
 	else:
 		args.o = conf["outpath"]
-		done, flog, ulog = getComplete(conf["outpath"])
+		done, flog, blog, ulog = getComplete(conf["outpath"])
 	variants = getOutdir(conf, args.o, done, flog, ulog)
 	l = len(variants)
 	pool = Pool(processes = args.t)
