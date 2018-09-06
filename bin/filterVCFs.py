@@ -29,6 +29,9 @@ def cleanUp(outpath):
 			elif "common" in i and "_nab" not in i:
 				# Remove intermediary isec unions
 				os.remove(i)
+			elif "normalVariants" in i:
+				# Remove variants extracted from normal bam
+				os.remove(i)
 
 def filterPair(S):
 	# Filters and compares pair of samples

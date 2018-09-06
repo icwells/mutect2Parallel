@@ -4,7 +4,7 @@ import os
 from argparse import ArgumentParser
 from datetime import datetime
 from runPair import callMutect
-from commonUtils import *
+from commonUtil import *
 
 def makePON(infiles, outfile, gatk):
 	# Calls mutect to create a new panel of normals

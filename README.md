@@ -1,17 +1,17 @@
-# mutect2Parallel v0.3 will create batch scripts to call Mutect2 in parallel over input files
+# mutect2Parallel v0.4 will create batch scripts to call Mutect2 in parallel over input files
 
 Copyright 2018 by Shawn Rupp
 
 ## Installation
-### Download the repository:
 
-git clone https://github.com/icwells/mutect2Parallel.git
+### mutect2parallel requires Go 1.7+ to compile filtering scripts  
+Download: https://golang.org/dl/  
+Setup: https://github.com/golang/go/wiki/SettingGOPATH  
 
-### Download gatk (a gatk jar file is required):
+### Download gatk (a gatk jar file is required):  
+GATK: https://software.broadinstitute.org/gatk/download/  
 
-GATK: https://software.broadinstitute.org/gatk/download/ 
-
-#### Make sure bcftools and bedops are in your PATH
+#### Make sure bcftools and bedops are in your PATH  
 bedops: https://bedops.readthedocs.io/en/latest/index.html 
 bcftools: http://www.htslib.org/download/  
 #### Picard can be in your path (loaded in a module) or given in the config file  
@@ -25,7 +25,13 @@ unixpath:
 
 	git clone https://github.com/icwells/unixpath.git    
 	cd unixpath/  
-	python setup.py install 
+	python setup.py install  
+
+### Download the repository and install heterAnalyzer:  
+
+	git clone https://github.com/icwells/mutect2Parallel.git  
+	cd mutect2Parallel/  
+	./install  
 
 ## Input files:
 
@@ -41,7 +47,7 @@ instances, it is best to specify 32Gb of RAM for each script.
 	reference_genome		Path to reference genome (required). 
 	bed_annotation			Path to BED annotation (greatly speeds up runtime) 
 	output_directory		Path to parent output directory (each sample will have it's own folder) 
-	GATK_jar	 			Path to GATK jar (omit if using a module). 
+	GATK_jar	 			Path to GATK jar (required). 
 	Picard_jar	 			Path to Picard jar (omit if using a module). 
 	normal_panel	 		Path to panel of normals VCF (Can use mutect2Parallel/getPON to generate)
 	germline_resource		Path to germline recource file. 
@@ -116,21 +122,6 @@ Used to call mutect2 in parallel for each each tumor-normal comparison for one s
 	--af AF			Estimated allele frequency (required if using a germline resource).
 	--mo MO			Additional mutect options in quotes
 
-
-#### compareVariants.py  
-This script will compare variants from different filtering pipelines.
-
-	-h, --help show this help message and exit
-	-c C		Copy target platypus data to this directory.
-	-v V		Path to uncompressed vcf header (Copies contig information to
-					platypus vcf headers).
-	-i I		Path to input manifest (mutect input for manifest generation or
-					generated manifest for comparison).
-	-m M		Path to mutect2parallel parent output directory.
-	-p P		Path to platypus-based parent output directory.
-	-o O		Path to output manifest if using -m and -p. Path to output
-					directory if using -i.
-
 #### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
 
@@ -148,6 +139,17 @@ Can be used to genrate a new panel of normals. This script will be called by mut
 	-g G			Path to germline resource.
 	--af AF			Estimated allele frequency (required if using a germline resource).
 	-e E			Path to contmination estimate vcf.
+
+#### compareVariants.py  
+This script will compare variants from different filtering pipelines.  
+
+	-h, --help show this help message and exit  
+	-c C		Copy target platypus data to this directory.  
+	-v V		Path to uncompressed vcf header (Copies contig information to platypus vcf headers).  
+	-i I		Path to input manifest (mutect input for manifest generation or generated manifest for comparison).  
+	-m M		Path to mutect2parallel parent output directory.  
+	-p P		Path to platypus-based parent output directory.  
+	-o O		Path to output manifest if using -m and -p. Path to output directory if using -i.  
 
 ### Utilities  
 
