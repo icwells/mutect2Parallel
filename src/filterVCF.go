@@ -9,10 +9,43 @@ import (
 	"strings"
 )
 
-/*func filterNAB(reg Intervals, row []string) bool {
+func filterNAB(reg Intervals, row []string) bool {
 	// Returns true if row passes filtering for coverage in normal file
-
-}*/
+	ret := false
+	p := reg.Settings
+	loc, err := strconv.ParseInt(row[1], 10, 64)
+	l := int(loc)
+	if err == nil {
+		_, exists := reg.Regions[row[0]]
+		if exists == true {
+			_, e := reg.Regions[row[0]][l]
+			if e == true {
+				ref := true
+				alt := true
+				prop := true
+				r := reg.Regions[row[0]][l]
+				// Store false if any filter is greater than 0 and is not met
+				if p.minn > 0 && r.RefReads <= p.minn {
+					ref = false
+				}
+				if p.maxaltn > 0 && r.AltReads >= p.maxaltn {
+					alt = false
+				}
+				if p.maxpron > 0.0 { 
+					refprop := float64(r.AltReads)/float64(r.RefReads)
+					if refprop >= p.maxpron {
+						prop = false
+					}
+				}
+				if ref == true && alt == true && prop == true {
+					// Store true if all filters are passed
+					ret = true
+				}
+			}
+		}
+	}
+	return ret
+}
 
 func filterCovB(reg Intervals, row []string) bool {
 	// Returns true if row passes filtering for coverage in B
@@ -54,7 +87,7 @@ func filterCovB(reg Intervals, row []string) bool {
 
 func filterVCF(reg Intervals, infile, outfile string) {
 	// Applys filters stored in reg to input vcf and writes passing variants to outfile
-	fmt.Printf("\n\tFiltering vcf: %s\n", infile)
+	fmt.Printf("\tFiltering vcf: %s\n", infile)
 	f := iotools.OpenFile(infile)
 	out := iotools.CreateFile(outfile)
 	defer f.Close()
@@ -72,8 +105,8 @@ func filterVCF(reg Intervals, infile, outfile string) {
 			// Apply approriate filters
 			if reg.Settings.nab == false {
 				res = filterCovB(reg, s)
-				//} else {
-				//res = filterNAB(reg, s)
+			} else {
+				res = filterNAB(reg, s)
 			}
 			if res == true {
 				// Write lines that passed filtering

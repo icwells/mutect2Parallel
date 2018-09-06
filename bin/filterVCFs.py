@@ -39,9 +39,10 @@ def filterPair(S):
 		# Add summary to unfiltered log and use output of bcfIsec
 		S.compareVCFs("a")
 		# Update statuses
-		S.updateStatuses("complete", "filtering_isec1", True)
+		S.updateStatuses("complete", "isec1", True)
 		covb = True
 	if covb == True:
+		# Filter for coverage in paired tumor sample
 		S.covB()
 		if S.B.Status == "complete" and S.A.Status == "complete":
 			S.filterForB()
@@ -49,27 +50,28 @@ def filterPair(S):
 				# Add summary to log b and use output of bcfIsec
 				S.compareVCFs("b")
 				# Update statuses
-				S.updateStatuses("complete", "filtering_isec2", True)
+				S.updateStatuses("complete", "isec2", True)
 				nab = True
 	if nab == True: 
+		# Filter for coverage in normal file
 		S.NAB()
-		if S.B.Status == "complete" and S.A.Status == "complete":
+		'''if S.B.Status == "complete" and S.A.Status == "complete":
 			s.filterForN()
 			if S.B.Status == "complete" and S.A.Status == "complete":
 				# Add isec results to summary and update log
 				S.compareVCFs("n")
 				# Update statuses
-				S.updateStatuses("complete", "filtering_isec3", True)
+				S.updateStatuses("complete", "isec3", True)
 				if conf["cleanup"] == True:
 					# Remove intermediary files if indicated and program exited successfully
 					cleanUp(variants["outpath"])
 		else:
-			nab = False
+			nab = False'''
 	return [nab, S.ID]
 
 #--------------------------------------------I/O------------------------------
 
-def getOutdir(conf, outdir, done, flog, ulog):
+def getOutdir(conf, outdir, done, flog, blog, ulog):
 	# Reads in dictionary of input samples
 	variants = []
 	print("\tReading input vcfs...")
@@ -78,7 +80,7 @@ def getOutdir(conf, outdir, done, flog, ulog):
 		if os.path.isfile(p) == False:
 			# Iterate through each subdirectory
 			S = Samples()
-			S.setLogs(flog, ulog, conf)
+			S.setLogs(flog, ulog, blog, conf)
 			res = S.setSamples(p, outdir, done)
 			if res == True:
 				variants.append(S)
@@ -129,7 +131,7 @@ help = "Remove intermediary files (default is to keep them).")
 	else:
 		args.o = conf["outpath"]
 		done, flog, blog, ulog = getComplete(conf["outpath"])
-	variants = getOutdir(conf, args.o, done, flog, ulog)
+	variants = getOutdir(conf, args.o, done, flog, blog, ulog)
 	l = len(variants)
 	pool = Pool(processes = args.t)
 	print(("\tComparing samples from {} sets with {} threads...").format(l, args.t))

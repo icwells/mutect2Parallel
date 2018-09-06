@@ -14,18 +14,18 @@ type Params struct {
 	minb    int
 	maxaltb int
 	maxprob float64
-	maxn    int
+	minn    int
 	maxaltn int
 	maxpron float64
 }
 
-func (p *Params) setParameters(nab bool, minb, maxaltb, maxn, maxaltn int, maxprob, maxpron float64) {
+func (p *Params) setParameters(nab bool, minb, maxaltb, minn, maxaltn int, maxprob, maxpron float64) {
 	// Stores parameters for filtering
 	p.nab = nab
 	p.minb = minb
 	p.maxaltb = maxaltb
 	p.maxprob = maxprob
-	p.maxn = maxn
+	p.minn = minn
 	p.maxaltn = maxaltn
 	p.maxpron = maxpron
 }
@@ -52,10 +52,10 @@ type Intervals struct {
 	Regions  map[string]map[int]Region
 }
 
-func (i *Intervals) setIntervals(nab bool, minb, maxaltb, maxn, maxaltn int, maxprob, maxpron float64) {
+func (i *Intervals) setIntervals(nab bool, minb, maxaltb, minn, maxaltn int, maxprob, maxpron float64) {
 	// Initializes interval values
 	i.Regions = make(map[string]map[int]Region)
-	i.Settings.setParameters(nab, minb, maxaltb, maxn, maxaltn, maxprob, maxpron)
+	i.Settings.setParameters(nab, minb, maxaltb, minn, maxaltn, maxprob, maxpron)
 }
 
 func (i *Intervals) loadIntervals(infile string) {

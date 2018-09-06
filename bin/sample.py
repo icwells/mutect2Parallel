@@ -183,20 +183,27 @@ class Sample():
 			unfiltered = self.filterCalls(conf, outdir)
 		return run
 
-	def FilterForCoverage(self, mode, params, tag, bed):
+	def filterForCoverage(self, mode, params, tag, bed):
 		# Filters for coverage using given mode and parameters
 		run = False
-		if self.Step == "filtering_covB" and self.Status == "complete":
+		if mode == "covb":
+			step1 = "filtering_covB"
+			step2 = "filtering_forB"
+		elif mode == "nab":
+			step1 = "isec2"
+			step2 = "filtering_NAB"			
+		if self.Step == step1 and self.Status == "complete":
 			run == True
-		elif self.Step == "filtering_forB" and self.Status != "complete":
+		elif self.Step == step2 and self.Status != "complete":
 			run == True
 		if run == True:
 			# Update statuses and get output file names
-			self.updateStatus("starting", "filtering_forB")
+			self.updateStatus("starting", step2)
 			infile = self.Output
 			self.Output = self.Output.replace(".noGemline", tag).replace(".gz", "")
 			cmd = ("heterAnalyzer {} {}").format(mode, params)
-			res = commonUtil.runProc(cmd + ("-i {} -v {} -o {}").format(infile, bed, self.Output)
+			cmd += ("-i {} -v {} -o {}").format(infile, bed, self.Output)
+			res = commonUtil.runProc(cmd)
 			if res == True:
 				self.updateStatus("complete")
 			else:

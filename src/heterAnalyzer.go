@@ -20,9 +20,9 @@ var (
 	maxpropb = covb.Flag("max_prop_altB", "Maximum proportion of alternative reads in B.").Default("0.0").Float()
 
 	nab      = kingpin.Command("nab", "Filter based on coverage in normal tissue vcf.")
-	maxn     = nab.Flag("max_covN", "Maximum coverage in normal vcf.").Default("5").Int()
-	maxaltn  = nab.Flag("min_reads_altN", "Maximum number of alternative alleles in normal vcf.").Default("15").Int()
-	maxpropn = nab.Flag("min_freq_altN", "Maximum proportion of alternative reads in normal vcf.").Default("0.3").Float()
+	minn     = nab.Flag("min_covN", "Minimum coverage in normal vcf.").Default("5").Int()
+	maxaltn  = nab.Flag("max_reads_altN", "Maximum number of alternative alleles in normal vcf.").Default("15").Int()
+	maxpropn = nab.Flag("max_freq_altN", "Maximum proportion of alternative reads in normal vcf.").Default("0.3").Float()
 )
 
 func main() {
@@ -30,11 +30,11 @@ func main() {
 	var reg Intervals
 	switch kingpin.Parse() {
 	case covb.FullCommand():
-		reg.setIntervals(false, *minb, *maxaltb, *maxn, *maxaltn, *maxpropb, *maxpropn)
+		reg.setIntervals(false, *minb, *maxaltb, *minn, *maxaltn, *maxpropb, *maxpropn)
 	case nab.FullCommand():
-		reg.setIntervals(true, *minb, *maxaltb, *maxn, *maxaltn, *maxpropb, *maxpropn)
+		reg.setIntervals(true, *minb, *maxaltb, *minn, *maxaltn, *maxpropb, *maxpropn)
 	}
 	reg.loadIntervals(*interval)
 	filterVCF(reg, *infile, *outfile)
-	fmt.Printf("\n\tFinished. Runtime: %s\n\n", time.Since(start))
+	fmt.Printf("\tFinished. Runtime: %s\n\n", time.Since(start))
 }

@@ -284,11 +284,11 @@ def getOptions(conf, line):
 		elif target == "max_prop_altB":
 			conf["max_prop_altB"] = float(val)
 		elif target == "max_covN":
-			conf["max_covN"] = int(val)
+			conf["min_covN"] = int(val)
 		elif target == "min_freq_altN":
-			conf["min_freq_altN"] = float(val)
+			conf["max_freq_altN"] = float(val)
 		elif target == "min_reads_altN":
-			conf["min_reads_altN"] = int(val)
+			conf["max_reads_altN"] = int(val)
 	return conf
 
 def getConf(infile):

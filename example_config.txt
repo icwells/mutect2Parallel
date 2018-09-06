@@ -20,10 +20,11 @@ mutect_options =
 min_covA = 20
 min_reads_strand = 10
 min_covB = 15
+max_altB = 0
 max_prop_altB = 0.05
-max_covN = 5
-min_freq_altN = 0.3
-min_reads_altN = 15
+min_covN = 5
+max_freq_altN = 0.3
+max_reads_altN = 15
 
 ==============================================================================
 #	Sample Batch Script (grid commands and module load commands)

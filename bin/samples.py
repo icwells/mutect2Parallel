@@ -25,7 +25,7 @@ class Samples():
 		if s.Step == "mutect" and s.Status == "starting":
 			# Record infile instead of outfile
 			out = s.Input
-		elif "isec1" in s.Step and s.Private:
+		elif s.Step == "isec1" and s.Private:
 			# Record private vcf
 			out = s.Private
 		else:
@@ -120,7 +120,7 @@ class Samples():
 
 	def compareVCFs(self, step):
 		# Compares unfilted vs. passed results for each combination of pair of samples
-		if step = "a":
+		if step == "a":
 			aout = self.Outdir + "A_unfiltered"
 			bout = self.Outdir + "B_unfiltered"
 			cout = self.Outdir + "common_unfiltered.vcf"
@@ -166,7 +166,7 @@ class Samples():
 	def covB(self):
 		# Calls covB.sh to generate bed files for each comparison
 		run = False
-		if self.A.Step == "filtering_isec1" and self.A.Status == "complete":
+		if self.A.Step == "isec1" and self.A.Status == "complete":
 			run = True
 		elif self.A.Step == "filtering_covB" and self.A.Status != "complete":
 			run = True
@@ -190,22 +190,48 @@ class Samples():
 		if mode == "covb":
 			opt = ["min_covB", "max_altB", "max_prop_altB"]
 		elif mode == "nab":
-			opt = ["max_prop_altB", "min_freq_altN", "min_reads_altN"]
+			opt = ["min_covN", "max_freq_altN", "max_reads_altN"]
 		for i in opt:
 			if i in self.Conf.keys():
-				params += "--{} {} ").format(i, self.Conf[i])
+				params += ("--{} {} ").format(i, self.Conf[i])
 		return params
 
 	def filterForB(self):
 		# Calls heterAnalyzer to filter for coverage in paired sample
-		params = self.FilterParams("covb")
-		a = self.A.FilterForCoverage("covb", params, "filtForB", self.B.Bed)
+		params = self.filterParams("covb")
+		a = self.A.filterForCoverage("covb", params, "filtForB", self.B.Bed)
 		if a == True:
 			self.appendLog(self.A)
-		b = self.B.FilterForCoverage("covb", params, "filtForA", self.A.Bed)
+		b = self.B.filterForCoverage("covb", params, "filtForA", self.A.Bed)
 		if b == True:
 			self.appendLog(self.B)
 
 	def NAB(self):
 		# Calls covN.sh to extract coverage from normal bam file
-		pass
+		run = False
+		if self.A.Step == "isec2" and self.A.Status == "complete":
+			run = True
+		elif self.N.Step == "filtering_covN" and self.N.Status != "complete":
+			run = True
+		if run == True:
+			self.N.Bed = self.Outdir + "normalVariants.tsv"
+			# Assign bed as outfile so it is recorded in log
+			self.N.updateStatus("starting", "filtering_covN", self.N.Bed)
+			cmd = ("bash covN.sh {} {} {} {}").format(self.A.Unfiltered, self.B.Unfiltered, self.N.Bed, self.N.Bam)
+			cmd += (" {} {}").format(self.Conf["ref"], self.Conf["gatk"])
+			res = runProc(cmd)
+			if res == True:
+				self.N.updateStatus("complete")
+			else:
+				self.N.updateStatus("failed")
+			self.appendLog(self.N)
+
+	def filterForN(self):
+		# Calls heterAnalyzer to filter for coverage in normal file
+		params = self.filterParams("nab")
+		a = self.A.filterForCoverage("nab", params, "NAB", self.N.Bed)
+		if a == True:
+			self.appendLog(self.A)
+		b = self.B.filterForCoverage("nab", params, "NAB", self.N.Bed)
+		if b == True:
+			self.appendLog(self.B)	
