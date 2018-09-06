@@ -199,7 +199,7 @@ class Sample():
 		if run == True:
 			# Update statuses and get output file names
 			infile = self.Output
-			self.Output = self.Output.replace(".noGemline", tag).replace(".gz", "")
+			self.Output = ("{}.{}.vcf").format(self.Output[:self.Output.find(".")], tag)
 			self.updateStatus("starting", step2, self.Output)
 			cmd = ("heterAnalyzer {} {}").format(mode, params)
 			cmd += ("-i {} -v {} -o {}").format(infile, bed, self.Output)
