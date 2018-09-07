@@ -110,6 +110,16 @@ def getComplete(outdir):
 					else:
 						first = False
 	return done, summary, blog, ulog
+
+def checkBin():
+	# Makes sure heterAnalyzer and bash scripts are present in working directory
+	for idx,i in enumerate(["heterAnalyzer", "covB.sh", "covN.sh"]):
+		if not os.path.isfile(i):
+			print(("\n\t[Error] {} not found.").format(i))
+			if idx == 0:
+				print(("\tRun install.sh to install {}.").format(i))
+			print("\tExiting.\n")
+			quit()
 			
 def main():
 	starttime = datetime.now()
@@ -123,6 +133,7 @@ and output will be written to same sub-directory).")
 	parser.add_argument("--cleanup", action = "store_true", default = False,
 help = "Remove intermediary files (default is to keep them).")
 	args = parser.parse_args()
+	checkBin()
 	if args.t > cpu_count():
 		args.t = cpu_count()
 	# Load config file and discard batch template
