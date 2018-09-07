@@ -52,6 +52,9 @@ class Sample():
 			save = True
 		elif step == "filtering_covB" and self.Step == "isec1":
 			save = True
+		elif step == "isec1" and self.Step == "filtering_germline":
+			self.Private = outfile
+			save = True
 		elif step == "filtering_germline" and self.Step == "mutect":
 			# Save unfiltered file if it exists
 			unf = outfile[:outfile.find(".")] + ".noGermline.vcf"
@@ -92,10 +95,7 @@ class Sample():
 		if self.Step == "mutect":
 			if self.Status != "complete":
 				commonUtil.printError(("{} from {} has not successfully completed mutect.").format(self.ID, sid)) 
-				ret = False			
-		elif self.Step == "filtering" and self.Status != "complete":
-			# Re-attempt failed filtering steps
-			self.Step = "mutect"
+				ret = False
 		return ret
 
 	def updateStatus(self, status, step = None, outfile = None, unfilt = False):

@@ -44,17 +44,17 @@ def filterPair(S):
 		if cv == True:
 			# Update statuses if compare vcfs ran
 			S.updateStatuses("complete", "isec1", True)
-			print(S.A)
-			print(S.B)
-	'''if S.B.Status == "complete" and S.A.Status == "complete":
+	if S.B.Status == "complete" and S.A.Status == "complete":
 		# Make sure previous steps were successful
 		cv = False
-		covb = True'''
+		covb = True
 	if covb == True:
 		# Filter for coverage in paired tumor sample
 		cb = S.covB()
 		if cb == True:
 			fb = S.filterForCov("covb")
+			print(S.B)
+			print(fb)
 			if fb == True:
 				# Add summary to log b and use output of bcfIsec
 				cv = S.compareVCFs("b")
@@ -63,10 +63,10 @@ def filterPair(S):
 					S.updateStatuses("complete", "isec2", True)
 	if S.B.Status == "complete" and S.A.Status == "complete":
 		cv = False
-		#nab = True
+		nab = True
 	if nab == True: 
 		# Filter for coverage in normal file
-		n = S.NAB()
+		n = S.covN()
 		'''if n == True:
 			fn = s.filterForCov("nab")
 			if fn == True:
@@ -158,7 +158,7 @@ help = "Remove intermediary files (default is to keep them).")
 	variants = getOutdir(conf, args.o, done, flog, blog, ulog)
 	l = len(variants)
 	pool = Pool(processes = args.t)
-	print(("\tComparing samples from {} sets with {} threads...").format(l, args.t))
+	print(("\tComparing samples from {} sets with {} threads...\n").format(l, args.t))
 	for x in pool.imap_unordered(filterPair, variants):
 		l -= 1
 		if x[0] == False:
