@@ -1,6 +1,6 @@
 #!/bin/bash
 
-usage="$0 vcf1_name vcf2_name outputname Nbam\n Environment variable GATKJAR should point to GATK\'s jar executable"
+usage="$0 vcf1_name vcf2_name outputname Nbam refGenome gatkJar"
 
 if [[ $# -ne 6 ]] || [[ ! -f $1 ]] || [[ ! -f $2 ]] || [[ ! -f $4 ]] || [[ ! -f $5 ]] || [[ ! -f $6 ]]
 then
@@ -23,5 +23,5 @@ vcf2bed --snvs < $vcf2 > ${name_vcf2}_snvs.bed
 vcf2bed --deletions < $vcf1 > ${name_vcf1}_deletions.bed
 vcf2bed --snvs < $vcf1 > ${name_vcf1}_snvs.bed
 bedops --everything {${name_vcf2},${name_vcf1}}_{deletions,snvs}.bed | awk 'BEGIN{OFS="\t"}{print($1,$2,$3)}' > ${name_out}.bed
-java -Xms512m -Xmx6G -jar $GATKJAR HaplotypeCaller -R $GENOME -I $bam1 -o "$name_out.vcf" --intervals ${name_out}.bed --output-mode EMIT_ALL_SITES > "$name_out.log" 2>&1
+java -Xms512m -Xmx6G -jar $GATKJAR HaplotypeCaller -R $GENOME -I $bam1 -O "$name_out.vcf" --intervals ${name_out}.bed --output-mode EMIT_ALL_SITES > "$name_out.log" 2>&1
 cat "$name_out.vcf" | sed "/^#/d" | perl -lane '$F[9]=~s/^[^:]*:([^:]*).*/$1/;@reads=split(",",$F[9]);$reads[1]=="" and $reads[1]=0;if($reads[0] eq "./."){$readsref=0;$readsout=0}else{$readsref=splice(@reads,0,1);$readsout=join(",",@reads)};print join("\t",@F[0,1,3,4],$readsref,$readsout)' > $out

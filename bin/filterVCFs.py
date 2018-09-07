@@ -67,7 +67,7 @@ def filterPair(S):
 	if nab == True: 
 		# Filter for coverage in normal file
 		n = S.covN()
-		'''if n == True:
+		if n == True:
 			fn = s.filterForCov("nab")
 			if fn == True:
 				# Add isec results to summary and update log
@@ -79,7 +79,7 @@ def filterPair(S):
 						# Remove intermediary files if indicated and program exited successfully
 						cleanUp(variants["outpath"])
 		else:
-			nab = False'''
+			nab = False
 	return [nab, S.ID]
 
 #--------------------------------------------I/O------------------------------

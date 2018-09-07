@@ -235,6 +235,14 @@ class Samples():
 			ret = True
 		return ret
 
+	def __unzipUnfiltered__(self):
+		# Makes sure covN input is unzipped
+		for i in [self.A.Unfiltered, self.B.Unfiltered]:
+		if getExt(i) == "gz":
+			res = runProc((("gzip -d {}").format(i))
+		self.A.Unfiltered = self.A.Unfiltered.replace(".gz", "")
+		self.B.Unfiltered = self.B.Unfiltered.replace(".gz", "")
+
 	def covN(self):
 		# Calls covN.sh to extract coverage from normal bam file
 		run = False
@@ -243,6 +251,7 @@ class Samples():
 		elif self.N.Step == "filtering_covN" and self.N.Status != "complete":
 			run = True
 		if run == True:
+			self.__unzipUnfiltered__()
 			self.N.Bed = self.Outdir + "normalVariants.tsv"
 			# Assign bed as outfile so it is recorded in log
 			self.N.updateStatus("starting", "filtering_covN", self.N.Bed)

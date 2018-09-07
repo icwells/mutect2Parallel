@@ -78,8 +78,9 @@ class Sample():
 		save = self.__rankStatus__(step, status, outfile)
 		if save == True:
 			self.Step = step
-			self.Output = outfile
 			self.Status = status
+			if step != "isec1":
+				self.Output = outfile
 		if getExt(outfile) == "bam":
 			self.Bam = outfile
 
@@ -220,8 +221,9 @@ class Sample():
 			infile = self.Output
 			self.Output = ("{}.{}.vcf").format(self.Output[:self.Output.find(".")], tag)
 			self.updateStatus("starting", step2, self.Output)
-			cmd = ("heterAnalyzer {} {}").format(mode, params)
+			cmd = ("./heterAnalyzer {} {}").format(mode, params)
 			cmd += ("-i {} -v {} -o {}").format(infile, bed, self.Output)
+			print(cmd)
 			res = commonUtil.runProc(cmd)
 			if res == True:
 				self.updateStatus("complete")
