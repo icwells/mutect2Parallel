@@ -32,28 +32,47 @@ class Sample():
 		ret += "Unfiltered VCF: {}\n".format(self.Unfiltered)
 		return ret
 
-	def update(self, sample, name, step, status, outfile):
-		# Sorts and updates entry with additional status update
+	def __rankStatus__(self, step, status, outfile):
+		# Determines if new data should overwrite existing data
 		save = False
-		if not self.Name:
-			self.Name = sample
-		if not self.ID:
-			self.ID = name
-		if step == "comparison":
+		if not self.Step:
+			# Save if fields are empty
 			save = True
-		elif step == "filtering_covB" and self.Step != "comparison":
+		elif step == self.Step and self.Status != "complete":
+			save = True
+		elif step == "isec3":
+			save = True
+		elif step == "filtering_NAB" and self.Step != "isec3":
+			save = True
+		elif step == "filtering_covN" and self.Step == "isec2":
+			save = True
+		elif step == "isec2" and self.Step == "filtering_forB":
+			save = True
+		elif step == "filtering_forB" and self.Step == "filtering_covB":
+			save = True
+		elif step == "filtering_covB" and self.Step == "isec1":
 			save = True
 		elif step == "filtering_germline" and self.Step == "mutect":
+			# Save unfiltered file if it exists
 			unf = outfile[:outfile.find(".")] + ".noGermline.vcf"
 			if os.path.isfile(unf):
 				self.Unfiltered = unf
 			elif os.path.isfile(unf + ".gz"):
 				self.Unfiltered = unf + ".gz"
 			save = True
-		elif step == "mutect" and not self.Step or self.Step == "mutect":
+		elif step == "mutect" and self.Step == "normal":
 			save = True
-		elif step == "normal" and not self.Step:
+		elif step == "normal":
 			save = True
+		return save
+
+	def update(self, sample, name, step, status, outfile):
+		# Sorts and updates entry with additional status update
+		if not self.Name:
+			self.Name = sample
+		if not self.ID:
+			self.ID = name
+		save = self.__rankStatus__(step, status, outfile)
 		if save == True:
 			self.Step = step
 			self.Output = outfile
@@ -93,21 +112,21 @@ class Sample():
 
 #-------------------------------Filtering-------------------------------------
 
-	def fmtParameters(self, params):
+	def __fmtParameters__(self, params):
 		# Adds ampersand to parameters if needed
 		if len(params) > 0:
 			params += " & "
 		return params
 
-	def filterOpt(self, conf):
+	def __filterOpt__(self, conf):
 		# Returns string with approriate parameters
 		k = conf.keys()
 		params = "FILTER != 'germline_risk' & QUAL == '.'"
 		if "min_covA" in k:
-			params = self.fmtParameters(params)
+			params = self.__fmtParameters__(params)
 			params += "DP[*] >= {}".format(conf["min_covA"])
 		if "min_reads_strand" in k:
-			params = self.fmtParameters(params)
+			params = self.__fmtParameters__(params)
 			params += "F1R2[*] >= {} & F2R1[*] >= {}".format(conf["min_reads_strand"], conf["min_reads_strand"])
 		return params
 
@@ -119,7 +138,7 @@ class Sample():
 		outfile = self.Output.replace("unfiltered", "noGermline")
 		# Get command with output format and file
 		cmd = ("bcftools filter -O {} -o {} ").format(fmt, outfile)
-		opt = self.filterOpt(conf)
+		opt = self.__filterOpt__(conf)
 		if opt:
 			cmd += ('-i "{}" ').format(opt)
 		res = commonUtil.runProc(cmd + self.Output)
@@ -129,7 +148,7 @@ class Sample():
 		else:
 			self.updateStatus("failed")
 
-	def reheader(self):
+	def __reheader__(self):
 		# Inserts contig lines into vcf header and returns outfile name
 		insert = '##INFO=<ID=P_CONTAM,Number=A,Type=Float,Description="Posterior probability an site reperesents contamination">\n'
 		pos = False
@@ -157,7 +176,7 @@ class Sample():
 	def filterCalls(self, conf, outdir):
 		# Calls gatk to filter mutect calls to remove germline variants
 		if ".gz" not in self.Output:
-			self.reheader()
+			self.__reheader__()
 		ext = ".unfiltered.vcf"
 		outfile = outdir + self.Output[self.Output.rfind("/")+1:self.Output.find(".")] + ext
 		log = outfile.replace("vcf", "stdout")
@@ -180,7 +199,7 @@ class Sample():
 			run == True
 		if run == True:
 			self.updateStatus("starting", "filtering_germline")
-			unfiltered = self.filterCalls(conf, outdir)
+			self.filterCalls(conf, outdir)
 		return run
 
 	def filterForCoverage(self, mode, params, tag, bed):

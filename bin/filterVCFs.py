@@ -37,37 +37,47 @@ def filterPair(S):
 	# Filters and compares pair of samples
 	covb = False
 	nab = False
-	S.rmGermline()
-	if S.B.Status == "complete" and S.A.Status == "complete":
+	rg = S.rmGermline()
+	if rg == True:
 		# Add summary to unfiltered log and use output of bcfIsec
-		S.compareVCFs("a")
-		# Update statuses
-		S.updateStatuses("complete", "isec1", True)
-		covb = True
+		cv = S.compareVCFs("a")
+		if cv == True:
+			# Update statuses if compare vcfs ran
+			S.updateStatuses("complete", "isec1", True)
+			print(S.A)
+			print(S.B)
+	'''if S.B.Status == "complete" and S.A.Status == "complete":
+		# Make sure previous steps were successful
+		cv = False
+		covb = True'''
 	if covb == True:
 		# Filter for coverage in paired tumor sample
-		S.covB()
-		if S.B.Status == "complete" and S.A.Status == "complete":
-			S.filterForB()
-			if S.B.Status == "complete" and S.A.Status == "complete":
+		cb = S.covB()
+		if cb == True:
+			fb = S.filterForCov("covb")
+			if fb == True:
 				# Add summary to log b and use output of bcfIsec
-				S.compareVCFs("b")
-				# Update statuses
-				S.updateStatuses("complete", "isec2", True)
-				nab = True
+				cv = S.compareVCFs("b")
+				if cv == True:
+					# Update statuses if compare vcfs ran
+					S.updateStatuses("complete", "isec2", True)
+	if S.B.Status == "complete" and S.A.Status == "complete":
+		cv = False
+		#nab = True
 	if nab == True: 
 		# Filter for coverage in normal file
-		S.NAB()
-		'''if S.B.Status == "complete" and S.A.Status == "complete":
-			s.filterForN()
-			if S.B.Status == "complete" and S.A.Status == "complete":
+		n = S.NAB()
+		'''if n == True:
+			fn = s.filterForCov("nab")
+			if fn == True:
 				# Add isec results to summary and update log
-				S.compareVCFs("n")
-				# Update statuses
-				S.updateStatuses("complete", "isec3", True)
-				if conf["cleanup"] == True:
-					# Remove intermediary files if indicated and program exited successfully
-					cleanUp(variants["outpath"])
+				cv = S.compareVCFs("n")
+				if cv == True:
+					# Update statuses if compare vcfs ran
+					S.updateStatuses("complete", "isec3", True)
+					if conf["cleanup"] == True:
+						# Remove intermediary files if indicated and program exited successfully
+						cleanUp(variants["outpath"])
 		else:
 			nab = False'''
 	return [nab, S.ID]
@@ -92,7 +102,7 @@ def getOutdir(conf, outdir, done, flog, blog, ulog):
 def getComplete(outdir):
 	# Makes log file or returns list of completed samples
 	summary = outdir + "summary_NAB.csv"
-	ulog = outdir + "summary_Unfiltered.csv"
+	ulog = outdir + "summary_unfiltered.csv"
 	blog = outdir + "summary_covB.csv"
 	for log in [ulog, blog, summary]:
 		# Check summary last to keep final output

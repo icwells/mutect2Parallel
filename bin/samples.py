@@ -40,7 +40,7 @@ class Samples():
 		self.Blog = blog
 		self.Conf = conf
 
-	def checkSamples(self, samples):
+	def __checkSamples__(self, samples):
 		# Makes sure two samples have passed mutect
 		proceed = True
 		if "N" in samples.keys():
@@ -79,7 +79,7 @@ class Samples():
 		if os.path.isfile(self.Log) and self.ID not in done:
 			# Proceed if sample not done and log is present
 			_, s = checkOutput(self.Outdir, prnt = False)
-			ret = self.checkSamples(s)
+			ret = self.__checkSamples__(s)
 		return True
 
 	def updateStatuses(self, status, step = None, append = False):
@@ -94,15 +94,18 @@ class Samples():
 
 	def rmGermline(self):
 		# Wraps calls to Sample.rmGermline
-		run = self.A.rmGermline(self.Conf, self.Outdir)
-		if run == True:
+		ret = False
+		a = self.A.rmGermline(self.Conf, self.Outdir)
+		if a == True:
 			self.appendLog(self.A)
-		run = False
-		run = self.B.rmGermline(self.Conf, self.Outdir)
-		if run == True:
+		b = self.B.rmGermline(self.Conf, self.Outdir)
+		if b == True:
 			self.appendLog(self.B)
+		if a == True and b == True:
+			ret = True
+		return ret
 
-	def comparePair(self, outpath, vcfs):
+	def __comparePair__(self, outpath, vcfs):
 		# Calls bcftools on pair of reads if both exist
 		for i in range(len(vcfs)):
 			if vcfs[i] and os.path.isfile(vcfs[i]):
@@ -116,10 +119,11 @@ class Samples():
 				return None
 		# Call bftools on all results
 		ret = bcfIsec(outpath, vcfs)
-		return ret
+		return ret, vcfs[0], vcfs[1]
 
 	def compareVCFs(self, step):
 		# Compares unfilted vs. passed results for each combination of pair of samples
+		# Get outputs and logs and check for completion
 		if step == "a":
 			aout = self.Outdir + "A_unfiltered"
 			bout = self.Outdir + "B_unfiltered"
@@ -127,23 +131,32 @@ class Samples():
 			log = self.Ulog
 			self.A.Private = aout + "/0000.vcf"
 			self.B.Private = bout + "/0000.vcf"
+			if self.B.Step != "filtering_germline" or self.B.Status != "complete":
+				return False
 		elif step == "b":
 			aout = self.Outdir + "A_covb"
 			bout = self.Outdir + "B_covb"
 			cout = self.Outdir + "common_covb.vcf"
 			log = self.Blog
+			if self.B.Step != "filtering_forB" or self.B.Status != "complete":
+				return False
 		elif step == "n":
 			aout = self.Outdir + "A_nab"
 			bout = self.Outdir + "B_nab"
 			cout = self.Outdir + "common_nab.vcf"
 			log = self.Summary
-		# Append filtered sample name when submitting
+			if self.B.Step != "filtering_NAB" or self.B.Status != "complete":
+				return False
+		# Make sure file names are updated if they are gzipped
 		if getTotal(self.A.Output) > 0:
-			a = self.comparePair(aout, [self.A.Output, self.B.Unfiltered])
+			a, self.A.Output, self.B.Unfiltered = self.__comparePair__(aout, [self.A.Output, self.B.Unfiltered])
+			if step == "a":
+				# Update B.Output if it was gzipped
+				self.B.Output = self.B.Unfiltered
 		else:
 			a = 0
 		if getTotal(self.B.Output) > 0:
-			b = self.comparePair(bout, [self.B.Output, self.A.Unfiltered])
+			b, self.B.Output, self.A.Unfiltered = self.__comparePair__(bout, [self.B.Output, self.A.Unfiltered])
 		else:
 			b = 0
 		if a > 0 and b > 0:
@@ -162,6 +175,7 @@ class Samples():
 			sim = 0.0
 		with open(log, "a") as out:
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(self.ID, self.A.ID, self.B.ID, a, b, c, sim))
+		return True
 
 	def covB(self):
 		# Calls covB.sh to generate bed files for each comparison
@@ -183,8 +197,9 @@ class Samples():
 				self.updateStatuses("complete", append = True)
 			else:
 				self.updateStatuses("failed", append = True)
+		return run
 
-	def filterParams(self, mode):
+	def __filterParams__(self, mode):
 		# Returns parameters for heterAnalyzer
 		params = ""
 		if mode == "covb":
@@ -196,15 +211,29 @@ class Samples():
 				params += ("--{} {} ").format(i, self.Conf[i])
 		return params
 
-	def filterForB(self):
+	def filterForCov(self, mode):
 		# Calls heterAnalyzer to filter for coverage in paired sample
-		params = self.filterParams("covb")
-		a = self.A.filterForCoverage("covb", params, "filtForB", self.B.Bed)
+		ret = False
+		params = self.__filterParams__(mode)
+		if mode == "covb":
+			taga = "filtForB"
+			tagb = "filtForA"
+			beda = self.B.Bed
+			bedb = self.A.Bed
+		elif mode == "nab":
+			taga = "NAB"
+			tagb = "NAB"
+			beda = self.N.Bed
+			bedb = self.N.Bed
+		a = self.A.filterForCoverage(mode, params, taga, beda)
 		if a == True:
 			self.appendLog(self.A)
-		b = self.B.filterForCoverage("covb", params, "filtForA", self.A.Bed)
+		b = self.B.filterForCoverage(mode, params, tagb, bedb)
 		if b == True:
 			self.appendLog(self.B)
+		if a == True or b == True:
+			ret = True
+		return ret
 
 	def NAB(self):
 		# Calls covN.sh to extract coverage from normal bam file
@@ -225,13 +254,4 @@ class Samples():
 			else:
 				self.N.updateStatus("failed")
 			self.appendLog(self.N)
-
-	def filterForN(self):
-		# Calls heterAnalyzer to filter for coverage in normal file
-		params = self.filterParams("nab")
-		a = self.A.filterForCoverage("nab", params, "NAB", self.N.Bed)
-		if a == True:
-			self.appendLog(self.A)
-		b = self.B.filterForCoverage("nab", params, "NAB", self.N.Bed)
-		if b == True:
-			self.appendLog(self.B)	
+		return run
