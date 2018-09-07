@@ -53,8 +53,6 @@ def filterPair(S):
 		cb = S.covB()
 		if cb == True:
 			fb = S.filterForCov("covb")
-			print(S.B)
-			print(fb)
 			if fb == True:
 				# Add summary to log b and use output of bcfIsec
 				cv = S.compareVCFs("b")
@@ -80,6 +78,8 @@ def filterPair(S):
 						cleanUp(variants["outpath"])
 		else:
 			nab = False
+	print(S.A)
+	print(S.B)
 	return [nab, S.ID]
 
 #--------------------------------------------I/O------------------------------
