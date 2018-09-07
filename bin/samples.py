@@ -238,8 +238,8 @@ class Samples():
 	def __unzipUnfiltered__(self):
 		# Makes sure covN input is unzipped
 		for i in [self.A.Unfiltered, self.B.Unfiltered]:
-		if getExt(i) == "gz":
-			res = runProc((("gzip -d {}").format(i))
+			if getExt(i) == "gz":
+				res = runProc((("gzip -d {}").format(i)))
 		self.A.Unfiltered = self.A.Unfiltered.replace(".gz", "")
 		self.B.Unfiltered = self.B.Unfiltered.replace(".gz", "")
 
