@@ -213,17 +213,16 @@ class Sample():
 			step1 = "isec2"
 			step2 = "filtering_NAB"			
 		if self.Step == step1 and self.Status == "complete":
-			run == True
+			run = True
 		elif self.Step == step2 and self.Status != "complete":
-			run == True
+			run = True
 		if run == True:
 			# Update statuses and get output file names
 			infile = self.Output
 			self.Output = ("{}.{}.vcf").format(self.Output[:self.Output.find(".")], tag)
 			self.updateStatus("starting", step2, self.Output)
 			cmd = ("./heterAnalyzer {} {}").format(mode, params)
-			cmd += ("-i {} -v {} -o {}").format(infile, bed, self.Output)
-			print(cmd)
+			cmd += ("-v {} -i {} -o {}").format(infile, bed, self.Output)
 			res = commonUtil.runProc(cmd)
 			if res == True:
 				self.updateStatus("complete")

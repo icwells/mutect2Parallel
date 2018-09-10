@@ -66,20 +66,18 @@ def filterPair(S):
 		# Filter for coverage in normal file
 		n = S.covN()
 		if n == True:
-			fn = s.filterForCov("nab")
+			fn = S.filterForCov("nab")
 			if fn == True:
 				# Add isec results to summary and update log
 				cv = S.compareVCFs("n")
 				if cv == True:
 					# Update statuses if compare vcfs ran
 					S.updateStatuses("complete", "isec3", True)
-					if conf["cleanup"] == True:
+					if S.Conf["cleanup"] == True:
 						# Remove intermediary files if indicated and program exited successfully
-						cleanUp(variants["outpath"])
+						cleanUp(S.Outdir)
 		else:
 			nab = False
-	print(S.A)
-	print(S.B)
 	return [nab, S.ID]
 
 #--------------------------------------------I/O------------------------------

@@ -257,7 +257,6 @@ class Samples():
 			self.N.updateStatus("starting", "filtering_covN", self.N.Bed)
 			cmd = ("bash covN.sh {} {} {} {}").format(self.A.Unfiltered, self.B.Unfiltered, self.N.Bed, self.N.Bam)
 			cmd += (" {} {}").format(self.Conf["ref"], self.Conf["gatk"])
-			print(cmd)
 			res = runProc(cmd)
 			if res == True:
 				self.N.updateStatus("complete")
