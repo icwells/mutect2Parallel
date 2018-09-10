@@ -4,7 +4,10 @@ package main
 
 import (
 	"fmt"
+	"github.com/icwells/go-tools/iotools"
 	"gopkg.in/alecthomas/kingpin.v2"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -25,6 +28,26 @@ var (
 	maxpropn = nab.Flag("max_freq_altN", "Maximum proportion of alternative reads in normal vcf.").Default("0.3").Float()
 )
 
+func checkInput(infile string) string {
+	// Check for existance of infile with and without ".gz"; exits if it does not exist
+	if iotools.Exists(infile) == false {
+		if strings.Contains(infile, ".gz") == true {
+			if strings.Count(infile, ".") > 1 {
+				idx := strings.LastIndex(infile, ".")
+				infile = infile[:idx]
+			}
+		} else {
+			infile = infile + ".gz"
+		}
+	}
+	// Repeat with edited infile
+	if iotools.Exists(infile) == false {
+		fmt.Printf("\n[Error] Cannot find %s. Exiting.\n\n", infile)
+		os.Exit(1)
+	}
+	return infile
+}
+
 func main() {
 	start := time.Now()
 	var reg Intervals
@@ -34,7 +57,9 @@ func main() {
 	case nab.FullCommand():
 		reg.setIntervals(true, *minb, *maxaltb, *minn, *maxaltn, *maxpropb, *maxpropn)
 	}
-	reg.loadIntervals(*interval)
-	filterVCF(reg, *infile, *outfile)
+	i := checkInput(*interval)
+	vcf := checkInput(*infile)
+	reg.loadIntervals(i)
+	filterVCF(reg, vcf, *outfile)
 	fmt.Printf("\tFinished. Runtime: %s\n\n", time.Since(start))
 }
