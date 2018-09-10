@@ -7,6 +7,14 @@ from functools import partial
 from multiprocessing import Pool, cpu_count
 from commonUtil import *
 
+def appendLog(conf, s):
+	# Appends direclty to log without using Samples class
+	out = s.Output
+	if s.Status == "starting":
+		out = s.Input
+	with open(conf["log"], "a") as l:
+		l.write(("{}\t{}\t{}\t{}\t{}\n").format(s.Name, s.ID, s.Step, s.Status, out))	
+
 #-------------------------------Mutect----------------------------------------
 
 def callMutect(cmd, name, outfile):
