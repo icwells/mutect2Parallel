@@ -71,7 +71,7 @@ class Samples():
 		indir = checkDir(indir)
 		outdir = checkDir(outdir, True)
 		self.ID = getParent(indir)
-		self.Outdir = outdir + self.ID + "/"
+		self.Outdir = checkDir(outdir + self.ID + "/", True)
 		self.Log = self.Outdir + "mutectLog.txt"
 		if not os.path.isfile(self.Log):
 			# Copy log file to new directory
