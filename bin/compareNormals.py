@@ -65,7 +65,7 @@ def getNormals(infile, outdir):
 				outfile = outpath + getParent(line) + ".N.vcf"
 				if os.path.isfile(outfile + ".gz"):
 					# Check for existance of gzipped file
-					outfile += outfile + ".gz"
+					outfile += ".gz"
 				elif not os.path.isfile(outfile):
 					# Copy file if it has not already been copied
 					copy(line, outfile)
@@ -112,8 +112,6 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	args, norm = checkArgs(args)
 	print()
 	normals = getNormals(args.m, args.o)
-	print(normals)
-	quit()
 	if norm == False:
 		vcfs, log = getSamplePairs(args.o, normals, args.i)
 	else:
