@@ -36,7 +36,7 @@ def getSamplePairs(outdir, normals, vcf = None):
 	# Returns pairs of samples to compare
 	vcfs = []
 	if vcf:
-		log = outdir + getFileName(vcf) + "sampleComparison.csv"
+		log = outdir + getFileName(vcf) + "Comparison.csv"
 		for i in normals:
 			# Pair input vcf with each normal vcf
 			vcfs.append([vcf, i])
