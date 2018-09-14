@@ -14,7 +14,7 @@ def runProc(cmd, log = None):
 		log = os.devnull
 	with open(log, "w") as out:
 		try:
-			call = Popen(split(cmd), stdout = out, stderr = out)
+			call = Popen(split(cmd))#, stdout = out, stderr = out)
 			call.communicate()
 			return True
 		except:
@@ -34,6 +34,9 @@ def tabix(vcf, force = False, keep = False):
 	if os.path.isfile(vcf + ".gz") and force == False:
 		gz = vcf + ".gz"
 	else:
+		if os.path.isfile(vcf + ".gz") and not os.path.isfile(vcf):
+			# Check for existance of gzipped file
+			gz = vcf + ".gz"
 		try:
 			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
 		except OSError:
@@ -85,7 +88,7 @@ def bcfIsec(outpath, vcfs):
 	a = None
 	for i in range(len(vcfs)):
 		# Make sure there is an up-to-date index file
-		vcfs[i] = tabix(vcfs[i], True)
+		vcfs[i] = tabix(vcfs[i], force = True)
 	if None not in vcfs:
 		cmd = ("bcftools isec {} {} -p {}").format(vcfs[0], vcfs[1], outpath)
 		res = runProc(cmd)
