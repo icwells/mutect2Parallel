@@ -40,14 +40,18 @@ def getSomaticVariants(args):
 	else:
 		outfile = args.o + getFileName(args.i) + ".vcf"
 		log = args.o + getFileName(args.i) + ".txt"
-	cmd = ("platypus callVariants --nCPU={} --bamFiles={} ").format(args.t, args.i)
-	cmd += ("--refFile={} --output={} --logFileName={}").format(args.r, outfile, log)
-	cmd += " --filterReadPairsWithSmallInserts=,0"
-	print("\tFiltering bam file...")
-	print(cmd)
-	res = runProc(cmd)
-	if res == False:
-		printFatal("Bam file failed platypus filtering")
+	if not os.path.isfile(outfile) or os.path.getsize(outfile) < 2097152:
+		# Proceed if output file does not exist or is it less than 2mb
+		cmd = ("platypus callVariants --nCPU={} --bamFiles={} ").format(args.t, args.i)
+		cmd += ("--refFile={} --output={} --logFileName={}").format(args.r, outfile, log)
+		cmd += " --filterReadPairsWithSmallInserts=0"
+		print("\tFiltering bam file...")
+		print(cmd)
+		res = runProc(cmd)
+		if res == False:
+			printFatal("Bam file failed platypus filtering")
+	else:
+		print("\tProceeding with existing vcf file.")
 	return tabix(outfile)
 
 def getSamplePairs(outdir, normals, vcf = None):
