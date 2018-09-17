@@ -14,7 +14,7 @@ def runProc(cmd, log = None):
 		log = os.devnull
 	with open(log, "w") as out:
 		try:
-			call = Popen(split(cmd))#, stdout = out, stderr = out)
+			call = Popen(split(cmd), stdout = out, stderr = out)
 			call.communicate()
 			return True
 		except:
@@ -36,7 +36,7 @@ def tabix(vcf, force = False, keep = False):
 	else:
 		if os.path.isfile(vcf + ".gz") and not os.path.isfile(vcf):
 			# Check for existance of gzipped file
-			gz = vcf + ".gz"
+			vcf += ".gz"
 		try:
 			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
 		except OSError:
@@ -95,6 +95,7 @@ def bcfIsec(outpath, vcfs):
 		if res == True:
 			# Number of unique variants to each sample and number of shared
 			a = getTotal(outpath + "/0000.vcf")
+			print(a)
 	return a
 
 #-----------------------------------------------------------------------------
