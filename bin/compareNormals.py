@@ -34,6 +34,20 @@ def identifySample(norm, outdir, log, vcfs):
 	else:
 		return [False, v, n]
 
+def allSamplePairs(outdir, normals, a, b):
+	# Returns all pairs for a:normal and b:normal
+	vcfs = []
+	log = outdir + "allSamplesComparison.csv"
+	with open(log, "w") as out:
+		# Initialize log file
+		out.write("SampleA, SampleB, PrivateA, PrivateB, Common, %Similarity\n")
+	for t in [a, b]:
+		for i in t:
+			for j in normals:
+				# Append each a/b to normal pair
+				vcfs.append([i, j])
+	return vcfs, log
+
 def getSamplePairs(outdir, normals, vcf = None):
 	# Returns pairs of samples to compare
 	vcfs = []
@@ -54,27 +68,49 @@ def getSamplePairs(outdir, normals, vcf = None):
 		out.write("SampleA, SampleB, PrivateA, PrivateB, Common, %Similarity\n")
 	return vcfs, log
 
-def getNormals(infile, outdir):
+def checkVCF(line, outpath, stem):
+	# Returns name of existing output file and copies if necessary
+	outfile = None
+	if stem not in line:
+		line = line.replace(".N.vcf", stem)
+	if os.path.isfile(line):
+		outfile = outpath + getParent(line) + stem
+		if os.path.isfile(outfile + ".gz"):
+			# Check for existance of gzipped file
+			outfile += ".gz"
+		elif not os.path.isfile(outfile):
+			# Copy file if it has not already been copied
+			copy(line, outfile)
+	else:
+		print(("\t[Warning] {} not found. Skipping.").format(line))
+	return outfile
+
+def getNormals(infile, outdir, allsamples):
 	# Reads input manifest and copies files to outdir
 	normals = []
+	tumora = []
+	tumorb = []
 	outpath = checkDir(outdir + "normals/", True)
 	print("\n\tReading normals manifest...")
 	with open(infile, "r") as f:
 		for line in f:
 			line = line.strip()
-			if os.path.isfile(line):
-				# Get outfile name with sample as part of file name
-				outfile = outpath + getParent(line) + ".N.vcf"
-				if os.path.isfile(outfile + ".gz"):
-					# Check for existance of gzipped file
-					outfile += ".gz"
-				elif not os.path.isfile(outfile):
-					# Copy file if it has not already been copied
-					copy(line, outfile)
-				normals.append(outfile)
+			if allsamples == False:
+				outfile = checkVCF(line, outpath, ".N.vcf")
+				if outfile:
+					normals.append(outfile)
 			else:
-				print(("\t[Warning] {} not found. Skipping.").format(line))
-	return normals
+				for i in [".N.vcf", ".A.vcf", ".B.vcf"]:
+					# Get outfile name with sample as part of file name
+					outfile = checkVCF(line, outpath, i)
+					if outfile:
+						if "N" in i:
+							normals.append(outfile)
+						elif "A" in i:
+							tumora.append(outfile)
+						elif "B" in i:
+							tumorb.append(outfile)
+	return normals, tumora, tumorb
 
 def fatalError(msg):
 	# Prints meassage and exits
@@ -105,6 +141,8 @@ def main():
 	start = datetime.now()
 	parser = ArgumentParser("This script will call bcftools isec to compare input samples. \
 Make sure platypus is loaded in a module or in your PATH if supplying an input bam file.")
+	parser.add_argument("--allsamples", action = "store_true", default = False,
+help = "Compares each tumor vcf to all normal vcfs.")
 	parser.add_argument("-t", type = int, default = 1, help = "Number of threads (default = 1).")
 	parser.add_argument("-i", 
 help = "Path to input sample (If omitted, the normal vcfs will be compared to one another).")
@@ -113,12 +151,15 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	args = parser.parse_args()
 	args, norm = checkArgs(args)
 	print()
-	normals = getNormals(args.m, args.o)
-	if norm == False:
+	normals, a, b = getNormals(args.m, args.o, args.allsamples)
+	if norm == False and args.allsamples == False:
 		vcfs, log = getSamplePairs(args.o, normals, args.i)
-	else:
+	elif args.allsamples == False:
 		print("\tGetting all pairs of normal samples...")
 		vcfs, log = getSamplePairs(args.o, normals)
+	else:
+		print("\tGetting all tumor:normal sample pairs...")
+		vcfs, log = allSamplePairs(args.o, normals, a, b)
 	func = partial(identifySample, norm, args.o, log)
 	l = len(vcfs)
 	pool = Pool(processes = args.t)
