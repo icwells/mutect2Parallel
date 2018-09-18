@@ -65,6 +65,20 @@ class Samples():
 			proceed = self.B.checkStatus(self.ID)				
 		return proceed
 
+	def __trimLog__(self):
+		# Removes steps after mutect from log
+		tmp = self.Log + "~"
+		with open(tmp, "w") as out:
+			with open(self.Log, "r") as f:
+				for line in f:
+					s = line.split("\t")
+					if s[2] == "Step" or s[2] == "normal" or s[2] == "mutect":
+						# Only write lines from mutect analysis
+						out.write(line)
+		# Replace log file
+		os.remove(self.Log)
+		os.rename(tmp, self.Log)
+
 	def setSamples(self, indir, outdir, done):
 		# Sets samples A, B, and N; returns True if ID not in done
 		ret = False
@@ -76,9 +90,14 @@ class Samples():
 		if not os.path.isfile(self.Log):
 			# Copy log file to new directory
 			copy(indir + "mutectLog.txt", self.Log)
+		if self.Conf["force"] == True:
+			self.__trimLog__()
 		if os.path.isfile(self.Log) and self.ID not in done:
 			# Proceed if sample not done and log is present
 			_, s = checkOutput(self.Outdir, prnt = False)
+			if self.Conf["force"] == True:
+				self.A.reset()
+				self.B.reset()
 			ret = self.__checkSamples__(s)
 		return True
 
@@ -114,7 +133,6 @@ class Samples():
 			elif ".gz" not in vcfs[i] and os.path.isfile(vcfs[i] + ".gz"):
 				vcfs[i] += ".gz"
 			else:
-				print(vcfs)
 				printError(("Cannot find {}").format(vcfs[i]))
 				return None
 		# Call bftools on all results

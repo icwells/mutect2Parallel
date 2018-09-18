@@ -95,7 +95,6 @@ def bcfIsec(outpath, vcfs):
 		if res == True:
 			# Number of unique variants to each sample and number of shared
 			a = getTotal(outpath + "/0000.vcf")
-			print(a)
 	return a
 
 #-----------------------------------------------------------------------------

@@ -19,6 +19,8 @@ def identifySample(norm, outdir, log, vcfs):
 	else:
 		outpath = ("{}isecSample/{}_{}").format(outdir, v, n)
 	a = bcfIsec(outpath, vcfs)
+	if a == 0:
+		print(vcfs)
 	if a is not None:
 		b = getTotal(outpath + "/0001.vcf")
 		c = getTotal(outpath + "/0002.vcf")

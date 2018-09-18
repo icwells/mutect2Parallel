@@ -167,6 +167,7 @@ def checkVCF(path, com = False):
 	filename = "/0000.vcf"
 	if com == True:
 		filename = "common_nab.vcf"
+	print(filename)
 	if os.path.isdir(path):
 		if os.path.isfile(path + filename):
 			ret = path + filename
@@ -186,21 +187,20 @@ def getMutectOutput(path):
 		full = getParent(p)
 		# Drop leading number from name
 		sample = full[full.find("_")+1:]
-		if len(a) > 1 and len(b) > 1:
-			mut[sample] = {}
-			mut[sample]["a"] = "NA"
-			mut[sample]["b"] = "NA"
-			mut[sample]["c"] = "NA"
-			# Get path names with full sample name
-			pa = checkVCF("{}{}".format(p, "A_NAB"))
-			if pa:
-				mut[sample]["a"] = bcfSort(pa)
-			pb = checkVCF("{}{}".format(p, "B_NAB"))
-			if pb:
-				mut[sample]["b"] = bcfSort(pb)
-			common = checkVCF(p, True)
-			if common:
-				mut[sample]["c"] = bcfSort(common)
+		mut[sample] = {}
+		mut[sample]["a"] = "NA"
+		mut[sample]["b"] = "NA"
+		mut[sample]["c"] = "NA"
+		# Get path names with full sample name
+		pa = checkVCF("{}{}".format(p, "A_NAB"))
+		if pa:
+			mut[sample]["a"] = bcfSort(pa)
+		pb = checkVCF("{}{}".format(p, "B_NAB"))
+		if pb:
+			mut[sample]["b"] = bcfSort(pb)
+		common = checkVCF(p, True)
+		if common:
+			mut[sample]["c"] = bcfSort(common)
 	return mut
 
 #-----------------------------------------------------------------------------
@@ -221,7 +221,6 @@ def getContigs(infile):
 
 def checkArgs(args):
 	# Checks for errors in arguments
-	checkFile(args.i)
 	if args.m or args.p:
 		if not args.m or not args.p:
 			# Raise error if either is missing
@@ -237,6 +236,7 @@ def checkArgs(args):
 		if args.v:
 			checkFile(args.v)
 	else:
+		checkFile(args.i)
 		args.o = checkDir(args.o, True)
 	return args
 

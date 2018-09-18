@@ -111,6 +111,12 @@ class Sample():
 		if unfilt == True:
 			self.Unfiltered = outfile
 
+	def reset(self):
+		# Resets status to begin filtering
+		self.Step = "mutect"
+		self.Status = "complete"
+		self.Unfiltered = ""
+
 #-------------------------------Filtering-------------------------------------
 
 	def __fmtParameters__(self, params):

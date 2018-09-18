@@ -93,11 +93,11 @@ def getOutdir(conf, outdir, done, flog, blog, ulog):
 			S = Samples()
 			S.setLogs(flog, ulog, blog, conf)
 			res = S.setSamples(p, outdir, done)
-			if res == True:
+			if res == True and S.ID not in done:
 				variants.append(S)
 	return variants
 
-def getComplete(outdir):
+def getComplete(outdir,  force):
 	# Makes log file or returns list of completed samples
 	summary = outdir + "summary_NAB.csv"
 	ulog = outdir + "summary_unfiltered.csv"
@@ -106,7 +106,7 @@ def getComplete(outdir):
 		# Check summary last to keep final output
 		first = True
 		done = []
-		if not os.path.isfile(log):
+		if not os.path.isfile(log) or force == True:
 			with open(log, "w") as out:
 				# Initialize summary file and write header
 				out.write("ID,SampleA,SampleB,#PrivateA,#PrivateB,#Common,%Similarity\n")
@@ -132,14 +132,15 @@ def checkBin():
 def main():
 	starttime = datetime.now()
 	parser = ArgumentParser("This script will filter mutect2 output files.")
-	parser.add_argument("-t", type = int, default = 1, 
-help = "Number of threads.")
+	parser.add_argument("-t", type = int, default = 1, help = "Number of threads.")
 	parser.add_argument("-c", help = "Path to config file containing reference genome, java jars \
 (if using), and mutect options (required; input files are read from sub-directories in output_directory \
 and output will be written to same sub-directory).")
 	parser.add_argument("-o", help = "Output directory (if different from directory in config file).")
 	parser.add_argument("--cleanup", action = "store_true", default = False,
 help = "Remove intermediary files (default is to keep them).")
+	parser.add_argument("--force", action = "store_true", default = False,
+help = "Force script to re-run filtering (resumes from last complete step by default).")
 	args = parser.parse_args()
 	checkBin()
 	if args.t > cpu_count():
@@ -147,12 +148,13 @@ help = "Remove intermediary files (default is to keep them).")
 	# Load config file and discard batch template
 	conf, _ = getConf(args.c)
 	conf["cleanup"] = args.cleanup
+	conf["force"] = args.force
 	if args.o:
 		args.o = checkDir(args.o, True)
-		done, flog, blog, ulog = getComplete(args.o)
+		done, flog, blog, ulog = getComplete(args.o, args.force)
 	else:
 		args.o = conf["outpath"]
-		done, flog, blog, ulog = getComplete(conf["outpath"])
+		done, flog, blog, ulog = getComplete(conf["outpath"], , args.force)
 	variants = getOutdir(conf, args.o, done, flog, blog, ulog)
 	l = len(variants)
 	pool = Pool(processes = args.t)
