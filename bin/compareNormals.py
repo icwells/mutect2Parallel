@@ -19,8 +19,6 @@ def identifySample(norm, outdir, log, vcfs):
 	else:
 		outpath = ("{}isecSample/{}_{}").format(outdir, v, n)
 	a = bcfIsec(outpath, vcfs)
-	if a == 0:
-		print(vcfs)
 	if a is not None:
 		b = getTotal(outpath + "/0001.vcf")
 		c = getTotal(outpath + "/0002.vcf")
@@ -150,7 +148,6 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	parser.add_argument("-o", help = "Path to output directory.")
 	args = parser.parse_args()
 	args, norm = checkArgs(args)
-	print()
 	normals, a, b = getNormals(args.m, args.o, args.allsamples)
 	if norm == False and args.allsamples == False:
 		vcfs, log = getSamplePairs(args.o, normals, args.i)

@@ -70,13 +70,17 @@ def getTotal(vcf):
 	# Returns total number of content lines from vcf
 	count = 0
 	if os.path.isfile(vcf):
-		try:
-			with gzip.open(vcf, "rb") as f:
-				tag = ("#").encode()
-				for line in f:
-					if tag not in line:
-						count += 1
-		except (OSError, UnicodeDecodeError):
+		if getExt(vcf) == "gz":
+			try:
+				with gzip.open(vcf, "rb") as f:
+					tag = ("#").encode()
+					for line in f:
+						if tag not in line:
+							count += 1
+			except (OSError, UnicodeDecodeError):
+				print(("\t[Error] Could not read {}").format(vcf))
+				count = None
+		else:
 			with open(vcf, "r") as f:
 				for line in f:
 					if line[0] != "#":
