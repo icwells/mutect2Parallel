@@ -154,7 +154,7 @@ help = "Force script to re-run filtering (resumes from last complete step by def
 		done, flog, blog, ulog = getComplete(args.o, args.force)
 	else:
 		args.o = conf["outpath"]
-		done, flog, blog, ulog = getComplete(conf["outpath"], , args.force)
+		done, flog, blog, ulog = getComplete(conf["outpath"], args.force)
 	variants = getOutdir(conf, args.o, done, flog, blog, ulog)
 	l = len(variants)
 	pool = Pool(processes = args.t)
