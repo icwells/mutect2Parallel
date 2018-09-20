@@ -15,8 +15,9 @@ def runProc(cmd, log = None):
 	with open(log, "w") as out:
 		try:
 			call = Popen(split(cmd), stdout = out, stderr = out)
-			call.communicate()
-			return True
+			call.wait()
+			if call.returncode is not None:
+				return True
 		except:
 			s = cmd.split()
 			proc = s[0]
@@ -68,10 +69,10 @@ def bcfSort(infile):
 
 def getTotal(vcf):
 	# Returns total number of content lines from vcf
-	count = 0
 	if os.path.isfile(vcf):
 		if getExt(vcf) == "gz":
 			try:
+				count = 0
 				with gzip.open(vcf, "rb") as f:
 					tag = ("#").encode()
 					for line in f:
@@ -81,10 +82,14 @@ def getTotal(vcf):
 				print(("\t[Error] Could not read {}").format(vcf))
 				count = None
 		else:
+			count = 0
 			with open(vcf, "r") as f:
 				for line in f:
 					if line[0] != "#":
 						count += 1
+	else:
+		print(("\t[Error] Could not find {}").format(vcf))
+		count = None
 	return count
 
 def bcfIsec(outpath, vcfs):
