@@ -167,7 +167,6 @@ def checkVCF(path, com = False):
 	filename = "/0000.vcf"
 	if com == True:
 		filename = "common_nab.vcf"
-	print(filename)
 	if os.path.isdir(path):
 		if os.path.isfile(path + filename):
 			ret = path + filename
@@ -192,10 +191,10 @@ def getMutectOutput(path):
 		mut[sample]["b"] = "NA"
 		mut[sample]["c"] = "NA"
 		# Get path names with full sample name
-		pa = checkVCF("{}{}".format(p, "A_NAB"))
+		pa = checkVCF("{}{}".format(p, "A_nab"))
 		if pa:
 			mut[sample]["a"] = bcfSort(pa)
-		pb = checkVCF("{}{}".format(p, "B_NAB"))
+		pb = checkVCF("{}{}".format(p, "B_nab"))
 		if pb:
 			mut[sample]["b"] = bcfSort(pb)
 		common = checkVCF(p, True)

@@ -88,7 +88,7 @@ def getNormals(infile, outdir, allsamples):
 	normals = []
 	tumora = []
 	tumorb = []
-	outpath = checkDir(outdir + "normals/", True)
+	outpath = checkDir(outdir + "vcfs/", True)
 	print("\n\tReading normals manifest...")
 	with open(infile, "r") as f:
 		for line in f:
