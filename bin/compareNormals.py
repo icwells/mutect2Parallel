@@ -80,7 +80,7 @@ def checkVCF(line, outpath, stem):
 			# Copy file if it has not already been copied
 			copy(line, outfile)
 	else:
-		print(("\t[Warning] {} not found. Skipping.").format(line))
+		print(("\t[Warning] {} not found. Skipping.").format(line), file=sys.stderr)
 	return outfile
 
 def getNormals(infile, outdir, allsamples):
@@ -112,7 +112,7 @@ def getNormals(infile, outdir, allsamples):
 
 def fatalError(msg):
 	# Prints meassage and exits
-	print(("\n\t[Error] {}. Exiting.\n").format(msg))
+	print(("\n\t[Error] {}. Exiting.\n").format(msg), file=sys.stderr)
 	quit()
 
 def checkArgs(args):
@@ -164,9 +164,9 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	for x in pool.imap_unordered(func, vcfs):
 		l -= 1
 		if x[0] == False:
-			print(("\t[Warning] Comparison between {} and {} failed.").format(x[1], x[2]))
+			print(("\t[Warning] Comparison between {} and {} failed.").format(x[1], x[2]), flush = True)
 		else:		
-			print(("\tComparison between {} and {} successful. {} samples remaining.").format(x[1], x[2], l))
+			print(("\tComparison between {} and {} successful. {} samples remaining.").format(x[1], x[2], l), flush = True)
 	print(("\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
 if __name__ == "__main__":

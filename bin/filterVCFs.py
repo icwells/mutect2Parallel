@@ -123,10 +123,10 @@ def checkBin():
 	# Makes sure heterAnalyzer and bash scripts are present in working directory
 	for idx,i in enumerate(["heterAnalyzer", "covB.sh", "covN.sh"]):
 		if not os.path.isfile(i):
-			print(("\n\t[Error] {} not found.").format(i))
+			print(("\n\t[Error] {} not found.").format(i), file=sys.stderr)
 			if idx == 0:
-				print(("\tRun install.sh to install {}.").format(i))
-			print("\tExiting.\n")
+				print(("\tRun install.sh to install {}.").format(i), file=sys.stderr)
+			print("\tExiting.\n", file=sys.stderr)
 			quit()
 			
 def main():
@@ -162,9 +162,9 @@ help = "Force script to re-run filtering (resumes from last complete step by def
 	for x in pool.imap_unordered(filterPair, variants):
 		l -= 1
 		if x[0] == False:
-			print(("\t[Error] Some files from {} failed comparison.").format(x[1]))
+			print(("\t[Warning] Some files from {} failed comparison.").format(x[1]), flush = True)
 		else:		
-			print(("\tAll comparisons for {} run successfully. {} samples remaining.").format(x[1], l))
+			print(("\tAll comparisons for {} run successfully. {} samples remaining.").format(x[1], l), flush = True)
 	pool.close()
 	pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))

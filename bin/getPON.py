@@ -61,7 +61,7 @@ MateOnSameContigOrNoMappedMateReadFilter -R {} ").format(conf["reference"])
 			log.write(("{}\t{}\n").format(conf["sample"], outfile))
 		return True
 	else:
-		print("\t[Error] Failed running Mutect2. Exiting")
+		print("\t[Error] Failed running Mutect2. Exiting", file=sys.stderr)
 		quit()
 
 def configEntry(conf, arg, key):
@@ -91,7 +91,7 @@ def getConfig(args):
 		conf["picard"] = args.picard
 	if args.g:
 		if not args.af:
-			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n")
+			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n", file=sys.stderr)
 			quit()
 		else:
 			conf["germline"] = args.g
@@ -122,7 +122,7 @@ panel of normals from log file (requires -l (output from tumor only mode) and -o
 		print("\n\tGenerating panel of normals...")
 		status = makePON(args.l, args.o, args.gatk)
 		if status == False:
-			print("\n\t[Error] Could not generate panel of normals. Exiting.")
+			print("\n\t[Error] Could not generate panel of normals. Exiting.", file=sys.stderr)
 	else:
 		conf = getConfig(args)
 		# Call mutect

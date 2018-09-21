@@ -116,7 +116,7 @@ def getArgs(args):
 		conf["pon"] = args.p
 	if args.g:
 		if not args.af:
-			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n")
+			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n", file=sys.stderr)
 			quit()
 		else:
 			conf["germline"] = args.g
@@ -154,9 +154,9 @@ help = "Indicates that mutect should also generate bam output files.")
 	print(("\n\tCalling mutect2 on {}....").format(conf["sample"]))
 	for x in pool.imap_unordered(func, [conf["tumor1"], conf["tumor2"]]):
 		if x.Status == "failed":
-			print(("\n\tFailed to run {}").format(x.ID))
+			print(("\n\tFailed to run {}").format(x.ID), flush = True)
 		else:		
-			print(("\n\t{} has finished mutect.").format(x.ID))
+			print(("\n\t{} has finished mutect.").format(x.ID), flush = True)
 	pool.close()
 	pool.join()
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-starttime))
