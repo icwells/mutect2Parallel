@@ -27,7 +27,8 @@ def identifySample(norm, outdir, log, vcfs):
 		except ZeroDivisionError:
 			sim = 0.0
 		with open(log, "a") as out:
-			out.write(("{},{},{},{},{},{:.2%}\n").format(v, n, a, b, c, sim))
+			typ = getFileName(vcfs[0])
+			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ,v, n, a, b, c, sim))
 		return [True, v, n]
 	else:
 		return [False, v, n]
@@ -38,7 +39,7 @@ def allSamplePairs(outdir, normals, a, b):
 	log = outdir + "allSamplesComparison.csv"
 	with open(log, "w") as out:
 		# Initialize log file
-		out.write("SampleA, SampleB, PrivateA, PrivateB, Common, %Similarity\n")
+		out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
 	for t in [a, b]:
 		for i in t:
 			for j in normals:
@@ -63,7 +64,7 @@ def getSamplePairs(outdir, normals, vcf = None):
 			vcfs.append(v)
 	with open(log, "w") as out:
 		# Initialize log file
-		out.write("SampleA, SampleB, PrivateA, PrivateB, Common, %Similarity\n")
+		out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
 	return vcfs, log
 
 def checkVCF(line, outpath, stem):
