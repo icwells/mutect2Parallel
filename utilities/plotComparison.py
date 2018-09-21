@@ -59,7 +59,7 @@ def getSummaries(val, mutect, platypus):
 def checkArgs(args):
 	# Checks for errors and returns output file name
 	if not args.m or not args.p:
-		print("\n\t[Error] Please specify mutect and platypus summary files. Exiting.\n")
+		print("\n\t[Error] Please specify mutect and platypus summary files. Exiting.\n", file = sys.stderr)
 		quit()
 	checkFile(args.m)
 	checkFile(args.p)
@@ -79,7 +79,7 @@ def checkArgs(args):
 			good = True
 			break
 	if good == False:
-		print("\n\t[Error] Please enter one of s, a, b, c for -v. Exiting.\n")
+		print("\n\t[Error] Please enter one of s, a, b, c for -v. Exiting.\n", file = sys.stderr)
 		quit()
 	return args
 

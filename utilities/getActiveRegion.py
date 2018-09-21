@@ -42,13 +42,13 @@ def getRegions(l):
 def checkArgs(args):
 	# Checks arguments for input errors
 	if not args.i or not args.o:
-		print("\n\t[Error] Please specify input and output files. Exiting.\n")
+		print("\n\t[Error] Please specify input and output files. Exiting.\n", file = sys.stderr)
 		quit()
 	if not os.path.isfile(args.i):
 		print(("\n\t[Error] Cannot find {}. Exiting.\n").format(args.i))
 		quit()
 	if args.split == True and not args.n:
-		print("\n\t[Error] Please specify second output file with -n. Exiting.\n")
+		print("\n\t[Error] Please specify second output file with -n. Exiting.\n", file = sys.stderr)
 		quit()
 
 def main():
@@ -65,7 +65,6 @@ help = "Chromosome(s) to subset (seperate with commas if there is more than one)
 	args = parser.parse_args()
 	checkArgs(args)
 	regions = getRegions(args.c)
-	print(regions)
 	subsetRegions(regions, args.split, args.i, args.o, args.n)
 	print(("\n\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
