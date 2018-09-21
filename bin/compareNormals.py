@@ -167,7 +167,7 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 		if x[0] == False:
 			print(("\t[Warning] Comparison between {} and {} failed.").format(x[1], x[2]), flush = True)
 		else:		
-			print(("\tComparison between {} and {} successful. {} samples remaining.").format(x[1], x[2], l), flush = True)
+			print(("\tComparison between {} and {} successful. {} sets remaining.").format(x[1], x[2], l), flush = True)
 	print(("\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
 if __name__ == "__main__":
