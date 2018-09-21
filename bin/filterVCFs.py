@@ -3,6 +3,7 @@
 import os
 from shutil import rmtree
 from argparse import ArgumentParser
+from sys import stderr
 from datetime import datetime
 from glob import glob
 from multiprocessing import Pool, cpu_count
@@ -123,10 +124,10 @@ def checkBin():
 	# Makes sure heterAnalyzer and bash scripts are present in working directory
 	for idx,i in enumerate(["heterAnalyzer", "covB.sh", "covN.sh"]):
 		if not os.path.isfile(i):
-			print(("\n\t[Error] {} not found.").format(i), file=sys.stderr)
+			print(("\n\t[Error] {} not found.").format(i), file=stderr)
 			if idx == 0:
-				print(("\tRun install.sh to install {}.").format(i), file=sys.stderr)
-			print("\tExiting.\n", file=sys.stderr)
+				print(("\tRun install.sh to install {}.").format(i), file=stderr)
+			print("\tExiting.\n", file=stderr)
 			quit()
 			
 def main():

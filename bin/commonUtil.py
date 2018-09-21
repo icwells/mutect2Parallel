@@ -3,6 +3,7 @@
 import os
 import gzip
 import pysam
+from sys import stderr
 from subprocess import Popen
 from shlex import split
 from unixpath import *
@@ -27,7 +28,7 @@ def runProc(cmd, log = None):
 			elif proc == "java":
 				# Replace call to jar with name of jar
 				proc = getFileName(s[2])
-			print(("\t[Warning] Could not call {}").format(proc), file=sys.stderr)
+			print(("\t[Warning] Could not call {}").format(proc), file=stderr)
 			return False
 
 def tabix(vcf, force = False, keep = False):
@@ -41,7 +42,7 @@ def tabix(vcf, force = False, keep = False):
 		try:
 			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
 		except OSError:
-			print(("\t[Warning] Could not index {}.").format(vcf), file=sys.stderr)
+			print(("\t[Warning] Could not index {}.").format(vcf), file=stderr)
 			gz = None
 	return gz
 
@@ -79,7 +80,7 @@ def getTotal(vcf):
 						if tag not in line:
 							count += 1
 			except (OSError, UnicodeDecodeError):
-				print(("\t[Error] Could not read {}").format(vcf), file=sys.stderr)
+				print(("\t[Error] Could not read {}").format(vcf), file=stderr)
 				count = None
 		else:
 			count = 0
@@ -88,7 +89,7 @@ def getTotal(vcf):
 					if line[0] != "#":
 						count += 1
 	else:
-		print(("\t[Error] Could not find {}").format(vcf), file=sys.stderr)
+		print(("\t[Error] Could not find {}").format(vcf), file=stderr)
 		count = None
 	return count
 
@@ -163,14 +164,14 @@ def checkRG(bam, sid, picard=None):
 
 def printError(msg):
 	# Prints formatted error message
-	print(("\n\t[Error] {}. Skipping.\n").format(msg), file=sys.stderr)
+	print(("\n\t[Error] {}. Skipping.\n").format(msg), file=stderr)
 
 def getDelim(line):
 	# Returns delimiter
 	for i in ["\t", ",", " "]:
 		if i in line:
 			return i
-	print("\n\t[Error] Cannot determine delimeter. Check file formatting. Exiting.\n", file=sys.stderr)
+	print("\n\t[Error] Cannot determine delimeter. Check file formatting. Exiting.\n", file=stderr)
 	quit()
 
 def getStatus(log):
@@ -241,7 +242,7 @@ def checkOutput(outdir, normal = None, prnt = True):
 def configEntry(conf, arg, key):
 	# Returns dict with updated arg entry
 	if not arg:
-		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg), file=sys.stderr)
+		print(("\n\t[Error] Please specify {}. Exiting.\n").format(arg), file=stderr)
 		quit()
 	else:
 		conf[key] = arg
@@ -328,6 +329,6 @@ def getConf(infile):
 	conf["outpath"] = checkDir(conf["outpath"], True)
 	checkFile(conf["gatk"])
 	if "germline" in conf.keys() and "af" not in conf.keys():
-		print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n", file=sys.stderr)
+		print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n", file=stderr)
 		quit()	
 	return conf, batch

@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 from argparse import ArgumentParser
+from sys import stderr
 from shutil import copy
 from itertools import combinations
 from multiprocessing import Pool, cpu_count
@@ -83,7 +84,7 @@ def checkVCF(line, outpath, stem):
 			# Copy file if it has not already been copied
 			copy(line, outfile)
 	else:
-		print(("\t[Warning] {} not found. Skipping.").format(line), file=sys.stderr)
+		print(("\t[Warning] {} not found. Skipping.").format(line), file=stderr)
 	return outfile
 
 def getNormals(infile, outdir, allsamples):
@@ -115,7 +116,7 @@ def getNormals(infile, outdir, allsamples):
 
 def fatalError(msg):
 	# Prints meassage and exits
-	print(("\n\t[Error] {}. Exiting.\n").format(msg), file=sys.stderr)
+	print(("\n\t[Error] {}. Exiting.\n").format(msg), file=stderr)
 	quit()
 
 def checkArgs(args):

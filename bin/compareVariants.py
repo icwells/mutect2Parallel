@@ -6,6 +6,7 @@ import pysam
 from shutil import copy
 from datetime import datetime
 from argparse import ArgumentParser
+from sys import stderr
 from glob import glob
 from commonUtil import *
 from unixpath import *
@@ -102,7 +103,7 @@ def reheader(contigs, infile, outdir = None):
 						if i in contigs.keys():
 							out.write(contigs[i])
 						else:
-							print(("\t[Warning] {} not in example vcf header.", file=sys.stderr).format(i))
+							print(("\t[Warning] {} not in example vcf header.", file=stderr).format(i))
 					ins = False
 				out.write(line)
 	return outfile
@@ -223,12 +224,12 @@ def checkArgs(args):
 	if args.m or args.p:
 		if not args.m or not args.p:
 			# Raise error if either is missing
-			print("\n\t[Error] Please specify both -m and -p if generating a manifest. Exiting.\n", file=sys.stderr)
+			print("\n\t[Error] Please specify both -m and -p if generating a manifest. Exiting.\n", file=stderr)
 			quit()
 		args.m = checkDir(args.m)
 		args.p = checkDir(args.p)
 		if not args.o or os.path.isdir(args.o):
-			print("\n\t[Error] Please specify an output file. Exiting.\n", file=sys.stderr)
+			print("\n\t[Error] Please specify an output file. Exiting.\n", file=stderr)
 			quit()
 		if args.c:
 			args.c = checkDir(args.c, True)

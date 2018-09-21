@@ -2,6 +2,7 @@
 
 import os
 from argparse import ArgumentParser
+from sys import stderr
 from datetime import datetime
 from functools import partial
 from multiprocessing import Pool, cpu_count
@@ -116,7 +117,7 @@ def getArgs(args):
 		conf["pon"] = args.p
 	if args.g:
 		if not args.af:
-			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n", file=sys.stderr)
+			print("\n\t[Error] Please supply an allele frequency when using a germline estimate. Exiting.\n", file=stderr)
 			quit()
 		else:
 			conf["germline"] = args.g

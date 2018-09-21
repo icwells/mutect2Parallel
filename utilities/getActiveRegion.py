@@ -3,6 +3,7 @@
 import os
 from datetime import datetime
 from argparse import ArgumentParser
+from sys import stderr
 
 def subsetRegions(regions, s, infile, outfile, outfile2):
 	# Copies entries from given chromosomes to outfile
@@ -42,13 +43,13 @@ def getRegions(l):
 def checkArgs(args):
 	# Checks arguments for input errors
 	if not args.i or not args.o:
-		print("\n\t[Error] Please specify input and output files. Exiting.\n", file = sys.stderr)
+		print("\n\t[Error] Please specify input and output files. Exiting.\n", file = stderr)
 		quit()
 	if not os.path.isfile(args.i):
 		print(("\n\t[Error] Cannot find {}. Exiting.\n").format(args.i))
 		quit()
 	if args.split == True and not args.n:
-		print("\n\t[Error] Please specify second output file with -n. Exiting.\n", file = sys.stderr)
+		print("\n\t[Error] Please specify second output file with -n. Exiting.\n", file = stderr)
 		quit()
 
 def main():

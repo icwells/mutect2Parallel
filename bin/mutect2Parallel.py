@@ -2,6 +2,7 @@
 
 import os
 from argparse import ArgumentParser
+from sys import stderr
 from datetime import datetime
 from subprocess import Popen
 from shlex import split
@@ -105,11 +106,11 @@ def getManifest(infile, pon):
 		if pon == False:
 			for j in files[i]:
 				if not os.path.isfile(j):
-					print(("\n\t[Error] Input file {} not found. Exiting.\n").format(j))
+					print(("\n\t[Error] Input file {} not found. Exiting.\n").format(j), file = stderr)
 					quit()
 		else:
 			if not os.path.isfile(files[i]):
-				print(("\n\t[Error] Input file {} not found. Exiting.\n").format(files[i]))
+				print(("\n\t[Error] Input file {} not found. Exiting.\n").format(files[i]), file = stderr)
 				quit()
 	print(("\tFound entries for {} samples.\n").format(len(files)))
 	return files
