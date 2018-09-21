@@ -27,7 +27,9 @@ def identifySample(norm, outdir, log, vcfs):
 		except ZeroDivisionError:
 			sim = 0.0
 		with open(log, "a") as out:
-			typ = getFileName(vcfs[0])
+			# Get sample type from filename
+			typ = vcfs[0][vcfs[0].find(".")+1:]
+			typ = typ[:typ.find(".")]
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ,v, n, a, b, c, sim))
 		return [True, v, n]
 	else:
