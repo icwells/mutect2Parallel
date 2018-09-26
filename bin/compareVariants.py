@@ -27,7 +27,7 @@ def comparePipelines(outdir, samples):
 			for t in ["A", "B", "Common"]:
 				# Iterate through list to keep fixed order
 				a = None
-				if "NA" not in samples[s][t]:
+				if "NA" not in samples[s][t] and None not in samples[s][t]:
 					a = bcfIsec(outpath + t, samples[s][t])
 					if a:
 						b = getTotal(outpath + t + "/0001.vcf")
@@ -36,12 +36,12 @@ def comparePipelines(outdir, samples):
 							sim = c/(a+b+c)
 						except ZeroDivisionError:
 							sim = 0.0
-				if not a:
-					a = "NA"
-					b = "NA"
-					c = "NA"
-					sim = 0.0
-				out.write(("{},{},{},{},{},{},{},{:.2%}\n").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
+					if not a:
+						a = "NA"
+						b = "NA"
+						c = "NA"
+						sim = 0.0
+					out.write(("{},{},{},{},{},{},{},{:.2%}\n").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
 
 def comparisonManifest(infile):
 	# Reads in dict of vcfs to compare
@@ -103,7 +103,7 @@ def reheader(contigs, infile, outdir = None):
 						if i in contigs.keys():
 							out.write(contigs[i])
 						else:
-							print(("\t[Warning] {} not in example vcf header.", file=stderr).format(i))
+							print(("\t[Warning] {} not in example vcf header.").format(i), file=stderr)
 					ins = False
 				out.write(line)
 	return outfile
