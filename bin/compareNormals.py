@@ -31,23 +31,52 @@ def identifySample(norm, outdir, log, vcfs):
 			# Get sample type from filename
 			typ = vcfs[0][vcfs[0].find(".")+1:]
 			typ = typ[:typ.find(".")]
-			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ,v, n, a, b, c, sim))
+			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ, v, n, a, b, c, sim))
 		return [True, v, n]
 	else:
 		return [False, v, n]
+
+def inFinished(pair, done):
+	# Reuturns true if vcs pair is in done
+	for i in done:
+		if i[0] in pair[0] and i[1] in pair[1]:
+			return True
+	return False	
+
+def getFinished(log):
+	# Returns list of pairs which finished comparison
+	first = True
+	done = []
+	if not os.path.isfile(log):
+		print("\tMaking new log file...")
+		with open(log, "w") as out:
+			# Initialize log file
+			out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
+	else:
+		with open(log, "r") as f:
+			for line in f:
+				if first == False:
+					s =  line.split(",")
+					# Add type letter to first sample name
+					pair = ["{}.{}".format(s[1], s[0]), s[2]]
+					done.append(pair)
+				else:
+					first = False
+		print(("\tIdentified {:,d} completed samples.").format(len(done)))
+	return done
 
 def allSamplePairs(outdir, normals, a, b):
 	# Returns all pairs for a:normal and b:normal
 	vcfs = []
 	log = outdir + "allSamplesComparison.csv"
-	with open(log, "w") as out:
-		# Initialize log file
-		out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
+	done = getFinished(log)
 	for t in [a, b]:
 		for i in t:
 			for j in normals:
-				# Append each a/b to normal pair
-				vcfs.append([i, j])
+				pair = [i, j]
+				if inFinished(pair, done) == False:
+					# Append each a/b to normal pair
+					vcfs.append(pair)
 	return vcfs, log
 
 def getSamplePairs(outdir, normals, vcf = None):
@@ -55,19 +84,21 @@ def getSamplePairs(outdir, normals, vcf = None):
 	vcfs = []
 	if vcf:
 		log = outdir + getFileName(vcf) + "Comparison.csv"
+		done = getFinished(log)
 		for i in normals:
-			# Pair input vcf with each normal vcf
-			vcfs.append([vcf, i])
+			pair = [vcf, i]
+			if inFinished(pair, done) == False:
+				# Pair input vcf with each normal vcf
+				vcfs.append(pair)
 	else:
 		log = outdir + "normalsComparison.csv"
+		done = getFinished(log)
 		c = combinations(normals, 2)
 		# Convert to list
 		for i in c:
 			v = [i[0], i[1]]
-			vcfs.append(v)
-	with open(log, "w") as out:
-		# Initialize log file
-		out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
+			if inFinished(v, done) == False:
+				vcfs.append(v)
 	return vcfs, log
 
 def checkVCF(line, outpath, stem):
@@ -161,6 +192,7 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	else:
 		print("\tGetting all tumor:normal sample pairs...")
 		vcfs, log = allSamplePairs(args.o, normals, a, b)
+	print(("\t{:,d} file pairs found.").format(len(vcfs)))
 	func = partial(identifySample, norm, args.o, log)
 	l = len(vcfs)
 	pool = Pool(processes = args.t)
