@@ -79,10 +79,10 @@ class Sample():
 		if save == True:
 			self.Step = step
 			self.Status = status
-			if step != "isec1":
+			if getExt(outfile) == "bam":
+				self.Bam = outfile
+			elif step != "isec1":
 				self.Output = outfile
-		if getExt(outfile) == "bam":
-			self.Bam = outfile
 
 	def checkStatus(self, sid):
 		# Makes sure filtering can proceed from mutect output

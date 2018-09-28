@@ -31,6 +31,7 @@ def callMutect(cmd, name, outfile):
 			os.remove(outfile + ".idx")
 		return outfile
 	else:
+		print(("\t{} failed mutect analysis.").format(name))
 		return None
 
 def submitSample(infile, conf, s, name):
@@ -83,6 +84,9 @@ def submitFiles(conf, samples, infile):
 	# Get sample info
 	if sample in samples.keys():
 		s = samples[sample]
+		if not s.Output:
+			# Get output name
+			s.Output = conf["outpath"] + sample + ".vcf"
 	else:
 		s = Sample()
 		s.update(sample, name, "mutect", "starting", conf["outpath"] + sample + ".vcf")
