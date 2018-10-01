@@ -73,8 +73,10 @@ def mergeSamples(outfile, mut, plat):
 			if i not in plat.keys():
 				plat[i] = {}
 			for k in ["a", "b", "c"]:
-				if k not in plat[i].keys():
+				if k not in plat[i].keys() or plat[i][k] is None:
 					plat[i][k] = ""
+				if mut[i][k] is None:
+					mut[i][k] = ""
 			out.write(",".join([i, "A", mut[i]["a"], plat[i]["a"]]) + "\n")
 			out.write(",".join([i, "B", mut[i]["b"], plat[i]["b"]]) + "\n")
 			out.write(",".join([i, "Common", mut[i]["c"], plat[i]["c"]]) + "\n")
