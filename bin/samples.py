@@ -166,15 +166,21 @@ class Samples():
 			if self.B.Step != "filtering_NAB" or self.B.Status != "complete":
 				return False
 		# Make sure file names are updated if they are gzipped
-		if getTotal(self.A.Output) > 0:
+		atotal = getTotal(self.A.Output)
+		if atotal is not None and atotal > 0:
 			a, self.A.Output, self.B.Unfiltered = self.__comparePair__(aout, [self.A.Output, self.B.Unfiltered])
+			if a is None:
+				a = 0
 			if step == "a":
 				# Update B.Output if it was gzipped
 				self.B.Output = self.B.Unfiltered
 		else:
 			a = 0
-		if getTotal(self.B.Output) > 0:
+		btotal = getTotal(self.B.Output)
+		if btotal is not None and btotal > 0:
 			b, self.B.Output, self.A.Unfiltered = self.__comparePair__(bout, [self.B.Output, self.A.Unfiltered])
+			if b is None:
+				b = 0
 		else:
 			b = 0
 		if a > 0 and b > 0:
