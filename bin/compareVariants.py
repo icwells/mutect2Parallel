@@ -166,17 +166,11 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 
 def checkVCF(path, com = False):
 	# Determines if file exists and returns filename/NA
-	ret = None
 	if com == True:
 		path += "common_nab.vcf"
 	else:
 		path += "/0000.vcf"
-	if os.path.isfile(path):
-		ret = path
-	elif os.path.isfile(path + ".gz"):
-		ret = path + ".gz"
-	if ret:
-		ret = tabix(ret, force = True)
+	ret = tabix(path, force = True)
 	return ret
 
 def getMutectOutput(path):

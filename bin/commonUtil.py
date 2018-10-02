@@ -33,12 +33,10 @@ def runProc(cmd, log = None):
 
 def tabix(vcf, force = False, keep = False):
 	# tabix index and bgzips vcf files
-	if os.path.isfile(vcf + ".gz") and force == False:
+	if force == False and os.path.isfile(vcf + ".gz"):
 		gz = vcf + ".gz"
 	else:
-		if os.path.isfile(vcf + ".gz") and not os.path.isfile(vcf):
-			# Check for existance of gzipped file
-			vcf += ".gz"
+		vcf = checkGZ(vcf)
 		try:
 			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
 		except OSError:
@@ -58,14 +56,7 @@ def bcfSort(infile):
 	# Call bcftools sort
 	if not infile:
 		return None
-	if not os.path.isfile(infile):
-		if os.path.isfile(infile + ".gz"):
-			if ".gz" in infile:
-				# Fix filename on system
-				os.rename(infile + ".gz", infile)
-			else:
-				# Change infile if file is properly named
-				infile += ".gz"
+	infile = checkGZ(infile)
 	outfile = infile.replace(".vcf", ".sorted.vcf")
 	cmd = ("bcftools sort -o {} {}").format(outfile, infile)
 	res = runProc(cmd)
@@ -166,6 +157,21 @@ def checkRG(bam, sid, picard=None):
 		samIndex(bam)
 		return name, bam
 #-------------------------------commonfunctions----------------------------------------
+
+def checkGZ(f):
+	# Checks for unzipped/gzipped file
+	if not os.path.isfile(f):
+		if getExt(f) != "gz":
+			if os.path.isfile(f + ".gz"):
+				# Change infile if file is properly named
+				f += ".gz"
+		else:
+			if os.path.isfile(f + ".gz")::
+				# Fix filename on system
+				os.rename(f + ".gz", f)
+			elif os.path.isfile(f.replace(".gz", "")):
+				f = f.replace(".gz", "")
+	return f
 
 def printError(msg):
 	# Prints formatted error message
