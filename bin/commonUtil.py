@@ -56,13 +56,18 @@ def bcfMerge(outfile, com):
 
 def bcfSort(infile):
 	# Call bcftools sort
-	fmt = "v"
 	if not infile:
 		return None
+	if not os.path.isfile(infile):
+		if os.path.isfile(infile + ".gz"):
+			if ".gz" in infile:
+				# Fix filename on system
+				os.rename(infile + ".gz", infile)
+			else:
+				# Change infile if file is properly named
+				infile += ".gz"
 	outfile = infile.replace(".vcf", ".sorted.vcf")
-	if ".gz" in infile:
-		fmt = "z"
-	cmd = ("bcftools sort -O {} -o {} {}").format(fmt, outfile, infile)
+	cmd = ("bcftools sort -o {} {}").format(outfile, infile)
 	res = runProc(cmd)
 	if res == False or os.path.isfile(outfile) == False:
 		return None
