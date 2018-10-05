@@ -166,7 +166,7 @@ def checkGZ(f):
 				# Change infile if file is properly named
 				f += ".gz"
 		else:
-			if os.path.isfile(f + ".gz")::
+			if os.path.isfile(f + ".gz"):
 				# Fix filename on system
 				os.rename(f + ".gz", f)
 			elif os.path.isfile(f.replace(".gz", "")):
