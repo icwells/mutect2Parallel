@@ -37,7 +37,7 @@ def identifySample(norm, outdir, log, vcfs):
 		return [False, v, n]
 
 def inFinished(pair, done):
-	# Reuturns true if vcs pair is in done
+	# Reuturns true if vcfs pair is in done
 	for i in done:
 		if i[0] in pair[0] and i[1] in pair[1]:
 			return True
@@ -101,19 +101,18 @@ def getSamplePairs(outdir, normals, vcf = None):
 				vcfs.append(v)
 	return vcfs, log
 
-def checkVCF(line, outpath, stem):
+def checkVCF(inpath, outpath, stem):
 	# Returns name of existing output file and copies if necessary
 	outfile = None
-	if stem not in line:
-		line = line.replace(".N.vcf", stem)
-	if os.path.isfile(line):
-		outfile = outpath + getParent(line) + stem
+	infile = ("{}/{}").format(inpath, stem)
+	if os.path.isfile(infile):
+		outfile = ("{}{}.{}").format(outpath, getParent(inpath), stem)
 		if os.path.isfile(outfile + ".gz"):
 			# Check for existance of gzipped file
 			outfile += ".gz"
 		elif not os.path.isfile(outfile):
 			# Copy file if it has not already been copied
-			copy(line, outfile)
+			copy(infile, outfile)
 	else:
 		print(("\t[Warning] {} not found. Skipping.").format(line), file=stderr)
 	return outfile
@@ -127,22 +126,18 @@ def getNormals(infile, outdir, allsamples):
 	print("\n\tReading normals manifest...")
 	with open(infile, "r") as f:
 		for line in f:
-			line = line.strip()
-			if allsamples == False:
-				outfile = checkVCF(line, outpath, ".N.vcf")
-				if outfile:
-					normals.append(outfile)
-			else:
-				for i in [".N.vcf", ".A.vcf", ".B.vcf"]:
-					# Get outfile name with sample as part of file name
-					outfile = checkVCF(line, outpath, i)
-					if outfile:
-						if "N" in i:
-							normals.append(outfile)
-						elif "A" in i:
-							tumora.append(outfile)
-						elif "B" in i:
-							tumorb.append(outfile)
+			path = os.path.split(line)[0]
+			# Get outfile name with sample as part of file name
+			outfile = checkVCF(path, outpath, "N.vcf")
+			if outfile:
+				normals.append(outfile)
+			if allsamples == True:
+				afile = checkVCF(path, outpath, "A.vcf")
+				if afile:
+					tumora.append(afile)
+				bfile = checkVCF(path, outpath, "B.vcf")
+				if bfile:
+					tumorb.append(bfile)
 	return normals, tumora, tumorb
 
 def fatalError(msg):
