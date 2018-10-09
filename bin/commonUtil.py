@@ -171,6 +171,10 @@ def checkGZ(f):
 				os.rename(f + ".gz", f)
 			elif os.path.isfile(f.replace(".gz", "")):
 				f = f.replace(".gz", "")
+	elif f.count(".gz") > 1:
+			old = f
+			f = f.replace(".gz.gz", ".gz")
+			os.rename(old, f)
 	return f
 
 def printError(msg):

@@ -136,6 +136,7 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 	paths = glob(path + "*/")
 	print("\tGetting platypus output...")
 	for p in paths:
+		sdir = None
 		p = checkDir(p)
 		sample = getParent(p)
 		paths = platypusPaths(p)
@@ -143,34 +144,26 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 		if outdir:
 			# Copy to new location
 			sdir = checkDir(outdir + sample, True)
-			for i in paths.keys():
-				if contigs:
-					vcf = reheader(contigs, paths[i], sdir)
-				else:
-					vcf = copy(paths[i], sdir)
-				bcf = bcfSort(tabix(vcf))
-				if bcf == None:
-					bcf = ""
-				plat[sample][i] = bcf 
-		else:
-			for i in paths.keys():
-				if contigs:
-					vcf = reheader(contigs, paths[i])
-				else:
-					vcf = paths[i]	
-				bcf = bcfSort(tabix(vcf))
-				if bcf == None:
-					bcf = ""
-				plat[sample][i] = bcf 
+		for i in paths.keys():
+			if contigs:
+				vcf = reheader(contigs, paths[i], sdir)
+			elif outdir:
+				vcf = copy(paths[i], sdir)
+			bcf = bcfSort(tabix(vcf))
+			if bcf == None:
+				bcf = ""
+			plat[sample][i] = bcf 
 	return plat
 
 def checkVCF(path, com = False):
 	# Determines if file exists and returns filename/NA
-	if com == True:
-		path += "common_nab.vcf"
-	else:
-		path += "/0000.vcf"
-	ret = tabix(path, force = True)
+	ret = None
+	if os.path.isdir(path):
+		if com == True:
+			path += "common_nab.vcf"
+		else:
+			path += "/0000.vcf"
+		ret = tabix(path, force = True)
 	return ret
 
 def getMutectOutput(path):
