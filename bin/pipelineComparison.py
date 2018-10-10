@@ -110,7 +110,7 @@ def reheader(contigs, infile, outdir = None):
 				out.write(line)
 	return outfile
 
-def platypusPaths(p):
+def platypusPaths(p, unfiltered):
 	# Returns paths from vcfdict
 	count = 0
 	paths = {}
@@ -119,18 +119,19 @@ def platypusPaths(p):
 			spl = line.strip().split(",")
 			if count == 3:
 				break
-			elif A.match(spl[0]):
-				paths["a"] = p + spl[1]
-				count += 1
-			elif B.match(spl[0]):
-				paths["b"] = p + spl[1]
-				count += 1
-			elif C.match(spl[0]):
-				paths["c"] = p + spl[1]
-				count += 1
+			if unfiltered = False:
+				if A.match(spl[0]):
+					paths["a"] = p + spl[1]
+					count += 1
+				elif B.match(spl[0]):
+					paths["b"] = p + spl[1]
+					count += 1
+				elif C.match(spl[0]):
+					paths["c"] = p + spl[1]
+					count += 1
 	return paths
 
-def getPlatypusOutput(path, outdir = None, contigs = None):
+def getPlatypusOutput(path, outdir = None, contigs = None, unfiltered):
 	# Returns dict of platypus output
 	plat = {}
 	paths = glob(path + "*/")
@@ -139,7 +140,7 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 		sdir = None
 		p = checkDir(p)
 		sample = getParent(p)
-		paths = platypusPaths(p)
+		paths = platypusPaths(p, unfiltered)
 		plat[sample] = {}
 		if outdir:
 			# Copy to new location
@@ -155,18 +156,18 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 			plat[sample][i] = bcf 
 	return plat
 
-def checkVCF(path, com = False):
+def checkVCF(path, filename = None):
 	# Determines if file exists and returns filename/NA
 	ret = None
 	if os.path.isdir(path):
-		if com == True:
-			path += "common_nab.vcf"
+		if filename:
+			path += filename
 		else:
 			path += "/0000.vcf"
 		ret = tabix(path, force = True)
 	return ret
 
-def getMutectOutput(path):
+def getMutectOutput(path, unfiltered):
 	# Returns dict of fitered mutect output
 	mut = {}
 	paths = glob(path + "*/")
@@ -180,16 +181,19 @@ def getMutectOutput(path):
 		mut[sample]["a"] = "NA"
 		mut[sample]["b"] = "NA"
 		mut[sample]["c"] = "NA"
+		ext = "nab"
+		if unfiltered == True:
+			ext = "unfiltered"
 		# Get path names with full sample name
-		pa = checkVCF("{}{}".format(p, "A_nab"))
+		pa = checkVCF("{}{}_{}".format(p, "A", ext))
 		if pa:
 			mut[sample]["a"] = bcfSort(pa)
-		pb = checkVCF("{}{}".format(p, "B_nab"))
+		pb = checkVCF("{}{}_{}".format(p, "B", ext))
 		if pb:
 			mut[sample]["b"] = bcfSort(pb)
 		common = checkVCF(p, True)
 		if common:
-			mut[sample]["c"] = bcfSort(common)
+			mut[sample]["c"] = bcfSort(common, ("common_{}.vcf").format(ext))
 	return mut
 
 #-----------------------------------------------------------------------------
@@ -232,6 +236,8 @@ def checkArgs(args):
 def main():
 	start = datetime.now()
 	parser = ArgumentParser("This script will compare variants from different filtering pipelines.")
+	parser.add_argument("--unfiltered", action = "store_true", default = False,
+help = "Compare 'unfiltered' somatic variants (compares fully filtered output by default).")
 	parser.add_argument("-c", help = "Copy target platypus data to this directory.")
 	parser.add_argument("-v", help = "Path to uncompressed vcf header (Copies contig information to platypus vcf headers).")
 	parser.add_argument("-m", help = "Path to mutect2parallel parent output directory.")
@@ -245,8 +251,8 @@ help = "Path to output manifest if using -m and -p. Path to output directory if 
 		contigs = None
 		if args.v:
 			contigs = getContigs(args.v)
-		mutect = getMutectOutput(args.m)
-		plat = getPlatypusOutput(args.p, args.c, contigs)
+		mutect = getMutectOutput(args.m, args.unfiltered)
+		plat = getPlatypusOutput(args.p, args.c, contigs, args.unfiltered)
 		mergeSamples(args.o, mutect, plat)
 	elif args.i:
 		# Run comparison
