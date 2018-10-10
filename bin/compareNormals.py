@@ -31,7 +31,7 @@ def identifySample(norm, outdir, log, vcfs):
 			# Get sample type from filename
 			typ = vcfs[0][vcfs[0].find(".")+1:]
 			typ = typ[:typ.find(".")]
-			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ, vcfs[0], vcfs[1], a, b, c, sim))
+			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ, v, n, a, b, c, sim))
 		return [True, v, n]
 	else:
 		return [False, v, n]
@@ -180,6 +180,7 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	args, norm = checkArgs(args)
 	normals, a, b = getNormals(args.m, args.o, args.allsamples)
 	if norm == False and args.allsamples == False:
+		print("\tGetting all sample:normal pairs...")
 		vcfs, log = getSamplePairs(args.o, normals, args.i)
 	elif args.allsamples == False:
 		print("\tGetting all pairs of normal samples...")

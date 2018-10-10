@@ -31,6 +31,26 @@ def runProc(cmd, log = None):
 			print(("\t[Warning] Could not call {}").format(proc), file=stderr)
 			return False
 
+def checkGZ(f):
+	# Checks for unzipped/gzipped file
+	if f is not None:
+		if not os.path.isfile(f):
+			if getExt(f) != "gz":
+				if os.path.isfile(f + ".gz"):
+					# Change infile if file is properly named
+					f += ".gz"
+			else:
+				if os.path.isfile(f + ".gz"):
+					# Fix filename on system
+					os.rename(f + ".gz", f)
+				elif os.path.isfile(f.replace(".gz", "")):
+					f = f.replace(".gz", "")
+		elif f.count(".gz") > 1:
+				old = f
+				f = f.replace(".gz.gz", ".gz")
+				os.rename(old, f)
+	return f
+
 def tabix(vcf, force = False, keep = False):
 	# tabix index and bgzips vcf files
 	if force == False and os.path.isfile(vcf + ".gz"):
@@ -42,7 +62,7 @@ def tabix(vcf, force = False, keep = False):
 		except OSError:
 			print(("\t[Warning] Could not index {}.").format(vcf), file=stderr)
 			gz = None
-	return gz
+	return checkGZ(gz)
 
 def bcfMerge(outfile, com):
 	# Calls bftools concat on input files
@@ -157,25 +177,6 @@ def checkRG(bam, sid, picard=None):
 		samIndex(bam)
 		return name, bam
 #-------------------------------commonfunctions----------------------------------------
-
-def checkGZ(f):
-	# Checks for unzipped/gzipped file
-	if not os.path.isfile(f):
-		if getExt(f) != "gz":
-			if os.path.isfile(f + ".gz"):
-				# Change infile if file is properly named
-				f += ".gz"
-		else:
-			if os.path.isfile(f + ".gz"):
-				# Fix filename on system
-				os.rename(f + ".gz", f)
-			elif os.path.isfile(f.replace(".gz", "")):
-				f = f.replace(".gz", "")
-	elif f.count(".gz") > 1:
-			old = f
-			f = f.replace(".gz.gz", ".gz")
-			os.rename(old, f)
-	return f
 
 def printError(msg):
 	# Prints formatted error message
