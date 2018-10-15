@@ -110,7 +110,7 @@ def reheader(contigs, infile, outdir = None):
 				out.write(line)
 	return outfile
 
-def platypusPaths(p, unfiltered):
+def platypusPaths(p):
 	# Returns paths from vcfdict
 	count = 0
 	paths = {}
@@ -119,19 +119,18 @@ def platypusPaths(p, unfiltered):
 			spl = line.strip().split(",")
 			if count == 3:
 				break
-			if unfiltered = False:
-				if A.match(spl[0]):
-					paths["a"] = p + spl[1]
-					count += 1
-				elif B.match(spl[0]):
-					paths["b"] = p + spl[1]
-					count += 1
-				elif C.match(spl[0]):
-					paths["c"] = p + spl[1]
-					count += 1
+			if A.match(spl[0]):
+				paths["a"] = p + spl[1]
+				count += 1
+			elif B.match(spl[0]):
+				paths["b"] = p + spl[1]
+				count += 1
+			elif C.match(spl[0]):
+				paths["c"] = p + spl[1]
+				count += 1
 	return paths
 
-def getPlatypusOutput(path, outdir = None, contigs = None, unfiltered):
+def getPlatypusOutput(path, outdir = None, contigs = None):
 	# Returns dict of platypus output
 	plat = {}
 	paths = glob(path + "*/")
@@ -140,7 +139,7 @@ def getPlatypusOutput(path, outdir = None, contigs = None, unfiltered):
 		sdir = None
 		p = checkDir(p)
 		sample = getParent(p)
-		paths = platypusPaths(p, unfiltered)
+		paths = platypusPaths(p)
 		plat[sample] = {}
 		if outdir:
 			# Copy to new location
@@ -184,6 +183,7 @@ def getMutectOutput(path, unfiltered):
 		ext = "nab"
 		if unfiltered == True:
 			ext = "unfiltered"
+		c = ("common_{}.vcf").format(ext)
 		# Get path names with full sample name
 		pa = checkVCF("{}{}_{}".format(p, "A", ext))
 		if pa:
@@ -191,9 +191,9 @@ def getMutectOutput(path, unfiltered):
 		pb = checkVCF("{}{}_{}".format(p, "B", ext))
 		if pb:
 			mut[sample]["b"] = bcfSort(pb)
-		common = checkVCF(p, True)
+		common = checkVCF(p, c)
 		if common:
-			mut[sample]["c"] = bcfSort(common, ("common_{}.vcf").format(ext))
+			mut[sample]["c"] = bcfSort(common)
 	return mut
 
 #-----------------------------------------------------------------------------
@@ -252,7 +252,7 @@ help = "Path to output manifest if using -m and -p. Path to output directory if 
 		if args.v:
 			contigs = getContigs(args.v)
 		mutect = getMutectOutput(args.m, args.unfiltered)
-		plat = getPlatypusOutput(args.p, args.c, contigs, args.unfiltered)
+		plat = getPlatypusOutput(args.p, args.c, contigs)
 		mergeSamples(args.o, mutect, plat)
 	elif args.i:
 		# Run comparison

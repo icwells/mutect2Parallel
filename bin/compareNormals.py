@@ -11,6 +11,73 @@ from functools import partial
 from unixpath import *
 from commonUtil import *
 
+class Finished():
+
+	def __init__(self, infile):
+		self.Log = infile
+		self.A = {}
+		self.B = {}
+		self.N = {}
+		self.__getFinished__()
+
+	def __getFinished__(self):
+		# Returns list of pairs which finished comparison
+		first = True
+		if not os.path.isfile(self.Log):
+			print("\tMaking new log file...")
+			with open(self.Log, "w") as out:
+				# Initialize log file
+				out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
+		else:
+			with open(self.Log, "r") as f:
+				for line in f:
+					if first == False:
+						s =  line.split(",")
+						# Add to appropriate dict
+						if s[0] == "A":
+							if s[1] not in self.A.keys():
+								self.A[s[1]] = []
+							self.A[s[1]].append(s[2])
+						elif s[0] == "B":
+							if s[1] not in self.AB.keys():
+								self.B[s[1]] = []
+							self.B[s[1]].append(s[2])
+						elif s[0] == "N":
+							if s[1] not in self.N.keys():
+								self.N[s[1]] = []
+							self.N[s[1]].append(s[2])
+					else:
+						first = False
+			l = len(self.A) + len(self.B) + len(self.N)
+			print(("\tIdentified {:,d} completed samples.").format(l))
+
+	def inFinished(self, typ, vcf1, vcf2):
+		# Reuturns true if vcfs pair is in done
+		if typ == "A":
+			if vcf1 in self.A.keys():
+				if vcf2 in self.A[vcf1]:
+					return True
+		elif typ == "B":
+			if vcf1 in self.B.keys():
+				if vcf2 in self.B[vcf1]:
+					return True
+		elif typ == "N":
+			if vcf1 in self.N.keys():
+				if vcf2 in self.N[vcf1]:
+					return True
+		return False	
+
+#-----------------------------------------------------------------------------
+
+def getType(vcf):
+	# Returns sample type from filename
+	if ".A." in vcf:
+		return "A"
+	elif ".B." in vcf:
+		return "B"
+	else:
+		return "N"
+
 def identifySample(norm, outdir, log, vcfs):
 	# Calls bcftools isec for each set of normals vs vcf
 	v = getFileName(vcfs[0])
@@ -28,55 +95,24 @@ def identifySample(norm, outdir, log, vcfs):
 		except ZeroDivisionError:
 			sim = 0.0
 		with open(log, "a") as out:
-			# Get sample type from filename
-			typ = vcfs[0][vcfs[0].find(".")+1:]
-			typ = typ[:typ.find(".")]
+			typ = getType(vcfs[0])
 			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ, v, n, a, b, c, sim))
 		return [True, v, n]
 	else:
 		return [False, v, n]
 
-def inFinished(pair, done):
-	# Reuturns true if vcfs pair is in done
-	for i in done:
-		if i[0] in pair[0] and i[1] in pair[1]:
-			return True
-	return False	
-
-def getFinished(log):
-	# Returns list of pairs which finished comparison
-	first = True
-	done = []
-	if not os.path.isfile(log):
-		print("\tMaking new log file...")
-		with open(log, "w") as out:
-			# Initialize log file
-			out.write("SampleType,Sample,Normal,PrivateSample,PrivateNormal,Common,%Similarity\n")
-	else:
-		with open(log, "r") as f:
-			for line in f:
-				if first == False:
-					s =  line.split(",")
-					# Add type letter to first sample name
-					pair = ["{}.{}".format(s[1], s[0]), s[2]]
-					done.append(pair)
-				else:
-					first = False
-		print(("\tIdentified {:,d} completed samples.").format(len(done)))
-	return done
-
 def allSamplePairs(outdir, normals, a, b):
 	# Returns all pairs for a:normal and b:normal
 	vcfs = []
 	log = outdir + "allSamplesComparison.csv"
-	done = getFinished(log)
+	done = Finished(log)
 	for t in [a, b]:
 		for i in t:
+			typ = getType(i)
 			for j in normals:
-				pair = [i, j]
-				if inFinished(pair, done) == False:
+				if done.inFinished(typ, i, j) == False:
 					# Append each a/b to normal pair
-					vcfs.append(pair)
+					vcfs.append([i, j])
 	return vcfs, log
 
 def getSamplePairs(outdir, normals, vcf = None):
@@ -84,21 +120,21 @@ def getSamplePairs(outdir, normals, vcf = None):
 	vcfs = []
 	if vcf:
 		log = outdir + getFileName(vcf) + "Comparison.csv"
-		done = getFinished(log)
+		done = Finished(log)
+		typ = getType(vcf)
 		for i in normals:
-			pair = [vcf, i]
-			if inFinished(pair, done) == False:
+			if done.inFinished(typ, vcf, i) == False:
 				# Pair input vcf with each normal vcf
-				vcfs.append(pair)
+				vcfs.append([vcf, i])
 	else:
 		log = outdir + "normalsComparison.csv"
-		done = getFinished(log)
+		done = Finished(log)
 		c = combinations(normals, 2)
-		# Convert to list
 		for i in c:
-			v = [i[0], i[1]]
-			if inFinished(v, done) == False:
-				vcfs.append(v)
+			typ = getType(i[0])
+			if done.inFinished(typ, i[0], i[1]) == False:
+				# Convert to list
+				vcfs.append([i[0], i[1]])
 	return vcfs, log
 
 def checkVCF(inpath, outpath, stem):
