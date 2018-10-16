@@ -39,7 +39,7 @@ class Finished():
 								self.A[s[1]] = []
 							self.A[s[1]].append(s[2])
 						elif s[0] == "B":
-							if s[1] not in self.AB.keys():
+							if s[1] not in self.B.keys():
 								self.B[s[1]] = []
 							self.B[s[1]].append(s[2])
 						elif s[0] == "N":
@@ -53,17 +53,19 @@ class Finished():
 
 	def inFinished(self, typ, vcf1, vcf2):
 		# Reuturns true if vcfs pair is in done
+		v = getFileName(vcf1)
+		n = getFileName(vcf2)
 		if typ == "A":
-			if vcf1 in self.A.keys():
-				if vcf2 in self.A[vcf1]:
+			if v in self.A.keys():
+				if n in self.A[v]:
 					return True
 		elif typ == "B":
-			if vcf1 in self.B.keys():
-				if vcf2 in self.B[vcf1]:
+			if v in self.B.keys():
+				if n in self.B[v]:
 					return True
 		elif typ == "N":
-			if vcf1 in self.N.keys():
-				if vcf2 in self.N[vcf1]:
+			if v in self.N.keys():
+				if n in self.N[v]:
 					return True
 		return False	
 

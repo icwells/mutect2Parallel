@@ -35,20 +35,16 @@ def checkGZ(f):
 	# Checks for unzipped/gzipped file
 	if f is not None:
 		if not os.path.isfile(f):
-			if getExt(f) != "gz":
-				if os.path.isfile(f + ".gz"):
+			if os.path.isfile(f + ".gz"):
+				if getExt(f) != "gz":
 					# Change infile if file is properly named
 					f += ".gz"
-			else:
-				if os.path.isfile(f + ".gz"):
-					# Fix filename on system
-					os.rename(f + ".gz", f)
-				elif os.path.isfile(f.replace(".gz", "")):
-					f = f.replace(".gz", "")
+				else:
+					# Fix all filenames on system
+					runProc(("rename .gz.gz .gz {}*.gz.gz*").format(f[:f.rfind("/")+1]))
 		elif f.count(".gz") > 1:
-				old = f
 				f = f.replace(".gz.gz", ".gz")
-				os.rename(old, f)
+				runProc(("rename .gz.gz .gz {}*.gz.gz*").format(f[:f.rfind("/")+1]))
 	return f
 
 def tabix(vcf, force = False, keep = False):
