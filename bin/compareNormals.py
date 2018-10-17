@@ -7,7 +7,6 @@ from sys import stderr
 from shutil import copy
 from itertools import combinations
 from multiprocessing import Pool, cpu_count
-from functools import partial
 from unixpath import *
 from commonUtil import *
 
@@ -67,7 +66,40 @@ class Finished():
 			if v in self.N.keys():
 				if n in self.N[v]:
 					return True
-		return False	
+		return False
+
+#-----------------------------------------------------------------------------
+
+class VCFcomparison():
+
+	def __init__(self, t, v, n, log, outdir, norm = None, sample = None):
+		self.type = t
+		self.vcf = v
+		self.normal = n
+		self.log = log
+		self.v = getFileName(self.vcf)
+		self.n = getFileName(self.normal)
+		self.outdir = ""
+		self.sample = sample
+		self.__checkInput__()
+		self.__getOutdir__(outdir, norm)
+
+	def __getOutdir__(self, outdir, norm):
+		# Gets outdir for bcftools
+		if norm is not None:
+			# Get outdir for platypus comparisons
+			root = "isecSample"
+			if norm == True:
+				root = "isecNormals"
+			self.outdir = ("{}{}/{}_{}").format(outdir, root, self.v, self.n)	
+		else:
+			# Get pipeline output
+			self.outdir = outdir + self.sample + "/"
+
+	def __checkInput__(self):
+		# Makes sure input files exist
+		self.vcf = checkGZ(self.vcf)
+		self.normal = checkGZ(self.normal)
 
 #-----------------------------------------------------------------------------
 
@@ -80,28 +112,28 @@ def getType(vcf):
 	else:
 		return "N"
 
-def identifySample(norm, outdir, log, vcfs):
+def compareSamples(v):
 	# Calls bcftools isec for each set of normals vs vcf
-	v = getFileName(vcfs[0])
-	n = getFileName(vcfs[1])
-	if norm == True:
-		outpath = ("{}isecNormals/{}_{}").format(outdir, v, n)
-	else:
-		outpath = ("{}isecSample/{}_{}").format(outdir, v, n)
-	a = bcfIsec(outpath, vcfs)
+	a = bcfIsec(v.outdir, [v.vcf, v.normal])
 	if a is not None:
-		b = getTotal(outpath + "/0001.vcf")
-		c = getTotal(outpath + "/0002.vcf")
+		b = getTotal(v.outdir + "/0001.vcf")
+		c = getTotal(v.outdir + "/0002.vcf")
 		try:
 			sim = c/(a+b+c)
 		except ZeroDivisionError:
 			sim = 0.0
-		with open(log, "a") as out:
-			typ = getType(vcfs[0])
-			out.write(("{},{},{},{},{},{},{:.2%}\n").format(typ, v, n, a, b, c, sim))
-		return [True, v, n]
+		with open(v.log, "a") as out:
+			t = v.type
+			vcf = v.v
+			n = v.n
+			if v.sample is not None:
+				t = v.sample + "," + v.type
+				vcf = v.vcf
+				n = v.normal
+			out.write(("{},{},{},{},{},{},{:.2%}\n").format(t, vcf, n, a, b, c, sim))
+		return [True, v.v, v.n]
 	else:
-		return [False, v, n]
+		return [False, v.v, v.n]
 
 def allSamplePairs(outdir, normals, a, b):
 	# Returns all pairs for a:normal and b:normal
@@ -114,8 +146,9 @@ def allSamplePairs(outdir, normals, a, b):
 			for j in normals:
 				if done.inFinished(typ, i, j) == False:
 					# Append each a/b to normal pair
-					vcfs.append([i, j])
-	return vcfs, log
+					c = VCFcomparison(typ, i, j, log, outdir, True)
+					vcfs.append(c)
+	return vcfs
 
 def getSamplePairs(outdir, normals, vcf = None):
 	# Returns pairs of samples to compare
@@ -127,7 +160,8 @@ def getSamplePairs(outdir, normals, vcf = None):
 		for i in normals:
 			if done.inFinished(typ, vcf, i) == False:
 				# Pair input vcf with each normal vcf
-				vcfs.append([vcf, i])
+				c = VCFcomparison(typ, vcf, i, log, outdir, False)
+				vcfs.append(c)
 	else:
 		log = outdir + "normalsComparison.csv"
 		done = Finished(log)
@@ -135,9 +169,9 @@ def getSamplePairs(outdir, normals, vcf = None):
 		for i in c:
 			typ = getType(i[0])
 			if done.inFinished(typ, i[0], i[1]) == False:
-				# Convert to list
-				vcfs.append([i[0], i[1]])
-	return vcfs, log
+				c = VCFcomparison(typ, i[0], i[1], log, outdir, True)
+				vcfs.append(c)
+	return vcfs
 
 def checkVCF(inpath, outpath, stem):
 	# Returns name of existing output file and copies if necessary
@@ -219,24 +253,23 @@ help = "Path to input sample (If omitted, the normal vcfs will be compared to on
 	normals, a, b = getNormals(args.m, args.o, args.allsamples)
 	if norm == False and args.allsamples == False:
 		print("\tGetting all sample:normal pairs...")
-		vcfs, log = getSamplePairs(args.o, normals, args.i)
+		vcfs = getSamplePairs(args.o, normals, args.i)
 	elif args.allsamples == False:
 		print("\tGetting all pairs of normal samples...")
-		vcfs, log = getSamplePairs(args.o, normals)
+		vcfs = getSamplePairs(args.o, normals)
 	else:
 		print("\tGetting all tumor:normal sample pairs...")
-		vcfs, log = allSamplePairs(args.o, normals, a, b)
+		vcfs = allSamplePairs(args.o, normals, a, b)
 	print(("\t{:,d} file pairs found.").format(len(vcfs)))
-	func = partial(identifySample, norm, args.o, log)
 	l = len(vcfs)
 	pool = Pool(processes = args.t)
 	print(("\tComparing vcf to normals with {} threads...\n").format(args.t))
-	for x in pool.imap_unordered(func, vcfs):
+	for x in pool.imap_unordered(compareSamples, vcfs):
 		l -= 1
 		if x[0] == False:
 			print(("\t[Warning] Comparison between {} and {} failed.").format(x[1], x[2]), flush = True)
 		else:		
-			print(("\tComparison between {} and {} successful. {} sets remaining.").format(x[1], x[2], l), flush = True)
+			print(("\tComparison between {} and {} successful. {:,d} sets remaining.").format(x[1], x[2], l), flush = True)
 	print(("\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
 if __name__ == "__main__":

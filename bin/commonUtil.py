@@ -31,6 +31,18 @@ def runProc(cmd, log = None):
 			print(("\t[Warning] Could not call {}").format(proc), file=stderr)
 			return False
 
+def fixGZ(f):
+	# Fixes file extensions on system
+	old = f
+	# Drop all gzip extensions and add only one
+	f = f[:f.find(".gz")]
+	f += ".gz"
+	os.rename(old, f)
+	if os.path.isfile(old + ".tbi"):
+		# Fix index file
+		os.rename(old + ".tbi", f + ".tbi")
+	return f	
+
 def checkGZ(f):
 	# Checks for unzipped/gzipped file
 	if f is not None:
@@ -41,10 +53,9 @@ def checkGZ(f):
 					f += ".gz"
 				else:
 					# Fix all filenames on system
-					runProc(("rename .gz.gz .gz {}*.gz.gz*").format(f[:f.rfind("/")+1]))
+					f = fixGZ(f + ".gz")
 		elif f.count(".gz") > 1:
-				f = f.replace(".gz.gz", ".gz")
-				runProc(("rename .gz.gz .gz {}*.gz.gz*").format(f[:f.rfind("/")+1]))
+				f = fixGZ(f)
 	return f
 
 def tabix(vcf, force = False, keep = False):
@@ -54,7 +65,7 @@ def tabix(vcf, force = False, keep = False):
 	else:
 		vcf = checkGZ(vcf)
 		try:
-			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=True, keep_original=keep)
+			gz = pysam.tabix_index(vcf, seq_col=0, start_col=1, end_col=1, force=force, keep_original=keep)
 		except OSError:
 			print(("\t[Warning] Could not index {}.").format(vcf), file=stderr)
 			gz = None

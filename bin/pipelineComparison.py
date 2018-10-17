@@ -8,6 +8,7 @@ from datetime import datetime
 from argparse import ArgumentParser
 from sys import stderr
 from glob import glob
+from compareNormals import VCFcomparison, compareSamples
 from commonUtil import *
 from unixpath import *
 
@@ -15,38 +16,24 @@ A = re.compile(r"AfiltcovBNAB.*different\.vcf")
 B = re.compile(r"BfiltcovBNAB.*different\.vcf")
 C = re.compile(r"filtcovBNABU.*common\.vcf")
 
-def comparePipelines(outdir, samples):
+def comparePipelines(samples):
 	# Calls bcftools isec on each pair of vcfs and writes summary file
 	print("\tComparing samples...")
+	for s in samples.keys():
+		for t in ["A", "B", "Common"]:
+			# Iterate through list to keep fixed order
+			if t in samples[s].keys():
+				_ = compareSamples(samples[s][t])
+
+def comparisonManifest(infile, outdir):
+	# Reads in dict of vcfs to compare
+	samples = {}
+	first = True
 	log = outdir + "comparisonSummary.csv"
 	with open(log, "w") as out:
 		# Initialize summary file and write header
 		out.write("ID,Comparison,Mutect(A),Platypus(B),#PrivateA,#PrivateB,#Common,%Similarity\n")
-		for s in samples.keys():
-			outpath = outdir + s + "/"
-			for t in ["A", "B", "Common"]:
-				# Iterate through list to keep fixed order
-				a = None
-				if "NA" not in samples[s][t] and None not in samples[s][t]:
-					a = bcfIsec(outpath + t, samples[s][t])
-					if a:
-						b = getTotal(outpath + t + "/0001.vcf")
-						c = getTotal(outpath + t + "/0002.vcf")
-						try:
-							sim = c/(a+b+c)
-						except ZeroDivisionError:
-							sim = 0.0
-					if not a:
-						a = "NA"
-						b = "NA"
-						c = "NA"
-						sim = 0.0
-					out.write(("{},{},{},{},{},{},{},{:.2%}\n").format(s, t,samples[s][t][0], samples[s][t][1], a, b, c, sim))
-
-def comparisonManifest(infile):
-	# Reads in dict of vcfs to compare
-	samples = {}
-	first = True
+	# Get input
 	with open(infile, "r") as f:
 		for line in f:
 			if first == False:
@@ -55,15 +42,34 @@ def comparisonManifest(infile):
 					s = spl[0]
 					if s not in samples.keys():
 						samples[s] = {}
-					# samples{ID: {type: [vcf1, vcf2]}}
-					samples[s][spl[1]] = spl[2:]
+					# Store comparison object byt ID and type
+					samples[s][spl[1]] = VCFcomparison(spl[1], spl[2], spl[3], log, outdir, sample = spl[0]) 
 			else:
 				first = False
 	return samples
 
 #-----------------------------------------------------------------------------
 
-def mergeSamples(outfile, mut, plat):
+def isecSamples(out, sample, m, p):
+	# Writes a, b, and common pairs to file
+	for k in ["a", "b", "c"]:
+		if k not in p.keys() or p[k] is None:
+			p[k] = ""
+		if m[k] is None:
+			m[k] = ""
+	out.write(",".join([sample, "A", m["a"], p["a"]]) + "\n")
+	out.write(",".join([sample, "B", m["b"], p["b"]]) + "\n")
+	out.write(",".join([sample, "Common", m["c"], p["c"]]) + "\n")
+
+def rawSamples(out, sample, m, p):
+	# Writes sample:common pairs to file
+	common = ""
+	if "c" in p.keys():
+		common = p["c"]
+	out.write((",").join([sample, "A", m["a"], common]) + "\n")
+	out.write((",").join([sample, "B", m["b"], common]) + "\n")
+
+def mergeSamples(outfile, mut, plat, ext):
 	# Writes samples to manifest file
 	print("\tWriting new manifest file...")
 	with open(outfile, "w") as out:
@@ -72,14 +78,10 @@ def mergeSamples(outfile, mut, plat):
 			# Write partial lines so they can be editted later
 			if i not in plat.keys():
 				plat[i] = {}
-			for k in ["a", "b", "c"]:
-				if k not in plat[i].keys() or plat[i][k] is None:
-					plat[i][k] = ""
-				if mut[i][k] is None:
-					mut[i][k] = ""
-			out.write(",".join([i, "A", mut[i]["a"], plat[i]["a"]]) + "\n")
-			out.write(",".join([i, "B", mut[i]["b"], plat[i]["b"]]) + "\n")
-			out.write(",".join([i, "Common", mut[i]["c"], plat[i]["c"]]) + "\n")
+			if ext:
+				isecSamples(out, i, mut[i], plat[i])
+			else:
+				rawSamples(out, i, mut[i], plat[i])
 
 def reheader(contigs, infile, outdir = None):
 	# Inserts contig lines into vcf header and returns outfile name
@@ -110,7 +112,7 @@ def reheader(contigs, infile, outdir = None):
 				out.write(line)
 	return outfile
 
-def platypusPaths(p):
+def platypusPaths(p, ext):
 	# Returns paths from vcfdict
 	count = 0
 	paths = {}
@@ -119,18 +121,21 @@ def platypusPaths(p):
 			spl = line.strip().split(",")
 			if count == 3:
 				break
-			if A.match(spl[0]):
+			if A.match(spl[0]) and ext:
 				paths["a"] = p + spl[1]
 				count += 1
-			elif B.match(spl[0]):
+			elif B.match(spl[0]) and ext:
 				paths["b"] = p + spl[1]
 				count += 1
 			elif C.match(spl[0]):
 				paths["c"] = p + spl[1]
-				count += 1
+				if ext:
+					count += 1
+				else:
+					break
 	return paths
 
-def getPlatypusOutput(path, outdir = None, contigs = None):
+def getPlatypusOutput(path, outdir, contigs, ext):
 	# Returns dict of platypus output
 	plat = {}
 	paths = glob(path + "*/")
@@ -139,7 +144,7 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 		sdir = None
 		p = checkDir(p)
 		sample = getParent(p)
-		paths = platypusPaths(p)
+		paths = platypusPaths(p, ext)
 		plat[sample] = {}
 		if outdir:
 			# Copy to new location
@@ -155,18 +160,24 @@ def getPlatypusOutput(path, outdir = None, contigs = None):
 			plat[sample][i] = bcf 
 	return plat
 
-def checkVCF(path, filename = None):
+def checkVCF(f):
 	# Determines if file exists and returns filename/NA
-	ret = None
-	if os.path.isdir(path):
-		if filename:
-			path += filename
-		else:
-			path += "/0000.vcf"
-		ret = tabix(path, force = True)
+	ret = tabix(f, force = True)
 	return ret
 
-def getMutectOutput(path, unfiltered):
+def getNames(path, ext):
+	# Returns vcfs names
+	c = None
+	if ext:
+		a = ("{}A_{}/0000.vcf").format(path, ext)
+		b = ("{}B_{}/0000.vcf").format(path, ext)
+		c = ("{}common_{}.vcf").format(path, ext)
+	else:
+		a = ("{}A.vcf").format(path)
+		b = ("{}B.vcf").format(path)
+	return a, b, c
+
+def getMutectOutput(path, ext):
 	# Returns dict of fitered mutect output
 	mut = {}
 	paths = glob(path + "*/")
@@ -180,20 +191,18 @@ def getMutectOutput(path, unfiltered):
 		mut[sample]["a"] = "NA"
 		mut[sample]["b"] = "NA"
 		mut[sample]["c"] = "NA"
-		ext = "nab"
-		if unfiltered == True:
-			ext = "unfiltered"
-		c = ("common_{}.vcf").format(ext)
-		# Get path names with full sample name
-		pa = checkVCF("{}{}_{}".format(p, "A", ext))
+		# Get path names and check each file
+		a, b, c = getNames(p, ext)
+		pa = checkVCF(a)
 		if pa:
 			mut[sample]["a"] = bcfSort(pa)
-		pb = checkVCF("{}{}_{}".format(p, "B", ext))
+		pb = checkVCF(b)
 		if pb:
 			mut[sample]["b"] = bcfSort(pb)
-		common = checkVCF(p, c)
-		if common:
-			mut[sample]["c"] = bcfSort(common)
+		if c:
+			common = checkVCF(c)
+			if common:
+				mut[sample]["c"] = bcfSort(common)
 	return mut
 
 #-----------------------------------------------------------------------------
@@ -210,7 +219,15 @@ def getContigs(infile):
 				spl = line.split(",")
 				name = spl[0][spl[0].rfind("=")+1:]
 				contigs[name] = line
-	return contigs	
+	return contigs
+
+def getExt(raw, unfiltered):
+	# Returns extension for type of comparison
+	if raw == True:
+		return None
+	elif unfiltered == True:
+		return "unfiltered"
+	return "nab"
 
 def checkArgs(args):
 	# Checks for errors in arguments
@@ -231,11 +248,13 @@ def checkArgs(args):
 	else:
 		checkFile(args.i)
 		args.o = checkDir(args.o, True)
-	return args
+	return args, getExt(args.raw, args.unfiltered)
 
 def main():
 	start = datetime.now()
 	parser = ArgumentParser("This script will compare variants from different filtering pipelines.")
+	parser.add_argument("--raw", action = "store_true", default = False,
+help = "Compare Raw mutect2 output to common variants from platypus output (compares fully filtered output by default).")
 	parser.add_argument("--unfiltered", action = "store_true", default = False,
 help = "Compare 'unfiltered' somatic variants (compares fully filtered output by default).")
 	parser.add_argument("-c", help = "Copy target platypus data to this directory.")
@@ -245,20 +264,20 @@ help = "Compare 'unfiltered' somatic variants (compares fully filtered output by
 	parser.add_argument("-o", 
 help = "Path to output manifest if using -m and -p. Path to output directory if using -i.")
 	parser.add_argument("-i", help = "Path to input manifest for comparison.")
-	args = checkArgs(parser.parse_args())
+	args, ext = checkArgs(parser.parse_args())
 	if args.m and args.p:
 		print("\n\tGetting new manifest for comparison...")
 		contigs = None
 		if args.v:
 			contigs = getContigs(args.v)
-		mutect = getMutectOutput(args.m, args.unfiltered)
-		plat = getPlatypusOutput(args.p, args.c, contigs)
-		mergeSamples(args.o, mutect, plat)
+		mutect = getMutectOutput(args.m, ext)
+		plat = getPlatypusOutput(args.p, args.c, contigs, ext)
+		mergeSamples(args.o, mutect, plat, ext)
 	elif args.i:
 		# Run comparison
 		print("\n\tComparing output from each pipeline...")
-		samples = comparisonManifest(args.i)
-		comparePipelines(args.o, samples)
+		samples = comparisonManifest(args.i, args.o)
+		comparePipelines(samples)
 	print(("\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
 if __name__ == "__main__":
