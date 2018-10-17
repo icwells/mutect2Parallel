@@ -1,4 +1,4 @@
-# mutect2Parallel v0.4 will create batch scripts to call Mutect2 in parallel over input files
+# mutect2Parallel v0.5 will create batch scripts to call Mutect2 in parallel over input files
 
 Copyright 2018 by Shawn Rupp
 
@@ -106,50 +106,63 @@ runPair and getPON commands are formatted in batch scripts by mutect2Parallel, s
 #### runPair.py
 Used to call mutect2 in parallel for each each tumor-normal comparison for one sample. This script is called by mutect2Parallel.py by default. 
 
-	-h, --help		show this help message and exit
-	--bamout		Indicates that mutect should also generate bam output files.
-	-s S			Sample name (required).
-	-x X			Path to first tumor bam (required).
-	-y Y			Path to second tumor bam (required).
-	-c C			Path to normal/control bam (required).
-	-r R			Path to reference genome (required).
-	-o O			Path to output directory (required).
-	--bed BED		Path to bed annotation.
-	--gatk GATK		Path to gatk jar (if using).
+	-h, --help			show this help message and exit
+	--bamout			Indicates that mutect should also generate bam output files.
+	-s S				Sample name (required).
+	-x X				Path to first tumor bam (required).
+	-y Y				Path to second tumor bam (required).
+	-c C				Path to normal/control bam (required).
+	-r R				Path to reference genome (required).
+	-o O				Path to output directory (required).
+	--bed BED			Path to bed annotation.
+	--gatk GATK			Path to gatk jar (if using).
 	--picard PICARD		Path to picard jar (if using).
-	-p P			Path to panel of normals.
-	-g G			Path to germline resource.
-	--af AF			Estimated allele frequency (required if using a germline resource).
-	--mo MO			Additional mutect options in quotes
+	-p P				Path to panel of normals.
+	-g G				Path to germline resource.
+	--af AF				Estimated allele frequency (required if using a germline resource).
+	--mo MO				Additional mutect options in quotes
 
 #### getPON.py
 Can be used to genrate a new panel of normals. This script will be called by mutect2Parallel.py if the --newPON flag is given. 
 
-	-h, --help		show this help message and exit
-	--pon			Generate new panel of normals from log file (requires -l
-						(output from tumor only mode) and -o (output PON file) flags only).
-	-s S			Sample name (required).
-	-l L			Path to log file (required; output files are recorded here).
-	-c C			Path to normal/control bam (required).
-	-r R			Path to reference genome (required).
-	-o O			Path to output directory (required).
-	--bed BED		Path to bed annotation.
-	--gatk GATK		Path to gatk jar (if using).
+	-h, --help			show this help message and exit
+	--pon				Generate new panel of normals from log file (requires -l
+							(output from tumor only mode) and -o (output PON file) flags only).
+	-s S				Sample name (required).
+	-l L				Path to log file (required; output files are recorded here).
+	-c C				Path to normal/control bam (required).
+	-r R				Path to reference genome (required).
+	-o O				Path to output directory (required).
+	--bed BED			Path to bed annotation.
+	--gatk GATK			Path to gatk jar (if using).
 	--picard PICARD		Path to picard jar (if using).
-	-g G			Path to germline resource.
-	--af AF			Estimated allele frequency (required if using a germline resource).
-	-e E			Path to contmination estimate vcf.
+	-g G				Path to germline resource.
+	--af AF				Estimated allele frequency (required if using a germline resource).
+	-e E				Path to contmination estimate vcf.
 
-#### compareVariants.py  
+#### pipelineComparison.py  
 This script will compare variants from different filtering pipelines.  
 
 	-h, --help show this help message and exit  
-	-c C		Copy target platypus data to this directory.  
-	-v V		Path to uncompressed vcf header (Copies contig information to platypus vcf headers).  
-	-i I		Path to input manifest (mutect input for manifest generation or generated manifest for comparison).  
-	-m M		Path to mutect2parallel parent output directory.  
-	-p P		Path to platypus-based parent output directory.  
-	-o O		Path to output manifest if using -m and -p. Path to output directory if using -i.  
+	--raw			Compare Raw mutect2 output to common variants from platypus output (compares fully filtered output by default).  
+	--unfiltered	Compare 'unfiltered' somatic variants (compares fully filtered output by default).  
+	-c C			Copy target platypus data to this directory.  
+	-v V			Path to uncompressed vcf header (Copies contig information to platypus vcf headers).  
+	-m M			Path to mutect2parallel parent output directory.  
+	-p P			Path to platypus-based parent output directory.  
+	-o O			Path to output manifest if using -m and -p. Path to output directory if using -i.  
+	-i I			Path to input manifest for comparison.  
+
+#### compareNormals.py  
+This script will call bcftools isec to compare input samples. Make sure platypus is loaded in a module 
+or in your PATH if supplying an input bam file.  
+
+	-h, --help		show this help message and exit  
+	--allsamples	Compares each tumor vcf to all normal vcfs.  
+	-t T			Number of threads (default = 1).  
+	-i I			Path to input sample (If omitted, the normal vcfs will be compared to one another).  
+	-m M			Path to manifest of normals files (one file per line).  
+	-o O 			Path to output directory.  
 
 ### Utilities  
 
