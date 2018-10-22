@@ -7,3 +7,6 @@ __pycache__/*
 
 # Go binary
 bin/heterAnalyzer
+
+# Raw Walkthrough
+walkthrough.odg
