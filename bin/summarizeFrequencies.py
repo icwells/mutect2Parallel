@@ -5,8 +5,7 @@ import gzip
 from datetime import datetime
 from argparse import ArgumentParser
 from glob import glob
-from unixpath import *
-from commonUtil import *
+from unixpath import checkDir, getParent
 from compareNormals import fatalError
 from pipelineComparison import platypusPaths
 
@@ -24,7 +23,7 @@ class Variant():
 
 	def __str__(self):
 		# Returns string of single line
-		ret = ("{},{},{},").format(self.name, self.chr, self.coor)
+		ret = ("{},{},").format(self.chr, self.coor)
 		ret += ("{},{},{},").format(self.platypusC, self.platypusA, self.platypusB)
 		ret += ("{},{},{}").format(self.mutectC, self.mutectA, self.mutectB)
 		return ret
@@ -41,7 +40,7 @@ class Variants():
 		ret = ""
 		for i in self.output.keys():
 			for j in self.output[i].keys():
-				ret += ("{},{}\n").format(self.name, i)
+				ret += ("{},{}\n").format(self.name, self.output[i][j])
 		return ret
 
 	def __readFrequency__(self, info):
@@ -51,6 +50,9 @@ class Variants():
 			if "POP_AF" in i:
 				f = i.split("=")[-1]
 				break
+		if "," in f:
+			# Remove multiple frequencies
+			f = f.split(",")[0]
 		return f
 
 	def __assignFrequency__(self, column, chrom, coor, freq):
@@ -59,20 +61,23 @@ class Variants():
 			self.output[chrom] = {}
 		if coor not in self.output[chrom].keys():
 			self.output[chrom][coor] = Variant(chrom, coor)
-		if "m" in column:
-			if "a" in column:
+		# Enter frequency in appropriate field
+		if column[0] == "m":
+			if column [1] == "a":
 				self.output[chrom][coor].mutectA = freq
-			elif "b" in column:
+			elif column [1] == "b":
 				self.output[chrom][coor].mutectB = freq
-			elif "c" in column:
+			elif column [1] == "c":
 				self.output[chrom][coor].mutectC = freq
-		elif "p" in column:
-			if "a" in column:
+		elif column[0] == "p":
+			if column [1] == "a":
 				self.output[chrom][coor].platypusA = freq
-			elif "b" in column:
+			elif column [1] == "b":
 				self.output[chrom][coor].platypusB = freq
-			elif "c" in column:
+			elif column [1] == "c":
 				self.output[chrom][coor].platypusC = freq
+		if freq != 0 and freq != "NA":
+			print(str(self.output[chrom][coor]))
 
 	def __readVCF__(self, vcf, column):
 		# Reads uncompressed vcf
@@ -83,41 +88,38 @@ class Variants():
 					f = self.__readFrequency__(s[7].split(";"))
 					self.__assignFrequency__(column, s[0], s[1], f)
 
-	def __readGZ__(self, vcf):
+	def __readGZ__(self, vcf, column):
 		# Reads gzippped vcf
 		tag = ("#").encode()
 		with gzip.open(vcf, "rb") as f:
 			for line in f:
 				if tag not in line:
-					s = str(line).split("\t")
-					chrom, coor = s[0], s[1]
-					info = s[7].split(";")
-					v.append(self.__readFrequency__(info))
-					print(chrom)
+					line = line.decode("utf-8")
+					s = line.split("\t")
+					f = self.__readFrequency__(s[7].split(";"))
+					self.__assignFrequency__(column, s[0], s[1], f)
 
-	def __readVariants__(self, vcf):
+	def __readVariants__(self, vcf, column):
 		# Assigns file to appropriate reading function and returns dict
-		ret = []
 		if os.path.isfile(vcf):
 			if ".gz" not in vcf:
-				ret = self.__readVCF__(vcf)
+				ret = self.__readVCF__(vcf, column)
 			else:
-				ret = self.__readGZ__(vcf)
+				ret = self.__readGZ__(vcf, column)
 		elif os.path.isfile(vcf + ".gz"):
-			ret = self.__readGZ__(vcf + ".gz")
-		return ret
+			ret = self.__readGZ__(vcf + ".gz", column)
 
 	def getMutectVariants(self, path):
 		# Reads variant frequencies from filtered mutect output files
-		self.__readVariants__(p + "A.NAB.vcf", "ma")
-		self.__readVariants__(p + "B.NAB.vcf", "mb")
-		self.__readVariants__(p + "A.NAB.vcf", "mc")
+		self.__readVariants__(path + "A.NAB.vcf", "ma")
+		self.__readVariants__(path + "B.NAB.vcf", "mb")
+		self.__readVariants__(path + "A.NAB.vcf", "mc")
 
 	def getPlatypusVariants(self, paths):
 		# Reads variant frequencies from filtered platypus output files
-		self.platypusA = self.__readVariants__(paths["a"])
-		self.platypusB = self.__readVariants__(paths["b"])
-		self.platypusC = self.__readVariants__(paths["c"])
+		self.__readVariants__(paths["a"], "pa")
+		self.__readVariants__(paths["b"], "pb")
+		self.__readVariants__(paths["c"], "pc")
 
 #-----------------------------------------------------------------------------
 
@@ -140,7 +142,7 @@ class Frequencies():
 
 	def mutectFrequencies(self):
 		# Stores frequencies from mutect2 output
-		paths = glob(self.MutectDir + "*")
+		paths = glob(self.mutectDir + "*/")
 		print("\n\tGetting mutect2 variant frequencies...")
 		for p in paths:
 			if os.path.isdir(p):
@@ -149,20 +151,22 @@ class Frequencies():
 					# Drop leading number from name
 					sample = full[full.find("_")+1:]
 					v = Variants(sample)
-					self.Frequencies[sample] = v.getMutectVariants(p)
+					v.getMutectVariants(p)
+					self.frequencies[sample] = v
 
 	def platypusFrequencies(self):
 		# Stores frequencies from mutect2 output
-		paths = glob(self.MutectDir + "*")
+		paths = glob(self.platypusDir + "*/")
 		print("\tGetting platypus variant frequencies...")
 		for p in paths:
 			if os.path.isdir(p):
+				if p[-1] != "/":
+					p += "/"
 				paths = platypusPaths(p, "nab")
-				full = getParent(p)
+				sample = getParent(p)
 				if sample not in self.frequencies.keys():
-					v = Variants(sample)
-				self.Frequencies[sample] = v.getPlatypusVariants(paths)
-
+					self.frequencies[sample] = Variants(sample)
+				self.frequencies[sample].getPlatypusVariants(paths)
 
 def checkArgs(args):
 	# Checks argument validity
@@ -187,7 +191,7 @@ variants from the mutect2 and platypus pipelines.")
 	args = checkArgs(args)
 	f = Frequencies(args.m, args.p, args.o)
 	f.mutectFrequencies()
-	f.platypusFrequencies
+	f.platypusFrequencies()
 	f.writeFrequencies()
 	print(("\tFinished. Runtime: {}\n").format(datetime.now()-start))
 
