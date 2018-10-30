@@ -10,10 +10,11 @@ from compareNormals import fatalError
 from pipelineComparison import platypusPaths
 
 class Variant():
-	def __init__(self, chrom, coor):
+	def __init__(self, chrom, coor, var):
 		# Store data for each variant
 		self.chr = chrom
 		self.coor = coor
+		self.variant = var
 		self.mutectA = 0
 		self.mutectB = 0
 		self.mutectC = 0
@@ -23,7 +24,7 @@ class Variant():
 
 	def __str__(self):
 		# Returns string of single line
-		ret = ("{},{},").format(self.chr, self.coor)
+		ret = ("{},{},{},").format(self.chr, self.coor, self.variant)
 		ret += ("{},{},{},").format(self.platypusC, self.platypusA, self.platypusB)
 		ret += ("{},{},{}").format(self.mutectC, self.mutectA, self.mutectB)
 		return ret
@@ -33,21 +34,21 @@ class Variants():
 		# Defines class for storing variants for samples from one tumor
 		self.name = sample
 		self.output = {}
-		# [[variant, chrom, coor, freq]]
 
 	def __str__(self):
 		# Converts lists to writable string
 		ret = ""
 		for i in self.output.keys():
 			for j in self.output[i].keys():
-				ret += ("{},{}\n").format(self.name, self.output[i][j])
+				for k in self.output[i][j].keys():
+					ret += ("{},{}\n").format(self.name, self.output[i][j][k])
 		return ret
 
 	def __readFrequency__(self, info):
 		# Get population alt allele frequency from info column
 		f = "NA"
 		for i in info:
-			if "POP_AF" in i:
+			if "POP_AF" in i or "FR" in i:
 				f = i.split("=")[-1]
 				break
 		if "," in f:
@@ -55,29 +56,29 @@ class Variants():
 			f = f.split(",")[0]
 		return f
 
-	def __assignFrequency__(self, column, chrom, coor, freq):
+	def __assignFrequency__(self, column, chrom, coor, var, freq):
 		# Assigns frequency to proper column of proper dict
 		if chrom not in self.output.keys():
 			self.output[chrom] = {}
 		if coor not in self.output[chrom].keys():
-			self.output[chrom][coor] = Variant(chrom, coor)
+			self.output[chrom][coor] = {}
+		if var not in self.output[chrom][coor].keys():
+			self.output[chrom][coor][var] = Variant(chrom, coor, var)
 		# Enter frequency in appropriate field
 		if column[0] == "m":
 			if column [1] == "a":
-				self.output[chrom][coor].mutectA = freq
+				self.output[chrom][coor][var].mutectA = freq
 			elif column [1] == "b":
-				self.output[chrom][coor].mutectB = freq
+				self.output[chrom][coor][var].mutectB = freq
 			elif column [1] == "c":
-				self.output[chrom][coor].mutectC = freq
+				self.output[chrom][coor][var].mutectC = freq
 		elif column[0] == "p":
 			if column [1] == "a":
-				self.output[chrom][coor].platypusA = freq
+				self.output[chrom][coor][var].platypusA = freq
 			elif column [1] == "b":
-				self.output[chrom][coor].platypusB = freq
+				self.output[chrom][coor][var].platypusB = freq
 			elif column [1] == "c":
-				self.output[chrom][coor].platypusC = freq
-		if freq != 0 and freq != "NA":
-			print(str(self.output[chrom][coor]))
+				self.output[chrom][coor][var].platypusC = freq
 
 	def __readVCF__(self, vcf, column):
 		# Reads uncompressed vcf
@@ -86,7 +87,7 @@ class Variants():
 				if line[0] != "#":
 					s = line.strip().split("\t")
 					f = self.__readFrequency__(s[7].split(";"))
-					self.__assignFrequency__(column, s[0], s[1], f)
+					self.__assignFrequency__(column, s[0], s[1], s[3], f)
 
 	def __readGZ__(self, vcf, column):
 		# Reads gzippped vcf
@@ -97,7 +98,7 @@ class Variants():
 					line = line.decode("utf-8")
 					s = line.split("\t")
 					f = self.__readFrequency__(s[7].split(";"))
-					self.__assignFrequency__(column, s[0], s[1], f)
+					self.__assignFrequency__(column, s[0], s[1], s[3], f)
 
 	def __readVariants__(self, vcf, column):
 		# Assigns file to appropriate reading function and returns dict
@@ -111,9 +112,9 @@ class Variants():
 
 	def getMutectVariants(self, path):
 		# Reads variant frequencies from filtered mutect output files
-		self.__readVariants__(path + "A.NAB.vcf", "ma")
-		self.__readVariants__(path + "B.NAB.vcf", "mb")
-		self.__readVariants__(path + "A.NAB.vcf", "mc")
+		self.__readVariants__(path + "A_nab/0000.vcf", "ma")
+		self.__readVariants__(path + "B_nab/0000.vcf", "mb")
+		self.__readVariants__(path + "common_nab.vcf", "mc")
 
 	def getPlatypusVariants(self, paths):
 		# Reads variant frequencies from filtered platypus output files
@@ -126,7 +127,7 @@ class Variants():
 class Frequencies():
 	def __init__(self, mdir, pdir, out):
 		# Defines class for reading and storing variant frequencies
-		self.header = "Patient,Chromosome,Coordinates,PlatypusCommon,PlatypusPrivateA,PlatypusPrivateB,Mutect2Common,Mutect2PrivateA,Mutect2PrivateB\n"
+		self.header = "Patient,Chromosome,Coordinates,Variant,PlatypusCommon,PlatypusPrivateA,PlatypusPrivateB,Mutect2Common,Mutect2PrivateA,Mutect2PrivateB\n"
 		self.mutectDir = mdir
 		self.platypusDir = pdir
 		self.outfile = out
