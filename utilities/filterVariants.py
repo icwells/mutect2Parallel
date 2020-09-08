@@ -9,13 +9,20 @@ import unixpath
 class Variant():
 
 	def __init__(self, line):
-		self.patient = line["Patient"]
+		self.patient = self.__setPatient__(line["Patient"])
 		self.shared	= line["Shared"]
 		self.chr = line["Chr"]
 		self.start = line["Start"]
 		self.end = line["End"]
 		self.ref = line["REF"]
 		self.alt = line["ALT"]
+
+	def __setPatient__(self, name):
+		# Formats patient name to be equivalent to variants summary file
+		# Remove initial dash and replace second with underscore
+		name = name[name.index("D"):]
+		name = name.replace("DCIS-", "DCIS")
+		return name.replace("-", "_")
 
 	def equals(self, line):
 		# Returns true if line cantains same variant
@@ -54,12 +61,12 @@ class VariantsFilter():
 		if args.ampliseq:
 			sheet = "Table 3S_SNVs validation"
 			name = "ampliseqVariants.csv"
-		elif args.relaxed:
+		elif args.stringent:
 			sheet = "Table 4S_S_ list varinats (SNVs"
 			name = "relaxedVariants.csv"
-		elif args.stringent:
+		elif args.relaxed:
 			sheet = "Table 5S_R_ list variants(SNVs)"
-			name = "stringentVarinats.csv"
+			name = "stringentVariants.csv"
 		# Store outfile name
 		self.outfile = os.path.join(outdir, name)
 		wb = pd.read_excel(args.v, sheet)
